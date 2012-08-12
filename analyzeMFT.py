@@ -9,6 +9,14 @@
 # Date: May 2011
 #
 
+'''
+
+Big Note:
+
+Much of this code needs to be rewritten. Be warned.
+
+'''
+
 
 '''
 OOP approach:
@@ -574,16 +582,18 @@ def anomalyDetect():
           # investigated
           except:
                MFTR['stf-fn-shift'] = True
+               addNote('stf-fn-shift')
      
           # Check for STD create times with a nanosecond value of '0'
           if MFTR['fn',0]['crtime'].dt != 0:
                if MFTR['fn',0]['crtime'].dt.microsecond == 0:
                     MFTR['usec-zero'] = True
+                    addNote('usec-zero')
 
 def buildFolderStructure():
 	# 1024 is valid for current version of Windows but should really get this value from somewhere         
 	recordNumber = 0
-	record = F.read(1024)
+	record = mft_file.read(1024)
 
 	while record != "":
 		MFTR = decodeMFTHeader(record);
@@ -615,7 +625,7 @@ def buildFolderStructure():
 					Folders[recordNumber]['parent'] = MFTR['fn',MFTR['fncnt']-1]['par_ref']
 					Folders[recordNumber]['name'] = MFTR['fn',MFTR['fncnt']-1]['name']
 
-		record = F.read(1024)
+		record = mft_file.read(1024)
 		recordNumber = recordNumber + 1
     
 
@@ -650,7 +660,7 @@ def writeCSVFile():
     
      if recordNumber == -1:
           # Write headers
-          OutFile.writerow(['Record Number', 'Good', 'Active', 'Record type',
+          output_file.writerow(['Record Number', 'Good', 'Active', 'Record type',
 #                        '$Logfile Seq. Num.',
                          'Sequence Number', 'Parent File Rec. #', 'Parent File Rec. Seq. #',
                          'Filename #1', 'Std Info Creation date', 'Std Info Modification date',
@@ -666,7 +676,7 @@ def writeCSVFile():
                          'Index Allocation', 'Bitmap', 'Reparse Point', 'EA Information', 'EA',
                          'Property Set', 'Logged Utility Stream', 'Log/Notes', 'STF FN Shift', 'uSec Zero'])
      elif 'baad' in MFTR:
-          OutFile.writerow(["%s" % recordNumber,"BAAD MFT Record"])
+          output_file.writerow(["%s" % recordNumber,"BAAD MFT Record"])
      else:
           mftBuffer = [recordNumber, decodeMFTmagic(MFTR['magic']), decodeMFTisactive(MFTR['flags']),
                           decodeMFTrecordtype(int(MFTR['flags']))]
@@ -738,10 +748,12 @@ def writeCSVFile():
           mftBuffer.append('True') if 'propertyset' in MFTR else mftBuffer.append('False')
           mftBuffer.append('True') if 'loggedutility' in MFTR else mftBuffer.append('False')            
         
+        
           if 'notes' in MFTR:                        # Log of abnormal activity related to this record
                mftBuffer.append(MFTR['notes'])
           else:
                mftBuffer.append('None')
+               MFTR['notes'] = ''
           
           if 'stf-fn-shift' in MFTR:
                mftBuffer.append('Y')
@@ -753,7 +765,7 @@ def writeCSVFile():
           else:
                mftBuffer.append('N')
 
-          OutFile.writerow(mftBuffer)
+          output_file.writerow(mftBuffer)
         
         
           if options.bodyfile != None:
@@ -775,6 +787,36 @@ def writeCSVFile():
                                    SIrecord['mtime'].unixtime,
                                    SIrecord['ctime'].unixtime,
                                    SIrecord['ctime'].unixtime))
+
+# l2t CSV output support
+# date,time,timezone,MACB,source,sourcetype,type,user,host,short,desc,version,filename,inode,notes,format,extra
+# http://code.google.com/p/log2timeline/wiki/l2t_csv
+
+
+          if options.csvtimefile != None:
+               
+               if MFTR['fncnt'] > 0:
+                    for i in ('atime', 'mtime', 'ctime', 'crtime'):
+                         (date,time) = MFTR['fn',0][i].dtstr.split(' ')
+                    
+                         if i == 'atime':
+                              type_str = '$SI [.A..] time'
+                              macb_str = '.A..'
+                         if i == 'mtime':
+                              type_str = '$SI [M...] time'
+                              macb_str = 'M...'
+                         if i == 'ctime':
+                              type_str = '$SI [..C.] time'
+                              macb_str = '..C.'
+                         if i == 'crtime':
+                              type_str = '$SI [...B] time'
+                              macb_str = '...B'
+                              
+                         csv_time_file.write("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n" %
+                              (date, time, 'TZ', macb_str, 'FILE', 'NTFS $MFT', type_str, 'user', 'host', MFTR['filename'], 'desc',
+                               'version', MFTR['filename'], MFTR['seq'], MFTR['notes'], 'format', 'extra'))
+                    
+
 # Get command line options
 
 parser = OptionParser()
@@ -839,13 +881,13 @@ else:
     
 
 try:
-    F = open(options.filename, 'rb')
+    mft_file = open(options.filename, 'rb')
 except:
     print "Unable to open file: %s" % options.filename
     sys.exit()
 
 try:
-    OutFile = csv.writer(open(options.output, 'wb'), dialect=csv.excel,quoting=1)
+    output_file = csv.writer(open(options.output, 'wb'), dialect=csv.excel,quoting=1)
 except (IOError, TypeError):
     print "Unable to open file: %s" % options.output
     sys.exit()
@@ -859,7 +901,8 @@ if options.bodyfile != None:
          
 if options.csvtimefile != None:
      try:
-          csv_time_file = csv.writer(open(options.csvtimefile, 'wb'), dialect=csv.excel,quoting=1)
+#          csv_time_file = csv.writer(open(options.csvtimefile, 'wb'), dialect=csv.excel,quoting=1)
+          csv_time_file = open(options.csvtimefile, 'w')
      except (IOError, TypeError):
           print "Unable to open file: %s" % options.csvtimefile
           sys.exit()
@@ -876,10 +919,10 @@ buildFolderStructure()
 # reset recordNumber
 recordNumber = 0
 # reset the file reading (since we did some pre-processing)
-F.seek(0)
+mft_file.seek(0)
 
 # 1024 is valid for current version of Windows but should really get this value from somewhere         
-record = F.read(1024)
+record = mft_file.read(1024)
 
 
 while record != "":
@@ -1000,7 +1043,7 @@ while record != "":
               if options.debug: print "Filename (with path): %s" % MFTR['filename']
 		
               
-     record = F.read(1024)
+     record = mft_file.read(1024)
     
      if options.anomaly and 'baad' not in MFTR:
           anomalyDetect()
@@ -1008,9 +1051,9 @@ while record != "":
      writeCSVFile()
      recordNumber = recordNumber + 1
     
-#    if recordNumber > 100:
-#        sys.exit()
+     if recordNumber > 100:
+        sys.exit()
    
-F.close()
+mft_file.close()
          
          

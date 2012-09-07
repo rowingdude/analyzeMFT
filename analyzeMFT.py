@@ -264,7 +264,7 @@ from optparse import OptionParser
 
 # Globals
 
-VERSION='1.9'
+VERSION='1.10'
 
 SIAttributeSizeXP = 72
 SIAttributeSizeNT = 48
@@ -825,7 +825,7 @@ def writeCSVFile():
 parser = OptionParser()
 parser.set_defaults(debug=False,UseLocalTimezone=False,UseGUI=False)
 
-parser.add_option("-v", "--version", dest="version",
+parser.add_option("-v", "--version", action="store_true", dest="version",
                   help="report version and exit")
 
 parser.add_option("-f", "--file", dest="filename",

@@ -77,6 +77,7 @@ Version 1.6: Various bug fixes
 Version 1.7: Bodyfile support, with thanks to Dave Hull
 Version 1.8: Added support for full path extraction, written by Kristinn Gudjonsson
 Version 1.9: Added support for csv timeline output
+Version 1.10: Just for Tom
                     
 Purpose:
 
@@ -856,6 +857,7 @@ parser.add_option("-d", "--debug",
 
 if (options.version == True):
      print("Version is: %s" % (VERSION))
+     sys.exit()
      
 # Start reading file
 

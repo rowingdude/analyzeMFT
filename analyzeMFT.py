@@ -263,6 +263,8 @@ from optparse import OptionParser
 
 # Globals
 
+VERSION='1.9'
+
 SIAttributeSizeXP = 72
 SIAttributeSizeNT = 48
 
@@ -822,13 +824,11 @@ def writeCSVFile():
 parser = OptionParser()
 parser.set_defaults(debug=False,UseLocalTimezone=False,UseGUI=False)
 
+parser.add_option("-v", "--version", dest="version",
+                  help="report version and exit")
+
 parser.add_option("-f", "--file", dest="filename",
                   help="read MFT from FILE", metavar="FILE")
-
-# ToDo: implement
-#parser.add_option("-l", "--localtimezone",
-#                  action="store_true", dest="UseLocalTimezone",
-#                  help="set all times to local time rather than UTC")
 
 parser.add_option("-o", "--output", dest="output",
                   help="write results to FILE", metavar="FILE")
@@ -847,12 +847,16 @@ if noGUI == False:
      parser.add_option("-g", "--gui",
                        action="store_true", dest="UseGUI",
                        help="Use GUI for file selection")
+     
 parser.add_option("-d", "--debug",
                   action="store_true", dest="debug",
                   help="turn on debugging output")
 
 (options, args) = parser.parse_args()
 
+if (options.version == True):
+     print("Version is: %s" % (VERSION))
+     
 # Start reading file
 
 if (options.UseGUI):
@@ -1050,10 +1054,7 @@ while record != "":
           
      writeCSVFile()
      recordNumber = recordNumber + 1
-    
-     if recordNumber > 100:
-        sys.exit()
-   
+
 mft_file.close()
          
          

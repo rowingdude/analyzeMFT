@@ -299,8 +299,11 @@ class WindowsTime:
         # There are 134,774 days (or 11,644,473,600 seconds) between these dates.
         self.unixtime = self.GetUnixTime()
               
-        try:  
-          self.dt = datetime.fromtimestamp(self.unixtime)
+        try:
+          if (options.localtz == True):
+               self.dt = datetime.fromtimestamp(self.unixtime)
+          else:
+               self.dt = datetime.utcfromtimestamp(self.unixtime)
 
           # Pass isoformat a delimiter if you don't like the default "T".
           self.dtstr = self.dt.isoformat(' ')
@@ -843,6 +846,10 @@ parser.add_option("-b", "--bodyfile", dest="bodyfile",
 
 parser.add_option("-c", "--csvtimefile", dest="csvtimefile",
                   help="write CSV format timeline file", metavar="FILE")
+
+parser.add_option("-l", "--localtz",
+                  action="store_true", dest="localtz",
+                  help="report times using local timezone")
 
 if noGUI == False:
      parser.add_option("-g", "--gui",

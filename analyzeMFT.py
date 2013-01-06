@@ -41,12 +41,16 @@ Usage: analyzeMFT.py [options]
 
 Options:
   -h, --help            show this help message and exit
+  -v, --version         report version and exit
   -f FILE, --file=FILE  read MFT from FILE
   -o FILE, --output=FILE
                         write results to FILE
   -a, --anomaly         turn on anomaly detection
   -b FILE, --bodyfile=FILE
                         write MAC information to bodyfile
+  -c FILE, --csvtimefile=FILE
+                        write CSV format timeline file
+  -l, --localtz         report times using local timezone
   -g, --gui             Use GUI for file selection
   -d, --debug           turn on debugging output
 
@@ -78,6 +82,7 @@ Version 1.7: Bodyfile support, with thanks to Dave Hull
 Version 1.8: Added support for full path extraction, written by Kristinn Gudjonsson
 Version 1.9: Added support for csv timeline output
 Version 1.10: Just for Tom
+Version 1.11: Fixed TSK bodyfile output
                     
 Purpose:
 
@@ -780,19 +785,19 @@ def writeCSVFile():
                # To do - figure out file size
                     
                if MFTR['fncnt'] > 0:
-                    bodyfile.write("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n" %
-                                   ('',FNrecord['name'],'0','','0','0','',
-                                   MFTR['fn',0]['atime'].unixtime,
-                                   MFTR['fn',0]['mtime'].unixtime,
-                                   MFTR['fn',0]['ctime'].unixtime,
-                                   MFTR['fn',0]['crtime'].unixtime))
+                    bodyfile.write("%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d\n" %
+                                   ('0',FNrecord['name'],'0','','0','0','',
+                                   int(MFTR['fn',0]['atime'].unixtime),
+                                   int(MFTR['fn',0]['mtime'].unixtime),
+                                   int(MFTR['fn',0]['ctime'].unixtime),
+                                   int(MFTR['fn',0]['crtime'].unixtime)))
                else:
-                    bodyfile.write("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n" %
-                                   ('','No FN Record','0','','0','0','',
-                                   str(SIrecord['atime'].unixtime),
-                                   SIrecord['mtime'].unixtime,
-                                   SIrecord['ctime'].unixtime,
-                                   SIrecord['ctime'].unixtime))
+                    bodyfile.write("%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d\n" %
+                                   ('0','No FN Record','0','','0','0','',
+                                   int(SIrecord['atime'].unixtime),  # was str ....
+                                   int(SIrecord['mtime'].unixtime),
+                                   int(SIrecord['ctime'].unixtime),
+                                   int(SIrecord['ctime'].unixtime)))
 
 # l2t CSV output support
 # date,time,timezone,MACB,source,sourcetype,type,user,host,short,desc,version,filename,inode,notes,format,extra

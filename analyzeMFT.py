@@ -786,14 +786,14 @@ def writeCSVFile():
                     
                if MFTR['fncnt'] > 0:
                     bodyfile.write("%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d\n" %
-                                   ('0',FNrecord['name'],'0','','0','0','',
+                                   ('0',FNrecord['name'],'0','0','0','0','0',
                                    int(MFTR['fn',0]['atime'].unixtime),
                                    int(MFTR['fn',0]['mtime'].unixtime),
                                    int(MFTR['fn',0]['ctime'].unixtime),
                                    int(MFTR['fn',0]['crtime'].unixtime)))
                else:
                     bodyfile.write("%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d\n" %
-                                   ('0','No FN Record','0','','0','0','',
+                                   ('0','No FN Record','0','0','0','0','0',
                                    int(SIrecord['atime'].unixtime),  # was str ....
                                    int(SIrecord['mtime'].unixtime),
                                    int(SIrecord['ctime'].unixtime),

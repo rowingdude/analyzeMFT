@@ -269,7 +269,7 @@ from optparse import OptionParser
 
 # Globals
 
-VERSION='1.10'
+VERSION='1.11'
 
 SIAttributeSizeXP = 72
 SIAttributeSizeNT = 48

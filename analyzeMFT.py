@@ -83,6 +83,7 @@ Version 1.8: Added support for full path extraction, written by Kristinn Gudjons
 Version 1.9: Added support for csv timeline output
 Version 1.10: Just for Tom
 Version 1.11: Fixed TSK bodyfile output
+Version 1.12: Fix orphan file detection issue that caused recursion error (4/18/2013)
                     
 Purpose:
 
@@ -648,16 +649,23 @@ def getFolderPath(p):
 		MFTR['filename'] = '/' + MFTR['filename']
 		return 1
 
+	if options.debug: print "Folders[p]" % Folders[p]
+
         # not the end, so add to the filename
 	try:
 		n = Folders[p]['name'] + '/' + MFTR['filename']
 	except KeyError:
 		if options.debug: print "Error while trying to determine path (%s)" % MFTR['filename']
-		MFTR['filename'] = '???/' + MFTR['filename']
+		MFTR['filename'] = 'ORPHAN/' + MFTR['filename']
 		return 1
 
 	MFTR['filename'] = n
 
+        if Folders[p]['parent'] == p:
+          if options.debug: print "Error, self-referential, while trying to determine path (%s)" % MFTR['filename']
+          MFTR['filename'] = 'ORPHAN/' + MFTR['filename']
+          return 1
+     
         # and call the subroutine again
 	getFolderPath( Folders[p]['parent'] )
 	

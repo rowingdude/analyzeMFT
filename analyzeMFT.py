@@ -84,6 +84,8 @@ Version 1.9: Added support for csv timeline output
 Version 1.10: Just for Tom
 Version 1.11: Fixed TSK bodyfile output
 Version 1.12: Fix orphan file detection issue that caused recursion error (4/18/2013)
+Version 1.13: Changed from walking all sequence numbers to pulling sequence number from MFT. Previous approach did not handle
+              gaps well
                     
 Purpose:
 
@@ -389,8 +391,8 @@ def decodeMFTHeader(s):
     d['base_ref'] = struct.unpack("<Lxx",s[32:38])[0]
     d['base_seq'] = struct.unpack("<H",s[38:40])[0]
     d['next_attrid'] = struct.unpack("<H",s[40:42])[0]
-    d['f1'] = s[42:44]
-    d['entry'] = s[44:48]
+    d['f1'] = s[42:44]                            # Padding
+    d['recordnum'] = struct.unpack("<I", s[44:48])[0]  # Number of this MFT Record
     d['fncnt'] = 0                              # Counter for number of FN attributes
 
     return d
@@ -604,15 +606,15 @@ def anomalyDetect():
 
 def buildFolderStructure():
 	# 1024 is valid for current version of Windows but should really get this value from somewhere         
-	recordNumber = 0
+	
 	record = mft_file.read(1024)
 
 	while record != "":
 		MFTR = decodeMFTHeader(record);
-    
 		if MFTR['magic'] == 0x44414142:
 			MFTR['baad'] = True
 		else:
+                        recordNumber = MFTR['recordnum']
 			ReadPtr = MFTR['attr_off']
               
 			while (ReadPtr < 1024):
@@ -638,7 +640,6 @@ def buildFolderStructure():
 					Folders[recordNumber]['name'] = MFTR['fn',MFTR['fncnt']-1]['name']
 
 		record = mft_file.read(1024)
-		recordNumber = recordNumber + 1
     
 
 def getFolderPath(p):
@@ -671,13 +672,13 @@ def getFolderPath(p):
 	
 	return 1
      
-def writeCSVFile():
+def writeCSVFile(doHeaders):
     
      mftBuffer = ''
      tmpBuffer = ''
      filenameBuffer = ''
     
-     if recordNumber == -1:
+     if doHeaders == True:
           # Write headers
           output_file.writerow(['Record Number', 'Good', 'Active', 'Record type',
 #                        '$Logfile Seq. Num.',
@@ -934,16 +935,13 @@ if options.csvtimefile != None:
           sys.exit()
      
 # Write the headers to the output file
-recordNumber = -1
-writeCSVFile()
-recordNumber = 0
+
+writeCSVFile(True)
 
 Folders = {}
 MFTR = {}
 buildFolderStructure()
 
-# reset recordNumber
-recordNumber = 0
 # reset the file reading (since we did some pre-processing)
 mft_file.seek(0)
 
@@ -954,6 +952,7 @@ record = mft_file.read(1024)
 while record != "":
     
      MFTR = decodeMFTHeader(record);
+     recordNumber = MFTR['recordnum']
     
      if options.debug:    print '-->Record number: %d\n\tMagic: %s Attribute offset: %d Flags: %s Size:%d' %  (recordNumber, MFTR['magic'], MFTR['attr_off'], hex(int(MFTR['flags'])), MFTR['size'])
      
@@ -1074,8 +1073,7 @@ while record != "":
      if options.anomaly and 'baad' not in MFTR:
           anomalyDetect()
           
-     writeCSVFile()
-     recordNumber = recordNumber + 1
+     writeCSVFile(False)
 
 mft_file.close()
          

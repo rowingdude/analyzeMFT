@@ -87,6 +87,9 @@ Version 1.12: Fix orphan file detection issue that caused recursion error (4/18/
 Version 1.13: Changed from walking all sequence numbers to pulling sequence number from MFT. Previous approach did not handle
               gaps well
 Version 1.14: Made -o output optional if -b is specified. (Either/or)
+Version 1.15: Added file size (real, not allocated) to bodyfile.
+              Added bodyfile option to include fullpath + filename rather than just filename
+              Added bodyfile option to use STD_INFO timestamps rather than FN timestamps
                     
 Purpose:
 
@@ -450,14 +453,14 @@ def decodeFNAttribute(s):
     # File name attributes can have null dates.
     
     d = {}
-    d['par_ref'] = struct.unpack("<Lxx", s[:6])[0]      # Parent reference nummber
+    d['par_ref'] = struct.unpack("<Lxx", s[:6])[0]      # Parent reference nummber + seq number = 8 byte "File reference to the parent directory."
     d['par_seq'] = struct.unpack("<H",s[6:8])[0]        # Parent sequence number
     d['crtime'] = WindowsTime(struct.unpack("<L",s[8:12])[0],struct.unpack("<L",s[12:16])[0])
     d['mtime'] = WindowsTime(struct.unpack("<L",s[16:20])[0],struct.unpack("<L",s[20:24])[0])
     d['ctime'] = WindowsTime(struct.unpack("<L",s[24:28])[0],struct.unpack("<L",s[28:32])[0])
     d['atime'] = WindowsTime(struct.unpack("<L",s[32:36])[0],struct.unpack("<L",s[36:40])[0])
-    d['alloc_fsize'] = struct.unpack("<d",s[40:48])[0]
-    d['real_fsize'] = struct.unpack("<d",s[48:56])[0]
+    d['alloc_fsize'] = struct.unpack("<q",s[40:48])[0]
+    d['real_fsize'] = struct.unpack("<q",s[48:56])[0]
     d['flags'] = struct.unpack("<d",s[56:64])[0]            # 0x01=NTFS, 0x02=DOS
     d['nlen'] = struct.unpack("B",s[64])[0]
     d['nspace'] = struct.unpack("B",s[65])[0]
@@ -677,19 +680,38 @@ def writeBodyfile():
 
      # MD5|name|inode|mode_as_string|UID|GID|size|atime|mtime|ctime|crtime
 
-     # To do - figure out file size
      # Add option to use STD_INFO
+
           
      if MFTR['fncnt'] > 0:
-          bodyfile.write("%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d\n" %
-                         ('0',FNrecord['name'],'0','0','0','0','0',
-                         int(MFTR['fn',0]['atime'].unixtime),
-                         int(MFTR['fn',0]['mtime'].unixtime),
-                         int(MFTR['fn',0]['ctime'].unixtime),
-                         int(MFTR['fn',0]['crtime'].unixtime)))
+          
+          if options.bodyfull == None:
+               name = FNrecord['name']
+          else:
+               name = MFTR['filename']
+               
+          if options.bodystd == None:
+
+               bodyfile.write("%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d\n" %
+                              ('0',name,'0','0','0','0',
+                              int(MFTR['fn',0]['real_fsize']),
+                              int(MFTR['fn',0]['atime'].unixtime),
+                              int(MFTR['fn',0]['mtime'].unixtime),
+                              int(MFTR['fn',0]['ctime'].unixtime),
+                              int(MFTR['fn',0]['crtime'].unixtime)))
+          else:
+               
+                              bodyfile.write("%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d\n" %
+                              ('0',name,'0','0','0','0',
+                              int(MFTR['fn',0]['real_fsize']),
+                              int(SIrecord['atime'].unixtime),  # was str ....
+                              int(SIrecord['mtime'].unixtime),
+                              int(SIrecord['ctime'].unixtime),
+                              int(SIrecord['ctime'].unixtime)))
+                              
      else:
           bodyfile.write("%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d\n" %
-                         ('0','No FN Record','0','0','0','0','0',
+                         ('0','No FN Record','0','0','0','0', '0',
                          int(SIrecord['atime'].unixtime),  # was str ....
                          int(SIrecord['mtime'].unixtime),
                          int(SIrecord['ctime'].unixtime),
@@ -809,9 +831,6 @@ def writeCSVFile(doHeaders):
                mftBuffer.append('N')
 
           output_file.writerow(mftBuffer)
-        
-        
-
 
 # l2t CSV output support
 # date,time,timezone,MACB,source,sourcetype,type,user,host,short,desc,version,filename,inode,notes,format,extra
@@ -862,6 +881,12 @@ parser.add_option("-a", "--anomaly",
 
 parser.add_option("-b", "--bodyfile", dest="bodyfile",
                   help="write MAC information to bodyfile", metavar="FILE")
+
+parser.add_option("--bodystd", action="store_true", dest="bodystd",
+                  help="Use STD_INFO timestamps for body file rather than FN timestamps")
+
+parser.add_option("--bodyfull", action="store_true", dest="bodyfull",
+                  help="Use full path name + filename rather than just filename")
 
 parser.add_option("-c", "--csvtimefile", dest="csvtimefile",
                   help="write CSV format timeline file", metavar="FILE")

@@ -86,6 +86,7 @@ Version 1.11: Fixed TSK bodyfile output
 Version 1.12: Fix orphan file detection issue that caused recursion error (4/18/2013)
 Version 1.13: Changed from walking all sequence numbers to pulling sequence number from MFT. Previous approach did not handle
               gaps well
+Version 1.14: Made -o output optional if -b is specified. (Either/or)
                     
 Purpose:
 
@@ -902,8 +903,8 @@ else:
         print "-f <filename> required."
         sys.exit()
     
-    if options.output == None:
-        print "-o <filename> required."
+    if options.output == None and options.bodyfile == None:
+        print "-o <filename> or -b <filename> required."
         sys.exit()
     
 
@@ -913,11 +914,12 @@ except:
     print "Unable to open file: %s" % options.filename
     sys.exit()
 
-try:
-    output_file = csv.writer(open(options.output, 'wb'), dialect=csv.excel,quoting=1)
-except (IOError, TypeError):
-    print "Unable to open file: %s" % options.output
-    sys.exit()
+if options.output != None:
+     try:
+         output_file = csv.writer(open(options.output, 'wb'), dialect=csv.excel,quoting=1)
+     except (IOError, TypeError):
+         print "Unable to open file: %s" % options.output
+         sys.exit()
     
 if options.bodyfile != None:
      try:
@@ -936,7 +938,8 @@ if options.csvtimefile != None:
      
 # Write the headers to the output file
 
-writeCSVFile(True)
+if options.output != None:
+     writeCSVFile(True)
 
 Folders = {}
 MFTR = {}
@@ -1072,8 +1075,9 @@ while record != "":
     
      if options.anomaly and 'baad' not in MFTR:
           anomalyDetect()
-          
-     writeCSVFile(False)
+
+     if options.output != None:          
+          writeCSVFile(False)
 
 mft_file.close()
          

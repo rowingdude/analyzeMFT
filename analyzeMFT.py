@@ -672,7 +672,29 @@ def getFolderPath(p):
 	getFolderPath( Folders[p]['parent'] )
 	
 	return 1
-     
+
+def writeBodyfile():
+
+     # MD5|name|inode|mode_as_string|UID|GID|size|atime|mtime|ctime|crtime
+
+     # To do - figure out file size
+     # Add option to use STD_INFO
+          
+     if MFTR['fncnt'] > 0:
+          bodyfile.write("%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d\n" %
+                         ('0',FNrecord['name'],'0','0','0','0','0',
+                         int(MFTR['fn',0]['atime'].unixtime),
+                         int(MFTR['fn',0]['mtime'].unixtime),
+                         int(MFTR['fn',0]['ctime'].unixtime),
+                         int(MFTR['fn',0]['crtime'].unixtime)))
+     else:
+          bodyfile.write("%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d\n" %
+                         ('0','No FN Record','0','0','0','0','0',
+                         int(SIrecord['atime'].unixtime),  # was str ....
+                         int(SIrecord['mtime'].unixtime),
+                         int(SIrecord['ctime'].unixtime),
+                         int(SIrecord['ctime'].unixtime)))
+
 def writeCSVFile(doHeaders):
     
      mftBuffer = ''
@@ -789,25 +811,7 @@ def writeCSVFile(doHeaders):
           output_file.writerow(mftBuffer)
         
         
-          if options.bodyfile != None:
-               # MD5|name|inode|mode_as_string|UID|GID|size|atime|mtime|ctime|crtime
-     
-               # To do - figure out file size
-                    
-               if MFTR['fncnt'] > 0:
-                    bodyfile.write("%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d\n" %
-                                   ('0',FNrecord['name'],'0','0','0','0','0',
-                                   int(MFTR['fn',0]['atime'].unixtime),
-                                   int(MFTR['fn',0]['mtime'].unixtime),
-                                   int(MFTR['fn',0]['ctime'].unixtime),
-                                   int(MFTR['fn',0]['crtime'].unixtime)))
-               else:
-                    bodyfile.write("%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d\n" %
-                                   ('0','No FN Record','0','0','0','0','0',
-                                   int(SIrecord['atime'].unixtime),  # was str ....
-                                   int(SIrecord['mtime'].unixtime),
-                                   int(SIrecord['ctime'].unixtime),
-                                   int(SIrecord['ctime'].unixtime)))
+
 
 # l2t CSV output support
 # date,time,timezone,MACB,source,sourcetype,type,user,host,short,desc,version,filename,inode,notes,format,extra
@@ -951,7 +955,6 @@ mft_file.seek(0)
 # 1024 is valid for current version of Windows but should really get this value from somewhere         
 record = mft_file.read(1024)
 
-
 while record != "":
     
      MFTR = decodeMFTHeader(record);
@@ -1078,6 +1081,9 @@ while record != "":
 
      if options.output != None:          
           writeCSVFile(False)
+     
+     if options.bodyfile != None:
+          writeBodyfile()
 
 mft_file.close()
          

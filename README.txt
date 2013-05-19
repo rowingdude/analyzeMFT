@@ -1,15 +1,30 @@
-Documentation
+===========
+Analyze MFT
+===========
 
+analyzeMFT.py is designed to fully parse the MFT file from an NTFS filesystem
+and present the results as accurately as possible in multiple formats. 
+
+Usage
+===========
 Usage: analyzeMFT.py [options]
 
 Options:
   -h, --help            show this help message and exit
+  -v, --version         report version and exit
   -f FILE, --file=FILE  read MFT from FILE
   -o FILE, --output=FILE
                         write results to FILE
   -a, --anomaly         turn on anomaly detection
   -b FILE, --bodyfile=FILE
                         write MAC information to bodyfile
+  --bodystd             Use STD_INFO timestamps for body file rather than FN
+                        timestamps
+  --bodyfull            Use full path name + filename rather than just
+                        filename
+  -c FILE, --csvtimefile=FILE
+                        write CSV format timeline file
+  -l, --localtz         report times using local timezone
   -g, --gui             Use GUI for file selection
   -d, --debug           turn on debugging output
 
@@ -17,6 +32,8 @@ Options:
 You can turn off all the GUI dependencies by setting the noGUI flag to 'True'. This is for installations
 that don't want to install the tk/tcl libraries.
 
+Update History
+=============
 Version 1.0: Initial release
 Version 1.1: Split parent folder reference and sequence into two fields. I'm still trying to figure out the
              significance of the parent folder sequence number, but I'm convinced that what some documentation
@@ -45,22 +62,20 @@ Version 1.11: Fixed TSK bodyfile output
 Version 1.12: Fix orphan file detection issue that caused recursion error (4/18/2013)
 Version 1.13: Changed from walking all sequence numbers to pulling sequence number from MFT. Previous approach did not handle
               gaps well
+Version 1.14: Made -o output optional if -b is specified. (Either/or)
+Version 1.15: Added file size (real, not allocated) to bodyfile.
+              Added bodyfile option to include fullpath + filename rather than just filename
+              Added bodyfile option to use STD_INFO timestamps rather than FN timestamps
 
-Purpose:
 
-analyzeMFT.py is designed to fully parse the MFT file from an NTFS filesystem
-and present the results as accurately as possible in a format that allows
-further analysis with other tools. At present, it will read an entire MFT
-through to the end without error, but it skips over parsing some of the
-attributes. These will be filled in as time permits.
 
-Caution:
+Output
+=========
 
-This code is very much under development. You should not depend on its results without double checking
-them against at least one other tool.
+analyzeMFT can produce output in CSV or bodyfile format.
 
-Output:
-
+CSV output
+---------
 The output is currently written in CSV format. Due to the fact that Excel
 automatically determines the type of data in a column, it is recommended that
 you write the output to a file without the .csv extension, open it in Excel, and
@@ -71,8 +86,8 @@ that misrepresents the data.
 I could pad the data in such a way that forces Excel to set the column type correctly
 but this might break other tools.
 
-Inspiration:
-
+Inspiration
+===========
 My original inspiration was a combination of MFT Ripper (thus the current output format) and the
 SANS 508.1 study guide. I couldn't bear to read about NTFS structures again,
 particularly since the information didn't "stick". I also wanted to learn Python
@@ -90,9 +105,9 @@ I also am getting much more interested in timeline analysis and figured that rea
 the MFT and having a tool that could parse it might serve as a good foundation
 for further research in that area.
 
-Limitations:
 
-Future work:
+Future work
+===========
 
 1) Figure out how to write the CSV file in a manner that forces Excel to interpret the date/time
 fields as text. If you add the .csv extension Excel will open the file without invoking the import
@@ -113,9 +128,8 @@ wizard and the date fields are treated as "General" and the date is chopped leav
 error about the output filename.
 
 
-See other ToDos in the code
-
-Useful Documentation:
+Useful Documentation
+====================
 
 1) http://data.linux-ntfs.org/ntfsdoc.pdf
 

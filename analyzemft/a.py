@@ -37,7 +37,8 @@ class MftSession:
 
     def __init__(self):
         self.mft = {}
-        self.num_records = 0
+        self.folders = {}
+        self.debug = False
         
     def open_files(self):
         if (self.options.version == True):
@@ -64,22 +65,6 @@ class MftSession:
             except (IOError, TypeError):
                 print "Unable to open file: %s" % self.options.output
                 sys.exit()
-            
-            self.file_csv.writerow(['Record Number', 'Good', 'Active', 'Record type',
-                                    # $Logfile Seq. Num.',
-                                    'Sequence Number', 'Parent File Rec. #', 'Parent File Rec. Seq. #',
-                                    'Filename #1', 'Std Info Creation date', 'Std Info Modification date',
-                                    'Std Info Access date', 'Std Info Entry date', 'FN Info Creation date',
-                                    'FN Info Modification date','FN Info Access date', 'FN Info Entry date',
-                                    'Object ID', 'Birth Volume ID', 'Birth Object ID', 'Birth Domain ID',
-                                    'Filename #2', 'FN Info Creation date', 'FN Info Modify date',
-                                    'FN Info Access date', 'FN Info Entry date', 'Filename #3', 'FN Info Creation date',
-                                    'FN Info Modify date', 'FN Info Access date',	'FN Info Entry date', 'Filename #4',
-                                    'FN Info Creation date', 'FN Info Modify date', 'FN Info Access date',
-                                    'FN Info Entry date', 'Standard Information', 'Attribute List', 'Filename',
-                                    'Object ID', 'Volume Name', 'Volume Info', 'Data', 'Index Root',
-                                    'Index Allocation', 'Bitmap', 'Reparse Point', 'EA Information', 'EA',
-                                    'Property Set', 'Logged Utility Stream', 'Log/Notes', 'STF FN Shift', 'uSec Zero'])
     
         if self.options.bodyfile != None:
             try:
@@ -100,35 +85,88 @@ class MftSession:
         # reset the file reading (since we did some pre-processing)
         # mft_file.seek(0)
         
+        self.num_records = 0
+        tmp_record = MftRecord()
+        if self.options.output != None:
+            self.file_csv.writerow(tmp_record.mft_to_csv(True))
+        
         # 1024 is valid for current version of Windows but should really get this value from somewhere         
         raw_record = self.file_mft.read(1024)
         
         while raw_record != "":
             
-            self.num_records = self.num_records + 1
             tmp_record = MftRecord()
             tmp_record.debug = self.options.debug
             tmp_record.localtz = self.options.localtz
             tmp_record.parse_record(raw_record)
+#            self.get_folder_path(tmp_record.record, tmp_record.record['recordnum'])
             print tmp_record.record
-            self.mft[tmp_record.record['recordnum']] = tmp_record.record
-            
+#            self.mft[tmp_record.record['recordnum']] = tmp_record
+            self.mft[self.num_records] = tmp_record
 
-            # ToDo - generate filepath
-            
-            if self.num_records > 10:
-                sys.exit()
+            self.num_records = self.num_records + 1
+             
+            if self.num_records > 60:
+                break
             
             raw_record = self.file_mft.read(1024)
+
+        self.gen_filepaths()
+        
+        for i in self.mft:
+            if self.options.output != None:
+                self.file_csv.writerow(self.mft[i].mft_to_csv(False))
+
+HERE
+SKETCH THIS OUT AND DO IT RIGHT
+I think this routine should get the filename of its parent
+If filename starts with a '/' it is fully populated and we can unwind?
+
+    def get_folder_path(self, record, p):
+            if self.debug: print "Building Folder For Record Number (%d)" % p
+            n = ''
     
+            if ('filename' in record):
+                return record['filename']
+                
+            if ( p == 0 ) or ( p == 5 ):
+                    record['filename'] = '/' + record['filename']
+                    return record['filename']
+           
+            if (record['fn',0]['par_ref']) == p:
+                if self.debug: print "Error, self-referential, while trying to determine path (%s)" % record['filename']
+                record['filename'] = 'ORPHAN/' + record['filename']
+                return 
+         
+                    record['filename'] = self.get_folder_path(record,record['fn',0]['par_ref']) '/' + record['filename']            
+            
+            return
+
+#            try:
+#                    n = self.folders[p]['name'] + '/' + record['filename']
+#            except KeyError:
+#                    if self.debug: print "Error while trying to determine path (%s)" % record['filename']
+#                    record['filename'] = 'ORPHAN/' + record['filename']
+#                    return
+                
     def gen_filepaths(self):
         
-           if ( mft_record['fncnt'] > 0 ):
-                mft_record['filename'] = ''
-                buildingBlockFolder = getFolderPath( mft_record['fn',mft_record['fncnt']-1]['par_ref'] )
-                mft_record['filename'] = mft_record['filename'] + '/' + mft_record['fn',mft_record['fncnt']-1]['name']
-                mft_record['filename'] = mft_record['filename'].replace('//','/')
-                if options.debug: print "Filename (with path): %s" % mft_record['filename']
+        for i in self.mft:
+            
+            if filename starts with / or ORPHAN, we're done.
+            else get filename of parent, add it to ours, and we're done.
+            
+            
+            # If we've not already calculated the full path ....
+            if (self.mft[i].record['filename']) == '':
+        
+                if ( self.mft[i].record['fncnt'] > 0 ):
+                     self.get_folder_path(self.mft[i].record,self.mft[i].record['fn',0]['par_ref'])
+                     self.mft[i].record['filename'] = self.mft[i].record['filename'] + '/' + self.mft[i].record['fn',self.mft[i].record['fncnt']-1]['name']
+                     self.mft[i].record['filename'] = self.mft[i].record['filename'].replace('//','/')
+                     if self.debug: print "Filename (with path): %s" % self.mft[i].record['filename']
+                else:
+                    self.mft[i].record['filename'] == 'NoFNRecord'
 
 
     
@@ -137,12 +175,11 @@ class MftRecord:
 
     def __init__(self):
         self.record = {}
-        self.record['filepath'] = "NotCalculated"
+        self.record['filename'] = ''
 
-    def parse_record(self, rec):
+    def parse_record(self, raw_record):
         
-        self.raw_record = rec
-        self.decodeMFTHeader();
+        self.decodeMFTHeader(raw_record);
         
         record_number = self.record['recordnum']
        
@@ -154,121 +191,248 @@ class MftRecord:
             if self.debug:
                 print "BAAD MFT Record"
             self.record['baad'] = True
+            return
+
+        if self.record['magic'] != 0x454c4946:
+            if self.debug:
+                print "Corrupt MFT Record"
+            self.record['corrupt'] = True
+            return
         
-        else:
+        read_ptr = self.record['attr_off']
              
-            read_ptr = self.record['attr_off']
-                 
-            while (read_ptr < 1024):
-             
-                ATRrecord = self.decodeATRHeader(self.raw_record[read_ptr:])
-                if ATRrecord['type'] == 0xffffffff:             # End of attributes
-                    break
-             
+        while (read_ptr < 1024):
+         
+            ATRrecord = self.decodeATRHeader(raw_record[read_ptr:])
+            if ATRrecord['type'] == 0xffffffff:             # End of attributes
+                break
+         
+            if self.debug:
+                print "Attribute type: %x Length: %d Res: %x" % (ATRrecord['type'], ATRrecord['len'], ATRrecord['res'])
+     
+            if ATRrecord['type'] == 0x10:                   # Standard Information
                 if self.debug:
-                    print "Attribute type: %x Length: %d Res: %x" % (ATRrecord['type'], ATRrecord['len'], ATRrecord['res'])
-         
-                if ATRrecord['type'] == 0x10:                   # Standard Information
+                    print "Stardard Information:\n++Type: %s Length: %d Resident: %s Name Len:%d Name Offset: %d" % \
+                        (hex(int(ATRrecord['type'])),ATRrecord['len'],ATRrecord['res'],ATRrecord['nlen'],ATRrecord['name_off'])
+                SIrecord = self.decodeSIAttribute(raw_record[read_ptr+ATRrecord['soff']:])
+                self.record['si'] = SIrecord
+                if self.debug:
+                    print "++CRTime: %s\n++MTime: %s\n++ATime: %s\n++EntryTime: %s" % \
+                        (SIrecord['crtime'].dtstr, SIrecord['mtime'].dtstr, SIrecord['atime'].dtstr, SIrecord['ctime'].dtstr)
+             
+            elif ATRrecord['type'] == 0x20:                 # Attribute list
+                if self.debug:
+                    print "Attribute list"
+                if ATRrecord['res'] == 0:
+                    ALrecord = self.decodeAttributeList(raw_record[read_ptr+ATRrecord['soff']:])
+                    self.record['al'] = ALrecord
                     if self.debug:
-                        print "Stardard Information:\n++Type: %s Length: %d Resident: %s Name Len:%d Name Offset: %d" % \
-                            (hex(int(ATRrecord['type'])),ATRrecord['len'],ATRrecord['res'],ATRrecord['nlen'],ATRrecord['name_off'])
-                    SIrecord = self.decodeSIAttribute(self.raw_record[read_ptr+ATRrecord['soff']:])
-                    self.record['si'] = SIrecord
-                    if self.debug:
-                        print "++CRTime: %s\n++MTime: %s\n++ATime: %s\n++EntryTime: %s" % \
-                            (SIrecord['crtime'].dtstr, SIrecord['mtime'].dtstr, SIrecord['atime'].dtstr, SIrecord['ctime'].dtstr)
-                 
-                elif ATRrecord['type'] == 0x20:                 # Attribute list
-                    if self.debug:
-                        print "Attribute list"
-                    if ATRrecord['res'] == 0:
-                        ALrecord = self.decodeAttributeList(self.raw_record[ReadPtr+ATRrecord['soff']:])
-                        self.record['al'] = ALrecord
-                        if self.debug:
-                            print "Name: %s"  % (ALrecord['name'])
-                    else:
-                        if self.debug:
-                            print "Non-resident Attribute List?"
-                        self.record['al'] = None
-                         
-                elif ATRrecord['type'] == 0x30:                 # File name
-                    if self.debug: print "File name record"
-                    FNrecord = self.decodeFNAttribute(self.raw_record[read_ptr+ATRrecord['soff']:])
-                    self.record['fn',self.record['fncnt']] = FNrecord
-                    if self.debug: print "Name: %s (%d)" % (FNrecord['name'],self.record['fncnt'])
-                    self.record['fncnt'] = self.record['fncnt'] + 1
-                    if FNrecord['crtime'] != 0:
-                        if options.debug: print "\tCRTime: %s MTime: %s ATime: %s EntryTime: %s" % (FNrecord['crtime'].dtstr,
-                                FNrecord['mtime'].dtstr, FNrecord['atime'].dtstr, FNrecord['ctime'].dtstr)
-         
-                elif ATRrecord['type'] == 0x40:                 #  Object ID
-                    ObjectIDRecord = self.decodeObjectID(self.raw_record[ReadPtr+ATRrecord['soff']:])
-                    self.record['objid'] = ObjectIDRecord
-                    if self.debug: print "Object ID"
-                    
-                elif ATRrecord['type'] == 0x50:                 # Security descriptor
-                    self.record['sd'] = True
-                    if self.debug: print "Security descriptor"
-        
-                elif ATRrecord['type'] == 0x60:                 # Volume name
-                    self.record['volname'] = True
-                    if self.debug: print "Volume name"
-                    
-                elif ATRrecord['type'] == 0x70:                 # Volume information
-                    if self.debug: print "Volume info attribute"
-                    VolumeInfoRecord = self.decodeVolumeInfo(self.raw_record[read_ptr+ATRrecord['soff']:])
-                    self.record['volinfo'] = VolumeInfoRecord
-                    
-                elif ATRrecord['type'] == 0x80:                 # Data
-                    self.record['data'] = True
-                    if self.debug: print "Data attribute"
-        
-                elif ATRrecord['type'] == 0x90:                 # Index root
-                    self.record['indexroot'] = True
-                    if self.debug: print "Index root"
-        
-                elif ATRrecord['type'] == 0xA0:                 # Index allocation
-                    self.record['indexallocation'] = True
-                    if self.debug: print "Index allocation"
-                    
-                elif ATRrecord['type'] == 0xB0:                 # Bitmap
-                    self.record['bitmap'] = True
-                    if self.debug: print "Bitmap"
-        
-                elif ATRrecord['type'] == 0xC0:                 # Reparse point
-                    self.record['reparsepoint'] = True
-                    if self.debug: print "Reparse point"
-        
-                elif ATRrecord['type'] == 0xD0:                 # EA Information
-                    self.record['eainfo'] = True
-                    if self.debug: print "EA Information"
-         
-                elif ATRrecord['type'] == 0xE0:                 # EA
-                    self.record['ea'] = True
-                    if self.debug: print "EA"
-        
-                elif ATRrecord['type'] == 0xF0:                 # Property set
-                    self.record['propertyset'] = True
-                    if self.debug: print "Property set"
-        
-                elif ATRrecord['type'] == 0x100:                 # Logged utility stream
-                    self.record['loggedutility'] = True
-                    if self.debug: print "Logged utility stream"
-                    
+                        print "Name: %s"  % (ALrecord['name'])
                 else:
-                    if self.debug: print "Found an unknown attribute"
-                    
-                if ATRrecord['len'] > 0:
-                    read_ptr = read_ptr + ATRrecord['len']
-                else:
-                    if self.debug: print "ATRrecord->len < 0, exiting loop"
-                    break
-  
- 
+                    if self.debug:
+                        print "Non-resident Attribute List?"
+                    self.record['al'] = None
+                     
+            elif ATRrecord['type'] == 0x30:                 # File name
+                if self.debug: print "File name record"
+                FNrecord = self.decodeFNAttribute(raw_record[read_ptr+ATRrecord['soff']:])
+                self.record['fn',self.record['fncnt']] = FNrecord
+                if self.debug: print "Name: %s (%d)" % (FNrecord['name'],self.record['fncnt'])
+                self.record['fncnt'] = self.record['fncnt'] + 1
+                if FNrecord['crtime'] != 0:
+                    if self.debug: print "\tCRTime: %s MTime: %s ATime: %s EntryTime: %s" % (FNrecord['crtime'].dtstr,
+                            FNrecord['mtime'].dtstr, FNrecord['atime'].dtstr, FNrecord['ctime'].dtstr)
+     
+            elif ATRrecord['type'] == 0x40:                 #  Object ID
+                ObjectIDRecord = self.decodeObjectID(raw_record[read_ptr+ATRrecord['soff']:])
+                self.record['objid'] = ObjectIDRecord
+                if self.debug: print "Object ID"
+                
+            elif ATRrecord['type'] == 0x50:                 # Security descriptor
+                self.record['sd'] = True
+                if self.debug: print "Security descriptor"
+    
+            elif ATRrecord['type'] == 0x60:                 # Volume name
+                self.record['volname'] = True
+                if self.debug: print "Volume name"
+                
+            elif ATRrecord['type'] == 0x70:                 # Volume information
+                if self.debug: print "Volume info attribute"
+                VolumeInfoRecord = self.decodeVolumeInfo(raw_record[read_ptr+ATRrecord['soff']:])
+                self.record['volinfo'] = VolumeInfoRecord
+                
+            elif ATRrecord['type'] == 0x80:                 # Data
+                self.record['data'] = True
+                if self.debug: print "Data attribute"
+    
+            elif ATRrecord['type'] == 0x90:                 # Index root
+                self.record['indexroot'] = True
+                if self.debug: print "Index root"
+    
+            elif ATRrecord['type'] == 0xA0:                 # Index allocation
+                self.record['indexallocation'] = True
+                if self.debug: print "Index allocation"
+                
+            elif ATRrecord['type'] == 0xB0:                 # Bitmap
+                self.record['bitmap'] = True
+                if self.debug: print "Bitmap"
+    
+            elif ATRrecord['type'] == 0xC0:                 # Reparse point
+                self.record['reparsepoint'] = True
+                if self.debug: print "Reparse point"
+    
+            elif ATRrecord['type'] == 0xD0:                 # EA Information
+                self.record['eainfo'] = True
+                if self.debug: print "EA Information"
+     
+            elif ATRrecord['type'] == 0xE0:                 # EA
+                self.record['ea'] = True
+                if self.debug: print "EA"
+    
+            elif ATRrecord['type'] == 0xF0:                 # Property set
+                self.record['propertyset'] = True
+                if self.debug: print "Property set"
+    
+            elif ATRrecord['type'] == 0x100:                 # Logged utility stream
+                self.record['loggedutility'] = True
+                if self.debug: print "Logged utility stream"
+                
+            else:
+                if self.debug: print "Found an unknown attribute"
+                
+            if ATRrecord['len'] > 0:
+                read_ptr = read_ptr + ATRrecord['len']
+            else:
+                if self.debug: print "ATRrecord->len < 0, exiting loop"
+                break
                         
      
-    def mft_to_csv(self):
-        print "write a record to a CSV file"
+    def mft_to_csv(self, ret_header):
+        'Return a MFT record in CSV format'
+        
+        mftBuffer = ''
+        tmpBuffer = ''
+        filenameBuffer = ''
+       
+        if ret_header == True:
+             # Write headers
+             csv_string = ['Record Number', 'Good', 'Active', 'Record type',
+   #                        '$Logfile Seq. Num.',
+                            'Sequence Number', 'Parent File Rec. #', 'Parent File Rec. Seq. #',
+                            'Filename #1', 'Std Info Creation date', 'Std Info Modification date',
+                            'Std Info Access date', 'Std Info Entry date', 'FN Info Creation date',
+                            'FN Info Modification date','FN Info Access date', 'FN Info Entry date',
+                            'Object ID', 'Birth Volume ID', 'Birth Object ID', 'Birth Domain ID',
+                            'Filename #2', 'FN Info Creation date', 'FN Info Modify date',
+                            'FN Info Access date', 'FN Info Entry date', 'Filename #3', 'FN Info Creation date',
+                            'FN Info Modify date', 'FN Info Access date',	'FN Info Entry date', 'Filename #4',
+                            'FN Info Creation date', 'FN Info Modify date', 'FN Info Access date',
+                            'FN Info Entry date', 'Standard Information', 'Attribute List', 'Filename',
+                            'Object ID', 'Volume Name', 'Volume Info', 'Data', 'Index Root',
+                            'Index Allocation', 'Bitmap', 'Reparse Point', 'EA Information', 'EA',
+                            'Property Set', 'Logged Utility Stream', 'Log/Notes', 'STF FN Shift', 'uSec Zero']
+             return csv_string
+
+        if 'baad' in self.record:
+             csv_string = ["%s" % self.record['recordnum'],"BAAD MFT Record"]
+             return csv_string
+
+        csv_string = [self.record['recordnum'], self.decodeMFTmagic(), self.decodeMFTisactive(),
+                        self.decodeMFTrecordtype()]
+        
+        if 'corrupt' in self.record:
+            tmp_string = ["%s" % self.record['recordnum'],"Corrupt","Corrupt","Corrupt MFT Record"]
+            csv_string.extend(tmp_string)
+            return csv_string
+
+#        tmp_string = ["%d" % self.record['lsn']]
+#        csv_string.extend(tmp_string)
+        tmp_string = ["%d" % self.record['seq']]
+        csv_string.extend(tmp_string)
+      
+        if self.record['fncnt'] > 0:
+             csv_string.extend([str(self.record['fn',0]['par_ref']), str(self.record['fn',0]['par_seq'])])
+        else:
+             csv_string.extend(['NoParent', 'NoParent'])
+              
+        if self.record['fncnt'] > 0:
+             #filenameBuffer = [FNrecord['name'], str(self.record['si']['crtime'].dtstr),
+             filenameBuffer = [self.record['filename'], str(self.record['si']['crtime'].dtstr),
+                        self.record['si']['mtime'].dtstr, self.record['si']['atime'].dtstr, self.record['si']['ctime'].dtstr,
+                        self.record['fn',0]['crtime'].dtstr, self.record['fn',0]['mtime'].dtstr,
+                        self.record['fn',0]['atime'].dtstr, self.record['fn',0]['ctime'].dtstr]
+        else:
+             filenameBuffer = ['NoFNRecord', str(self.record['si']['crtime'].dtstr),
+                        self.record['si']['mtime'].dtstr, self.record['si']['atime'].dtstr, self.record['si']['ctime'].dtstr,
+                        'NoFNRecord', 'NoFNRecord', 'NoFNRecord','NoFNRecord']
+
+        csv_string.extend(filenameBuffer)
+      
+        if 'objid' in self.record:
+             objidBuffer = [self.record['objid']['objid'].objstr, self.record['objid']['orig_volid'].objstr,
+                         self.record['objid']['orig_objid'].objstr, self.record['objid']['orig_domid'].objstr]
+        else:
+             objidBuffer = ['','','','']
+
+        csv_string.extend(objidBuffer)                           
+
+# If this goes above four FN attributes, the number of columns will exceed the headers        
+        for i in range(1, self.record['fncnt']):
+             filenameBuffer = [self.record['fn',i]['name'], self.record['fn',i]['crtime'].dtstr, self.record['fn',i]['mtime'].dtstr,
+                        self.record['fn',i]['atime'].dtstr, self.record['fn',i]['ctime'].dtstr]
+             csv_string.extend(filenameBuffer)
+             filenameBuffer = ''
+
+# Pad out the remaining FN columns
+        if self.record['fncnt'] < 2:
+             tmp_string = ['','','','','','','','','','','','','','','']
+        elif self.record['fncnt'] == 2:
+             tmp_string = ['','','','','','','','','','']
+        elif self.record['fncnt'] == 3:
+             tmp_string = ['','','','','']
+          
+        csv_string.extend(tmp_string)
+
+# One darned big if statement, alas.
+
+        csv_string.append('True') if 'si' in self.record else csv_string.append('False')
+        csv_string.append('True') if 'al' in self.record else csv_string.append('False')
+        csv_string.append('True') if self.record['fncnt'] > 0 else csv_string.append('False')
+        csv_string.append('True') if 'objid' in self.record else csv_string.append('False')
+        csv_string.append('True') if 'volname' in self.record else csv_string.append('False')
+        csv_string.append('True') if 'volinfo' in self.record else csv_string.append('False')
+        csv_string.append('True') if 'data' in self.record else csv_string.append('False')
+        csv_string.append('True') if 'indexroot' in self.record else csv_string.append('False')
+        csv_string.append('True') if 'indexallocation' in self.record else csv_string.append('False')
+        csv_string.append('True') if 'bitmap' in self.record else csv_string.append('False')
+        csv_string.append('True') if 'reparse' in self.record else csv_string.append('False')
+        csv_string.append('True') if 'eainfo' in self.record else csv_string.append('False')
+        csv_string.append('True') if 'ea' in self.record else csv_string.append('False')
+        csv_string.append('True') if 'propertyset' in self.record else csv_string.append('False')
+        csv_string.append('True') if 'loggedutility' in self.record else csv_string.append('False')            
+      
+      
+        if 'notes' in self.record:                        # Log of abnormal activity related to this record
+             csv_string.append(self.record['notes'])
+        else:
+             csv_string.append('None')
+             self.record['notes'] = ''
+        
+        if 'stf-fn-shift' in self.record:
+             csv_string.append('Y')
+        else:
+             csv_string.append('N')
+
+        if 'usec-zero' in self.record:
+             csv_string.append('Y')
+        else:
+             csv_string.append('N')        
+        
+        return csv_string
+        
+        
+        
+        
         
     def mft_to_body(self, fd):
         print "write a record to a body file"
@@ -280,31 +444,32 @@ class MftRecord:
             self.mft_record['notes'] = "%s" % s
             
             
-    def decodeMFTHeader(self):
+    def decodeMFTHeader(self, raw_record):
     
-        self.record['magic'] = struct.unpack("<I", self.raw_record[:4])[0]
-        self.record['upd_off'] = struct.unpack("<H",self.raw_record[4:6])[0]
-        self.record['upd_cnt'] = struct.unpack("<H",self.raw_record[6:8])[0]
-        self.record['lsn'] = struct.unpack("<d",self.raw_record[8:16])[0]
-        self.record['seq'] = struct.unpack("<H",self.raw_record[16:18])[0]
-        self.record['link'] = struct.unpack("<H",self.raw_record[18:20])[0]
-        self.record['attr_off'] = struct.unpack("<H",self.raw_record[20:22])[0]
-        self.record['flags'] = struct.unpack("<H", self.raw_record[22:24])[0]
-        self.record['size'] = struct.unpack("<I",self.raw_record[24:28])[0]
-        self.record['alloc_sizef'] = struct.unpack("<I",self.raw_record[28:32])[0]
-        self.record['base_ref'] = struct.unpack("<Lxx",self.raw_record[32:38])[0]
-        self.record['base_seq'] = struct.unpack("<H",self.raw_record[38:40])[0]
-        self.record['next_attrid'] = struct.unpack("<H",self.raw_record[40:42])[0]
-        self.record['f1'] = self.raw_record[42:44]                            # Padding
-        self.record['recordnum'] = struct.unpack("<I", self.raw_record[44:48])[0]  # Number of this MFT Record
+        self.record['magic'] = struct.unpack("<I", raw_record[:4])[0]
+        self.record['upd_off'] = struct.unpack("<H",raw_record[4:6])[0]
+        self.record['upd_cnt'] = struct.unpack("<H",raw_record[6:8])[0]
+        self.record['lsn'] = struct.unpack("<d",raw_record[8:16])[0]
+        self.record['seq'] = struct.unpack("<H",raw_record[16:18])[0]
+        self.record['link'] = struct.unpack("<H",raw_record[18:20])[0]
+        self.record['attr_off'] = struct.unpack("<H",raw_record[20:22])[0]
+        self.record['flags'] = struct.unpack("<H", raw_record[22:24])[0]
+        self.record['size'] = struct.unpack("<I",raw_record[24:28])[0]
+        self.record['alloc_sizef'] = struct.unpack("<I",raw_record[28:32])[0]
+        self.record['base_ref'] = struct.unpack("<Lxx",raw_record[32:38])[0]
+        self.record['base_seq'] = struct.unpack("<H",raw_record[38:40])[0]
+        self.record['next_attrid'] = struct.unpack("<H",raw_record[40:42])[0]
+        self.record['f1'] = raw_record[42:44]                            # Padding
+        self.record['recordnum'] = struct.unpack("<I", raw_record[44:48])[0]  # Number of this MFT Record
         self.record['fncnt'] = 0                              # Counter for number of FN attributes
         
-    def decodeMFTmagic(s):
-        if s == 0x454c4946:
+    def decodeMFTmagic(self):
+        
+        if self.record['magic'] == 0x454c4946:
             return "Good"
-        elif s == 0x44414142:
+        elif self.record['magic'] == 0x44414142:
             return 'Bad'
-        elif s == 0x00000000:
+        elif self.record['magic'] == 0x00000000:
             return 'Zero'
         else:
             return 'Unknown'
@@ -315,21 +480,21 @@ class MftRecord:
     #
     # I had this coded incorrectly initially. Spencer Lynch identified and fixed the code. Many thanks!
     
-    def decodeMFTisactive(s):
-        if s & 0x0001:
+    def decodeMFTisactive(self):
+        if self.record['flags'] & 0x0001:
             return 'Active'
         else:
             return 'Inactive'
         
-    def decodeMFTrecordtype(s):
-         tmpBuffer = s
-         if s & 0x0002:
+    def decodeMFTrecordtype(self):
+         tmpBuffer = int(self.record['flags'])
+         if int(self.record['flags']) & 0x0002:
             tmpBuffer = 'Folder'
          else:
               tmpBuffer = 'File'
-         if s & 0x0004:
+         if int(self.record['flags']) & 0x0004:
               tmpBuffer = "%s %s" % (tmpBuffer, '+ Unknown1')
-         if s & 0x0008:
+         if int(self.record['flags']) & 0x0008:
               tmpBuffer = "%s %s" % (tmpBuffer, '+ Unknown2')
     
          return tmpBuffer
@@ -339,11 +504,10 @@ class MftRecord:
     def decodeATRHeader(self,s):
         
         d = {}
-        
         d['type'] = struct.unpack("<L",s[:4])[0]
         if d['type'] == 0xffffffff:
             return d
-        d['len'] = struct.unpack("<L",self.raw_record[4:8])[0]
+        d['len'] = struct.unpack("<L",s[4:8])[0]
         d['res'] = struct.unpack("B",s[8])[0]
         d['nlen'] = struct.unpack("B",s[9])[0]                  # This name is the name of the ADS, I think.
         d['name_off'] = struct.unpack("<H",s[10:12])[0]
@@ -362,7 +526,7 @@ class MftRecord:
             d['alen'] = struct.unpack("<d",s[40:48])[0]
             d['ssize'] = struct.unpack("<d",s[48:56])[0]
             d['initsize'] = struct.unpack("<d",s[56:64])[0]
-        
+    
         return d
     
     def decodeSIAttribute(self, s):
@@ -488,7 +652,7 @@ class MftRecord:
         d['flags'] = struct.unpack("<H",s[10:12])[0]            # 2
         d['f2'] = struct.unpack("<I",s[12:16])[0]               # 4
     
-        if (options.debug):
+        if (self.debug):
             print "+Volume Info"
             print "++F1%d" % d['f1']
             print "++Major Version: %d" % d['maj_ver']
@@ -501,10 +665,10 @@ class MftRecord:
     def decodeObjectID(self, s):
     
         d = {}
-        d['objid'] = ObjectID(s[0:16])
-        d['orig_volid'] = ObjectID(s[16:32])
-        d['orig_objid'] = ObjectID(s[32:48])
-        d['orig_domid'] = ObjectID(s[48:64])
+        d['objid'] = self.ObjectID(s[0:16])
+        d['orig_volid'] = self.ObjectID(s[16:32])
+        d['orig_objid'] = self.ObjectID(s[32:48])
+        d['orig_domid'] = self.ObjectID(s[48:64])
         
         return d
     

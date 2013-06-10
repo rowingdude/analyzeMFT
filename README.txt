@@ -66,6 +66,9 @@ Version 1.14: Made -o output optional if -b is specified. (Either/or)
 Version 1.15: Added file size (real, not allocated) to bodyfile.
               Added bodyfile option to include fullpath + filename rather than just filename
               Added bodyfile option to use STD_INFO timestamps rather than FN timestamps
+Version 2.0.0 Restructured layout to turn it into a module.
+              Made it more OOP.
+              Improved error handling and corrupt record detection
 
 
 

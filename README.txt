@@ -40,11 +40,36 @@ Other options:
   -d, --debug           turn on debugging output
 
 
-You can turn off all the GUI dependencies by setting the noGUI flag to 'True'. This is for installations
-that don't want to install the tk/tcl libraries.
+Output
+=========
+
+analyzeMFT can produce output in CSV or bodyfile format.
+
+CSV output
+---------
+The output is currently written in CSV format. Due to the fact that Excel
+automatically determines the type of data in a column, it is recommended that
+you write the output to a file without the .csv extension, open it in Excel, and
+set all the columns to "Text" rather than "General" when the import wizard
+starts. Failure to do so will result in Excel formatting the columns in a way
+that misrepresents the data.
+
+I could pad the data in such a way that forces Excel to set the column type correctly
+but this might break other tools.
+
+GUI:
+You can turn off all the GUI dependencies by setting the noGUI flag to 'True'. This is for installations that don't want to install the tk/tcl libraries.
 
 Update History
 =============
+Version 2.0.1:Added L2T CSV and body file support back in, fixed some minor bugs along the way
+              Made full file path calculation more efficient
+Version 2.0.0 Restructured layout to turn it into a module.
+              Made it more OOP.
+              Improved error handling and corrupt record detection
+              
+------ Version 1 history follows ------
+
 Version 1.0: Initial release
 Version 1.1: Split parent folder reference and sequence into two fields. I'm still trying to figure out the
              significance of the parent folder sequence number, but I'm convinced that what some documentation
@@ -77,30 +102,11 @@ Version 1.14: Made -o output optional if -b is specified. (Either/or)
 Version 1.15: Added file size (real, not allocated) to bodyfile.
               Added bodyfile option to include fullpath + filename rather than just filename
               Added bodyfile option to use STD_INFO timestamps rather than FN timestamps
-Version 2.0.0 Restructured layout to turn it into a module.
-              Made it more OOP.
-              Improved error handling and corrupt record detection
-Version 2.0.1:Added L2T CSV and body file support back in, fixed some minor bugs along the way
-              Made full file path calculation more efficient
 
 
 
-Output
-=========
 
-analyzeMFT can produce output in CSV or bodyfile format.
 
-CSV output
----------
-The output is currently written in CSV format. Due to the fact that Excel
-automatically determines the type of data in a column, it is recommended that
-you write the output to a file without the .csv extension, open it in Excel, and
-set all the columns to "Text" rather than "General" when the import wizard
-starts. Failure to do so will result in Excel formatting the columns in a way
-that misrepresents the data.
-
-I could pad the data in such a way that forces Excel to set the column type correctly
-but this might break other tools.
 
 Inspiration
 ===========

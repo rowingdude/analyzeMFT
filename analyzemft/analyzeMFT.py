@@ -123,6 +123,9 @@ class MftSession:
      def get_folder_path(self, seqnum):
           if self.debug: print "Building Folder For Record Number (%d)" % seqnum
           
+          if seqnum not in self.mft:
+               return 'Orphan'
+
           # If we've already figured out the path name, just return it
           if (self.mft[seqnum].record['filename']) != '':
                return self.mft[seqnum].record['filename']

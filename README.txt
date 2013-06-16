@@ -12,20 +12,31 @@ Usage: analyzeMFT.py [options]
 Options:
   -h, --help            show this help message and exit
   -v, --version         report version and exit
+  
+File input options:
+
   -f FILE, --file=FILE  read MFT from FILE
+
+File output options:
+
   -o FILE, --output=FILE
                         write results to FILE
-  -a, --anomaly         turn on anomaly detection
+  -c FILE, --csvtimefile=FILE
+                        write CSV format timeline file
   -b FILE, --bodyfile=FILE
                         write MAC information to bodyfile
+
+Options specific to body files:
+
   --bodystd             Use STD_INFO timestamps for body file rather than FN
                         timestamps
   --bodyfull            Use full path name + filename rather than just
                         filename
-  -c FILE, --csvtimefile=FILE
-                        write CSV format timeline file
+
+Other options:
+
+  -a, --anomaly         turn on anomaly detection
   -l, --localtz         report times using local timezone
-  -g, --gui             Use GUI for file selection
   -d, --debug           turn on debugging output
 
 
@@ -69,6 +80,8 @@ Version 1.15: Added file size (real, not allocated) to bodyfile.
 Version 2.0.0 Restructured layout to turn it into a module.
               Made it more OOP.
               Improved error handling and corrupt record detection
+Version 2.0.1:Added L2T CSV and body file support back in, fixed some minor bugs along the way
+              Made full file path calculation more efficient
 
 
 

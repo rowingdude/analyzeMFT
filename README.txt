@@ -62,6 +62,7 @@ You can turn off all the GUI dependencies by setting the noGUI flag to 'True'. T
 
 Update History
 =============
+Version 2.0.2:De-OOP'd MFT record parsing to reduce memory consumption
 Version 2.0.1:Added L2T CSV and body file support back in, fixed some minor bugs along the way
               Made full file path calculation more efficient
 Version 2.0.0 Restructured layout to turn it into a module.

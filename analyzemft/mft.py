@@ -9,6 +9,10 @@
 # Date: May 2013
 #
 
+import struct
+import mftutils
+import binascii
+
 unicodeHack = True                           # This one is for me
 
 def parse_record(raw_record, options):
@@ -17,7 +21,7 @@ def parse_record(raw_record, options):
     record['filename'] = ''
     record['notes'] = ''
 
-    self.decodeMFTHeader(record, raw_record);
+    decodeMFTHeader(record, raw_record);
 
     record_number = record['recordnum']
 
@@ -29,19 +33,19 @@ def parse_record(raw_record, options):
         if options.debug:
             print "BAAD MFT Record"
         record['baad'] = True
-        return
+        return record
 
     if record['magic'] != 0x454c4946:
         if options.debug:
             print "Corrupt MFT Record"
         record['corrupt'] = True
-        return
+        return record
 
     read_ptr = record['attr_off']
 
     while (read_ptr < 1024):
 
-        ATRrecord = self.decodeATRHeader(raw_record[read_ptr:])
+        ATRrecord = decodeATRHeader(raw_record[read_ptr:])
         if ATRrecord['type'] == 0xffffffff:             # End of attributes
             break
 
@@ -52,7 +56,7 @@ def parse_record(raw_record, options):
             if options.debug:
                 print "Stardard Information:\n++Type: %s Length: %d Resident: %s Name Len:%d Name Offset: %d" % \
                      (hex(int(ATRrecord['type'])),ATRrecord['len'],ATRrecord['res'],ATRrecord['nlen'],ATRrecord['name_off'])
-            SIrecord = self.decodeSIAttribute(raw_record[read_ptr+ATRrecord['soff']:], options.localtz)
+            SIrecord = decodeSIAttribute(raw_record[read_ptr+ATRrecord['soff']:], options.localtz)
             record['si'] = SIrecord
             if options.debug:
                 print "++CRTime: %s\n++MTime: %s\n++ATime: %s\n++EntryTime: %s" % \
@@ -62,7 +66,7 @@ def parse_record(raw_record, options):
             if options.debug:
                 print "Attribute list"
             if ATRrecord['res'] == 0:
-                ALrecord = self.decodeAttributeList(raw_record[read_ptr+ATRrecord['soff']:])
+                ALrecord = decodeAttributeList(raw_record[read_ptr+ATRrecord['soff']:], record)
                 record['al'] = ALrecord
                 if options.debug:
                     print "Name: %s"  % (ALrecord['name'])
@@ -73,7 +77,7 @@ def parse_record(raw_record, options):
 
         elif ATRrecord['type'] == 0x30:                 # File name
             if options.debug: print "File name record"
-            FNrecord = self.decodeFNAttribute(raw_record[read_ptr+ATRrecord['soff']:], options.localtz)
+            FNrecord = decodeFNAttribute(raw_record[read_ptr+ATRrecord['soff']:], options.localtz, record)
             record['fn',record['fncnt']] = FNrecord
             if options.debug: print "Name: %s (%d)" % (FNrecord['name'],record['fncnt'])
             record['fncnt'] = record['fncnt'] + 1
@@ -82,7 +86,7 @@ def parse_record(raw_record, options):
                         FNrecord['mtime'].dtstr, FNrecord['atime'].dtstr, FNrecord['ctime'].dtstr)
 
         elif ATRrecord['type'] == 0x40:                 #  Object ID
-            ObjectIDRecord = self.decodeObjectID(raw_record[read_ptr+ATRrecord['soff']:])
+            ObjectIDRecord = decodeObjectID(raw_record[read_ptr+ATRrecord['soff']:])
             record['objid'] = ObjectIDRecord
             if options.debug: print "Object ID"
 
@@ -96,7 +100,7 @@ def parse_record(raw_record, options):
 
         elif ATRrecord['type'] == 0x70:                 # Volume information
             if options.debug: print "Volume info attribute"
-            VolumeInfoRecord = self.decodeVolumeInfo(raw_record[read_ptr+ATRrecord['soff']:])
+            VolumeInfoRecord = decodeVolumeInfo(raw_record[read_ptr+ATRrecord['soff']:],options)
             record['volinfo'] = VolumeInfoRecord
 
         elif ATRrecord['type'] == 0x80:                 # Data
@@ -177,8 +181,8 @@ def mft_to_csv(record, ret_header):
         csv_string = ["%s" % record['recordnum'],"BAAD MFT Record"]
         return csv_string
 
-    csv_string = [record['recordnum'], self.decodeMFTmagic(), self.decodeMFTisactive(),
-                    self.decodeMFTrecordtype()]
+    csv_string = [record['recordnum'], decodeMFTmagic(record), decodeMFTisactive(record),
+                    decodeMFTrecordtype(record)]
 
     if 'corrupt' in record:
         tmp_string = ["%s" % record['recordnum'],"Corrupt","Corrupt","Corrupt MFT Record"]
@@ -213,8 +217,10 @@ def mft_to_csv(record, ret_header):
     csv_string.extend(filenameBuffer)
 
     if 'objid' in record:
-        objidBuffer = [record['objid']['objid'].objstr, record['objid']['orig_volid'].objstr,
-                    record['objid']['orig_objid'].objstr, record['objid']['orig_domid'].objstr]
+#        objidBuffer = [record['objid']['objid'].objstr, record['objid']['orig_volid'].objstr,
+#                    record['objid']['orig_objid'].objstr, record['objid']['orig_domid'].objstr]
+        objidBuffer = [record['objid']['objid'], record['objid']['orig_volid'],
+                    record['objid']['orig_objid'], record['objid']['orig_domid']]
     else:
         objidBuffer = ['','','','']
 
@@ -378,7 +384,7 @@ def add_note(record, s):
     if record['notes'] == '':
         record['notes'] = "%s" % s
     else:
-        record['notes'] = "%s | %s |" % (self.mft_record['notes'], s)
+        record['notes'] = "%s | %s |" % (mft_record['notes'], s)
 
 
 def decodeMFTHeader(record, raw_record):
@@ -467,10 +473,10 @@ def decodeATRHeader(s):
 def decodeSIAttribute(s, localtz):
 
     d = {}
-    d['crtime'] = WindowsTime(struct.unpack("<L",s[:4])[0],struct.unpack("<L",s[4:8])[0],localtz)
-    d['mtime'] = WindowsTime(struct.unpack("<L",s[8:12])[0],struct.unpack("<L",s[12:16])[0],localtz)
-    d['ctime'] = WindowsTime(struct.unpack("<L",s[16:20])[0],struct.unpack("<L",s[20:24])[0],localtz)
-    d['atime'] = WindowsTime(struct.unpack("<L",s[24:28])[0],struct.unpack("<L",s[28:32])[0],localtz)
+    d['crtime'] = mftutils.WindowsTime(struct.unpack("<L",s[:4])[0],struct.unpack("<L",s[4:8])[0],localtz)
+    d['mtime'] = mftutils.WindowsTime(struct.unpack("<L",s[8:12])[0],struct.unpack("<L",s[12:16])[0],localtz)
+    d['ctime'] = mftutils.WindowsTime(struct.unpack("<L",s[16:20])[0],struct.unpack("<L",s[20:24])[0],localtz)
+    d['atime'] = mftutils.WindowsTime(struct.unpack("<L",s[24:28])[0],struct.unpack("<L",s[28:32])[0],localtz)
     d['dos'] = struct.unpack("<I",s[32:36])[0]          # 4
     d['maxver'] = struct.unpack("<I",s[36:40])[0]       # 4
     d['ver'] = struct.unpack("<I",s[40:44])[0]          # 4
@@ -482,7 +488,7 @@ def decodeSIAttribute(s, localtz):
 
     return d
 
-def decodeFNAttribute(s, localtz):
+def decodeFNAttribute(s, localtz, record):
 
     hexFlag = False
     # File name attributes can have null dates.
@@ -490,10 +496,10 @@ def decodeFNAttribute(s, localtz):
     d = {}
     d['par_ref'] = struct.unpack("<Lxx", s[:6])[0]      # Parent reference nummber + seq number = 8 byte "File reference to the parent directory."
     d['par_seq'] = struct.unpack("<H",s[6:8])[0]        # Parent sequence number
-    d['crtime'] = WindowsTime(struct.unpack("<L",s[8:12])[0],struct.unpack("<L",s[12:16])[0],localtz)
-    d['mtime'] = WindowsTime(struct.unpack("<L",s[16:20])[0],struct.unpack("<L",s[20:24])[0],localtz)
-    d['ctime'] = WindowsTime(struct.unpack("<L",s[24:28])[0],struct.unpack("<L",s[28:32])[0],localtz)
-    d['atime'] = WindowsTime(struct.unpack("<L",s[32:36])[0],struct.unpack("<L",s[36:40])[0],localtz)
+    d['crtime'] = mftutils.WindowsTime(struct.unpack("<L",s[8:12])[0],struct.unpack("<L",s[12:16])[0],localtz)
+    d['mtime'] = mftutils.WindowsTime(struct.unpack("<L",s[16:20])[0],struct.unpack("<L",s[20:24])[0],localtz)
+    d['ctime'] = mftutils.WindowsTime(struct.unpack("<L",s[24:28])[0],struct.unpack("<L",s[28:32])[0],localtz)
+    d['atime'] = mftutils.WindowsTime(struct.unpack("<L",s[32:36])[0],struct.unpack("<L",s[36:40])[0],localtz)
     d['alloc_fsize'] = struct.unpack("<q",s[40:48])[0]
     d['real_fsize'] = struct.unpack("<q",s[48:56])[0]
     d['flags'] = struct.unpack("<d",s[56:64])[0]            # 0x01=NTFS, 0x02=DOS
@@ -544,11 +550,11 @@ def decodeFNAttribute(s, localtz):
 #    d['decname'] = unicode(d['name'],'iso-8859-1','ignore')
 
     if hexFlag:
-        add_note('Filename - chars converted to hex')
+        add_note(record, 'Filename - chars converted to hex')
 
     return d
 
-def decodeAttributeList(s):
+def decodeAttributeList(s, record):
 
     hexFlag = False
 
@@ -574,11 +580,11 @@ def decodeAttributeList(s):
         d['name'] = s[26:26+d['nlen']*2]
 
     if hexFlag:
-        add_note('Filename - chars converted to hex')
+        add_note(record, 'Filename - chars converted to hex')
 
     return d
 
-def decodeVolumeInfo(s):
+def decodeVolumeInfo(s,options):
 
     d = {}
     d['f1'] = struct.unpack("<d",s[:8])[0]                  # 8

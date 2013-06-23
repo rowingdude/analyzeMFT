@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from optparse import OptionParser
 import os
 
 # DevelNote: need to pass in localtz now
@@ -47,44 +46,4 @@ class WindowsTime:
 
 
 
-def mft_options():
 
-    parser = OptionParser()
-    parser.set_defaults(debug=False,UseLocalTimezone=False,UseGUI=False)
-    
-    parser.add_option("-v", "--version", action="store_true", dest="version",
-                      help="report version and exit")
-    
-    parser.add_option("-f", "--file", dest="filename",
-                      help="read MFT from FILE", metavar="FILE")
-    
-    parser.add_option("-o", "--output", dest="output",
-                      help="write results to FILE", metavar="FILE")
-    
-    parser.add_option("-a", "--anomaly",
-                      action="store_true", dest="anomaly",
-                      help="turn on anomaly detection")
-    
-    parser.add_option("-b", "--bodyfile", dest="bodyfile",
-                      help="write MAC information to bodyfile", metavar="FILE")
-    
-    parser.add_option("--bodystd", action="store_true", dest="bodystd",
-                      help="Use STD_INFO timestamps for body file rather than FN timestamps")
-    
-    parser.add_option("--bodyfull", action="store_true", dest="bodyfull",
-                      help="Use full path name + filename rather than just filename")
-    
-    parser.add_option("-c", "--csvtimefile", dest="csvtimefile",
-                      help="write CSV format timeline file", metavar="FILE")
-    
-    parser.add_option("-l", "--localtz",
-                      action="store_true", dest="localtz",
-                      help="report times using local timezone")
-
-    parser.add_option("-d", "--debug",
-                      action="store_true", dest="debug",
-                      help="turn on debugging output")
-    
-    (options, args) = parser.parse_args()
-    
-    return options

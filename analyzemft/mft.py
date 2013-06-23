@@ -12,8 +12,19 @@
 import struct
 import mftutils
 import binascii
+from optparse import OptionParser
 
 unicodeHack = True                           # This one is for me
+
+def set_default_options():
+
+    parser = OptionParser()
+    parser.set_defaults(debug=False)
+    parser.set_defaults(localtz=None)
+    parser.set_defaults(bodystd=False)
+    parser.set_defaults(bodyfull=False)
+    (options,args) = parser.parse_args()
+    return options
 
 def parse_record(raw_record, options):
 

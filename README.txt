@@ -3,7 +3,18 @@ Analyze MFT
 ===========
 
 analyzeMFT.py is designed to fully parse the MFT file from an NTFS filesystem
-and present the results as accurately as possible in multiple formats. 
+and present the results as accurately as possible in multiple formats.
+
+Installation
+===========
+You should now be able to install analyzeMFT with pip:
+
+    pip install analyzeMFT
+    
+Alternatively:
+
+    git pull https://github.com/dkovar/analyzeMFT.git
+    python setup.py install (or, just run it from that directory)
 
 Usage
 ===========

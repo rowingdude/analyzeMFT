@@ -24,8 +24,6 @@ import mft
 
 from mftutils import WindowsTime
 
-from getsize import total_size
-
 
 SIAttributeSizeXP = 72
 SIAttributeSizeNT = 48

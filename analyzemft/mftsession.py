@@ -190,7 +190,13 @@ class MftSession:
 				   
                if self.options.output != None:
 				   self.file_csv.writerow(mft.mft_to_csv(record, False))
-				   
+
+               if self.options.csvtimefile != None:
+				   self.file_csv.write(mft.mft_to_l2t(record))
+
+               if self.options.bodyfile != None:
+				   self.file_body.write(mft.mft_to_body(record, self.options.bodyfull, self.options.bodystd))	
+
                if self.options.progress:
 				   if self.num_records % (self.mftsize/5) == 0 and self.num_records > 0:
 					   print 'Building MFT: {0:.0f}'.format(100.0*self.num_records/self.mftsize) + '%'

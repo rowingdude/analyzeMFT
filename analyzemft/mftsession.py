@@ -145,7 +145,7 @@ class MftSession:
 		 
 		 #The size of the full MFT is approximately the number of records * the avg record size
 		 #Avg record size was determined empirically using some test data
-		 sizeinbytes = self.mftsuze * 4500
+		 sizeinbytes = self.mftsize * 4500
 		 
 		 if self.options.debug: print 'Need %d bytes of memory to save into memory' % sizeinbytes
 

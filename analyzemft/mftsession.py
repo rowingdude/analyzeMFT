@@ -190,7 +190,7 @@ class MftSession:
 				   self.file_csv.writerow(mft.mft_to_csv(record, False))
 
                if self.options.csvtimefile != None:
-				   self.file_csv.write(mft.mft_to_l2t(record))
+				   self.file_csv_time.write(mft.mft_to_l2t(record))
 
                if self.options.bodyfile != None:
 				   self.file_body.write(mft.mft_to_body(record, self.options.bodyfull, self.options.bodystd))	
@@ -242,15 +242,6 @@ class MftSession:
 
           self.gen_filepaths()
 
-		  #This never actually runs in the new version. Kept around for convenience.
-     def print_records(self):
-          for i in self.mft:
-               if self.options.output != None:
-                    self.file_csv.writerow(mft.mft_to_csv(self.mft[i], False))
-               if self.options.csvtimefile != None:
-                    self.file_csv_time.write(mft.mft_to_l2t(self.mft[i]))
-               if self.options.bodyfile != None:
-                    self.file_body.write(mft.mft_to_body(self.mft[i], self.options.bodyfull, self.options.bodystd))
 
      def get_folder_path(self, seqnum):
           if self.debug: print "Building Folder For Record Number (%d)" % seqnum

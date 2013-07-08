@@ -11,4 +11,3 @@ if __name__=="__main__":
      session.mft_options()
      session.open_files()
      session.process_mft_file()
-     session.print_records()

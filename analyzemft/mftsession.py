@@ -9,8 +9,6 @@
 # Date: May 2013
 #
 
-VERSION='2.0.21'
-
 import sys
 import ctypes
 import re

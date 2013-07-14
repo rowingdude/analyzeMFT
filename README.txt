@@ -49,7 +49,9 @@ Other options:
   -a, --anomaly         turn on anomaly detection
   -l, --localtz         report times using local timezone
   -d, --debug           turn on debugging output
-
+  -s, --saveinmemory    Save a copy of the decoded MFT in memory. Do not use
+                        for very large MFTs
+  -p, --progress        Show systematic progress reports.
 
 Output
 =========

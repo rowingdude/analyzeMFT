@@ -132,30 +132,29 @@ class MftSession:
      #Provides a very rudimentary check to see if it's possible to store the entire MFT in memory
      #Not foolproof by any means, but could stop you from wasting time on a doomed to failure run.
      def sizecheck(self):
-     	 
-		 #The number of records in the MFT is the size of the MFT / 1024
-		 self.mftsize = long(os.path.getsize(self.options.filename)) / 1024
-		 
-		 if self.options.debug: print 'There are %d records in the MFT' % self.mftsize
-		 
-		 if self.options.inmemory == False:
-			 return
-		 
-		 #The size of the full MFT is approximately the number of records * the avg record size
-		 #Avg record size was determined empirically using some test data
-		 sizeinbytes = self.mftsize * 4500
-		 
-		 if self.options.debug: print 'Need %d bytes of memory to save into memory' % sizeinbytes
-
-		 try:
-			 arr = []
-			 for i in range(0, sizeinbytes/10):
-				 arr.append(1)
-		
-		 except(MemoryError):
-			 print 'Error: Not enough memory to store MFT in memory. Try running again without -s option'
-			 sys.exit()
-			 
+          
+          #The number of records in the MFT is the size of the MFT / 1024
+          self.mftsize = long(os.path.getsize(self.options.filename)) / 1024
+          
+          if self.options.debug: print 'There are %d records in the MFT' % self.mftsize
+          
+          if self.options.inmemory == False:
+                  return
+          
+          #The size of the full MFT is approximately the number of records * the avg record size
+          #Avg record size was determined empirically using some test data
+          sizeinbytes = self.mftsize * 4500
+          
+          if self.options.debug: print 'Need %d bytes of memory to save into memory' % sizeinbytes
+          
+          try:
+                  arr = []
+                  for i in range(0, sizeinbytes/10):
+                          arr.append(1)
+          
+          except(MemoryError):
+                  print 'Error: Not enough memory to store MFT in memory. Try running again without -s option'
+                  sys.exit()
 
      
      def process_mft_file(self):
@@ -171,7 +170,7 @@ class MftSession:
 
           
           if self.options.output != None:
-			  self.file_csv.writerow(mft.mft_to_csv(None, True))                    
+               self.file_csv.writerow(mft.mft_to_csv(None, True))                    
 
           while raw_record != "":
 
@@ -182,26 +181,25 @@ class MftSession:
                record['filename'] = self.mft[self.num_records]['filename']
                
                if self.options.inmemory:
-				   self.fullmft[self.num_records] = record
-				   
+                    self.fullmft[self.num_records] = record
+
                if self.options.output != None:
-				   self.file_csv.writerow(mft.mft_to_csv(record, False))
+                    self.file_csv.writerow(mft.mft_to_csv(record, False))
 
                if self.options.csvtimefile != None:
-				   self.file_csv_time.write(mft.mft_to_l2t(record))
+                    self.file_csv_time.write(mft.mft_to_l2t(record))
 
                if self.options.bodyfile != None:
-				   self.file_body.write(mft.mft_to_body(record, self.options.bodyfull, self.options.bodystd))	
+                    self.file_body.write(mft.mft_to_body(record, self.options.bodyfull, self.options.bodystd))	
 
                if self.options.progress:
-				   if self.num_records % (self.mftsize/5) == 0 and self.num_records > 0:
-					   print 'Building MFT: {0:.0f}'.format(100.0*self.num_records/self.mftsize) + '%'
+                    if self.num_records % (self.mftsize/5) == 0 and self.num_records > 0:
+                         print 'Building MFT: {0:.0f}'.format(100.0*self.num_records/self.mftsize) + '%'
 
                self.num_records = self.num_records + 1
   
                raw_record = self.file_mft.read(1024)   
            
-			  
      def build_filepaths(self):
           # reset the file reading
           self.file_mft.seek(0)
@@ -220,22 +218,20 @@ class MftSession:
                minirec['filename'] = record['filename']
                minirec['fncnt'] = record['fncnt']
                if record['fncnt'] == 1:
-				   minirec['par_ref'] = record['fn',0]['par_ref']
-				   minirec['name'] = record['fn',0]['name']
+                    minirec['par_ref'] = record['fn',0]['par_ref']
+                    minirec['name'] = record['fn',0]['name']
                if record['fncnt'] > 1:
-				   minirec['par_ref'] = record['fn',0]['par_ref']
-				   minirec['name'] = record['fn', record['fncnt']-1]['name']		
+                    minirec['par_ref'] = record['fn',0]['par_ref']
+                    minirec['name'] = record['fn', record['fncnt']-1]['name']		
                
                self.mft[self.num_records] = minirec
 
                if self.options.progress:
-				   if self.num_records % (self.mftsize/5) == 0 and self.num_records > 0:
-					   print 'Building Filepaths: {0:.0f}'.format(100.0*self.num_records/self.mftsize) + '%'
+                    if self.num_records % (self.mftsize/5) == 0 and self.num_records > 0:
+                            print 'Building Filepaths: {0:.0f}'.format(100.0*self.num_records/self.mftsize) + '%'
 
                self.num_records = self.num_records + 1
 
-
-				   
                raw_record = self.file_mft.read(1024)
 
           self.gen_filepaths()

@@ -81,9 +81,7 @@ class MftSession:
                            
          parser.add_option("-p", "--progress",
                            action="store_true", dest="progress",
-                           help="Show systematic progress reports.")         
-                           
-                                  
+                           help="Show systematic progress reports.")                          
          
          (self.options, args) = parser.parse_args()
          
@@ -199,7 +197,30 @@ class MftSession:
                self.num_records = self.num_records + 1
   
                raw_record = self.file_mft.read(1024)   
-           
+
+     def plaso_process_mft_file(self):
+          		 
+          self.build_filepaths()
+          
+          #reset the file reading
+          self.num_records = 0
+          self.file_mft.seek(0)
+          raw_record = self.file_mft.read(1024)                  
+
+          while raw_record != "":
+
+               record = {}
+               record = mft.parse_record(raw_record, self.options)
+               if self.options.debug: print record
+               
+               record['filename'] = self.mft[self.num_records]['filename']
+               
+               self.fullmft[self.num_records] = record
+
+               self.num_records = self.num_records + 1
+  
+               raw_record = self.file_mft.read(1024)
+               
      def build_filepaths(self):
           # reset the file reading
           self.file_mft.seek(0)

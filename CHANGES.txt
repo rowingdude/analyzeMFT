@@ -1,3 +1,3 @@
 v1.16,05/17/2013 -- Restructured layout in preparation for creating a module.
 v2.0.2,06/24/2013 -- OOP'd and then partially de-OOP'd to fix memory issue. Set up for PyPi (pip)
-v2.0.3,07/14/2013 -- Peter Ballen added -s switch to support small memory systems and -p switch to show progress
+v2.0.5,07/14/2013 -- Peter Ballen added -s switch to support small memory systems and -p switch to show progress

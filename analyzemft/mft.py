@@ -395,7 +395,7 @@ def add_note(record, s):
     if record['notes'] == '':
         record['notes'] = "%s" % s
     else:
-        record['notes'] = "%s | %s |" % (mft_record['notes'], s)
+        record['notes'] = "%s | %s |" % (record['notes'], s)
 
 
 def decodeMFTHeader(record, raw_record):

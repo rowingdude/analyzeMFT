@@ -9,6 +9,8 @@
 # Date: May 2013
 #
 
+VERSION = "v2.0.3"
+
 import sys
 import ctypes
 import re

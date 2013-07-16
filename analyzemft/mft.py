@@ -115,7 +115,8 @@ def parse_record(raw_record, options):
             record['volinfo'] = VolumeInfoRecord
 
         elif ATRrecord['type'] == 0x80:                 # Data
-            record['data'] = True
+            DataRecord = decodeDataRecord(raw_record[read_ptr+ATRrecord['soff']:])
+            record['data'] = DataRecord
             if options.debug: print "Data attribute"
 
         elif ATRrecord['type'] == 0x90:                 # Index root
@@ -615,6 +616,16 @@ def decodeVolumeInfo(s,options):
     return d
 
 def decodeObjectID(s):
+
+    d = {}
+    d['objid'] = ObjectID(s[0:16])
+    d['orig_volid'] = ObjectID(s[16:32])
+    d['orig_objid'] = ObjectID(s[32:48])
+    d['orig_domid'] = ObjectID(s[48:64])
+
+    return d
+
+def decodeDataRecord(s):
 
     d = {}
     d['objid'] = ObjectID(s[0:16])

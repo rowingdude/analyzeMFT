@@ -115,8 +115,12 @@ def parse_record(raw_record, options):
             record['volinfo'] = VolumeInfoRecord
 
         elif ATRrecord['type'] == 0x80:                 # Data
-            DataRecord = decodeDataRecord(raw_record[read_ptr+ATRrecord['soff']:])
-            record['data'] = DataRecord
+            #if ATRrecord['res'] == 0:
+            #    DataAttribute = decodeDataAttribute(raw_record[read_ptr+ATRrecord['soff']:],ATRrecord['name_off'],ATRrecord['nlen'])
+            #    record['data'] = DataAttribute
+            #else:
+            #    record['data'] = "Non-resident $DATA"
+            record['data'] = True
             if options.debug: print "Data attribute"
 
         elif ATRrecord['type'] == 0x90:                 # Index root
@@ -462,7 +466,7 @@ def decodeATRHeader(s):
         return d
     d['len'] = struct.unpack("<L",s[4:8])[0]
     d['res'] = struct.unpack("B",s[8])[0]
-    d['nlen'] = struct.unpack("B",s[9])[0]                  # This name is the name of the ADS, I think.
+    d['nlen'] = struct.unpack("B",s[9])[0]
     d['name_off'] = struct.unpack("<H",s[10:12])[0]
     d['flags'] = struct.unpack("<H",s[12:14])[0]
     d['id'] = struct.unpack("<H",s[14:16])[0]
@@ -615,17 +619,45 @@ def decodeVolumeInfo(s,options):
 
     return d
 
-def decodeObjectID(s):
+def decodeDataAttribute(s, offset, nlen):
+
+# File is filewithads.txt
+# ADS is filewithads.txt:ads.txt
+# Contents of ADS is "Hidden content in ADS"
 
     d = {}
-    d['objid'] = ObjectID(s[0:16])
-    d['orig_volid'] = ObjectID(s[16:32])
-    d['orig_objid'] = ObjectID(s[32:48])
-    d['orig_domid'] = ObjectID(s[48:64])
+    d['name'] = ''
+    i = 0
+    offset = offset - 16   # Account for the header
+    
+    d['content_len'] = struct.unpack("<L",s[:4])[0]
+    d['content_off'] = struct.unpack("<H",s[4:6])[0]
+    d['padding'] = struct.unpack("<H",s[6:8])[0]
 
-    return d
+    d['name'] = s[offset:offset + nlen*2]
 
-def decodeDataRecord(s):
+    #if (unicodeHack):
+    #    d['name'] = ''
+    #    for i in range(offset, offset + nlen*2):
+    #        if s[i] != '\x00':                         # Just skip over nulls
+    #            if s[i] > '\x1F' and s[i] < '\x80':          # If it is printable, add it to the string
+    #                d['name'] = d['name'] + s[i]
+    #            else:
+    #                d['name'] = "%s0x%02s" % (d['name'], s[i].encode("hex"))
+    #
+    ## This statement produces a valid unicode string, I just cannot get it to print correctly
+    ## so I'm temporarily hacking it with the if (unicodeHack) above.
+    #else:
+    #    d['name'] = s[offset:offset + nlen*2]
+
+    d['data'] = s[d['content_off']:d['content_off']+d['content_len']]
+
+    print 'Name: ', d['name']
+    print 'Name length', nlen
+    print 'Content length', d['content_len']
+    print 'Content offset', d['content_off']
+
+def decodeObjectID(s):
 
     d = {}
     d['objid'] = ObjectID(s[0:16])

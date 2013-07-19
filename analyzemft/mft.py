@@ -475,14 +475,14 @@ def decodeATRHeader(s):
         d['soff'] = struct.unpack("<H",s[20:22])[0]
         d['idxflag'] = struct.unpack("<H",s[22:24])[0]
     else:
-        d['start_vcn'] = struct.unpack("<d",s[16:24])[0]
-        d['last_vcn'] = struct.unpack("<d",s[24:32])[0]
+        d['start_vcn'] = struct.unpack("<Lxxxx",s[16:24])[0]
+        d['last_vcn'] = struct.unpack("<Lxxxx",s[24:32])[0]
         d['run_off'] = struct.unpack("<H",s[32:34])[0]
         d['compusize'] = struct.unpack("<H",s[34:36])[0]
         d['f1'] = struct.unpack("<I",s[36:40])[0]
-        d['alen'] = struct.unpack("<d",s[40:48])[0]
-        d['ssize'] = struct.unpack("<d",s[48:56])[0]
-        d['initsize'] = struct.unpack("<d",s[56:64])[0]
+        d['alen'] = struct.unpack("<Lxxxx",s[40:48])[0]
+        d['ssize'] = struct.unpack("<Lxxxx",s[48:56])[0]
+        d['initsize'] = struct.unpack("<Lxxxx",s[56:64])[0]
 
     return d
 

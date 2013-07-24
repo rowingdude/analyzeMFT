@@ -1,3 +1,10 @@
 v1.16,05/17/2013 -- Restructured layout in preparation for creating a module.
 v2.0.2,06/24/2013 -- OOP'd and then partially de-OOP'd to fix memory issue. Set up for PyPi (pip)
 v2.0.5,07/14/2013 -- Peter Ballen added -s switch to support small memory systems and -p switch to show progress
+v2.0.6,07/17/2013 -- Fixed bug in ATR processing
+v2.0.7,07/19/2013 -- Peter fixed the incorrect reading of some values. Will keep an eye out for other such issues.
+v2.0.7,07/21/2013 -- Fixed parsing and printing of UTF-16 strings, removed unicodeHack stuff.
+		  -- Fixed printing of unicode strings to output files
+                  -- Added ADS support.
+                        Each ADS file gets a duplicate of the parent's record with the filename updated
+                        All ADS records, parent and children, get a flag set in the new ADS column

@@ -14,8 +14,6 @@ import mftutils
 import binascii
 from optparse import OptionParser
 
-unicodeHack = True                           # This one is for me
-
 def set_default_options():
 
     parser = OptionParser()
@@ -31,6 +29,8 @@ def parse_record(raw_record, options):
     record = {}
     record['filename'] = ''
     record['notes'] = ''
+    record['ads'] = 0
+    record['datacnt'] = 0
 
     decodeMFTHeader(record, raw_record);
 
@@ -54,11 +54,18 @@ def parse_record(raw_record, options):
 
     read_ptr = record['attr_off']
 
+    # How should we preserve the multiple attributes? Do we need to preserve them all?
     while (read_ptr < 1024):
 
         ATRrecord = decodeATRHeader(raw_record[read_ptr:])
         if ATRrecord['type'] == 0xffffffff:             # End of attributes
             break
+
+        if ATRrecord['nlen'] > 0:
+            bytes = raw_record[read_ptr+ATRrecord['name_off']:read_ptr+ATRrecord['name_off'] + ATRrecord['nlen']*2]
+            ATRrecord['name'] = bytes.decode('utf-16').encode('utf-8')
+        else:
+            ATRrecord['name'] = ''
 
         if options.debug:
             print "Attribute type: %x Length: %d Res: %x" % (ATRrecord['type'], ATRrecord['len'], ATRrecord['res'])
@@ -115,12 +122,15 @@ def parse_record(raw_record, options):
             record['volinfo'] = VolumeInfoRecord
 
         elif ATRrecord['type'] == 0x80:                 # Data
-            #if ATRrecord['res'] == 0:
-            #    DataAttribute = decodeDataAttribute(raw_record[read_ptr+ATRrecord['soff']:],ATRrecord['name_off'],ATRrecord['nlen'])
-            #    record['data'] = DataAttribute
-            #else:
-            #    record['data'] = "Non-resident $DATA"
-            record['data'] = True
+            if ATRrecord['name'] != '':
+                record['data_name',record['ads']] = ATRrecord['name']
+                record['ads'] = record['ads'] + 1
+            if ATRrecord['res'] == 0:
+                DataAttribute = decodeDataAttribute(raw_record[read_ptr+ATRrecord['soff']:],ATRrecord)
+                record['data',record['datacnt']] = DataAttribute
+            else:
+                record['data',record['datacnt']] = "Non-resident $DATA"
+            record['datacnt'] = record['datacnt'] + 1
             if options.debug: print "Data attribute"
 
         elif ATRrecord['type'] == 0x90:                 # Index root
@@ -190,7 +200,7 @@ def mft_to_csv(record, ret_header):
                        'FN Info Entry date', 'Standard Information', 'Attribute List', 'Filename',
                        'Object ID', 'Volume Name', 'Volume Info', 'Data', 'Index Root',
                        'Index Allocation', 'Bitmap', 'Reparse Point', 'EA Information', 'EA',
-                       'Property Set', 'Logged Utility Stream', 'Log/Notes', 'STF FN Shift', 'uSec Zero']
+                       'Property Set', 'Logged Utility Stream', 'Log/Notes', 'STF FN Shift', 'uSec Zero', 'ADS']
         return csv_string
 
     if 'baad' in record:
@@ -292,7 +302,12 @@ def mft_to_csv(record, ret_header):
         csv_string.append('Y')
     else:
         csv_string.append('N')
-
+        
+    if record['ads'] > 0:
+        csv_string.append('Y')
+    else:
+        csv_string.append('N')
+        
     return csv_string
 
 # MD5|name|inode|mode_as_string|UID|GID|size|atime|mtime|ctime|crtime
@@ -421,6 +436,7 @@ def decodeMFTHeader(record, raw_record):
     record['f1'] = raw_record[42:44]                            # Padding
     record['recordnum'] = struct.unpack("<I", raw_record[44:48])[0]  # Number of this MFT Record
     record['fncnt'] = 0                              # Counter for number of FN attributes
+    record['datacnt'] = 0                            # Counter for number of $DATA attributes
 
 def decodeMFTmagic(record):
 
@@ -522,51 +538,8 @@ def decodeFNAttribute(s, localtz, record):
     d['nlen'] = struct.unpack("B",s[64])[0]
     d['nspace'] = struct.unpack("B",s[65])[0]
 
-    # The $MFT string is stored as \x24\x00\x4D\x00\x46\x00\x54. Ie, the first character is a single
-    # byte and the remaining characters are two bytes with the first byte a null.
-    # Note: Actually, it can be stored in several ways and the nspace field tells me which way.
-    #
-    # I found the following:
-    #
-    # NTFS allows any sequence of 16-bit values for name encoding (file names, stream names, index names,
-    # etc.). This means UTF-16 codepoints are supported, but the file system does not check whether a
-    # sequence is valid UTF-16 (it allows any sequence of short values, not restricted to those in the
-    # Unicode standard).
-    #
-    # If true, lovely. But that would explain what I am seeing.
-    #
-    # I just ran across an example of "any sequence of ..." - filenames with backspaces and newlines
-    # in them. Thus, the "isalpha" check. I really need to figure out how to handle Unicode better.
-
-    if (unicodeHack):
-        d['name'] = ''
-        for i in range(66, 66 + d['nlen']*2):
-            if s[i] != '\x00':                         # Just skip over nulls
-                if s[i] > '\x1F' and s[i] < '\x80':          # If it is printable, add it to the string
-                    d['name'] = d['name'] + s[i]
-                else:
-                    d['name'] = "%s0x%02s" % (d['name'], s[i].encode("hex"))
-                    hexFlag = True
-
-    # This statement produces a valid unicode string, I just cannot get it to print correctly
-    # so I'm temporarily hacking it with the if (unicodeHack) above.
-    else:
-        d['name'] = s[66:66+d['nlen']*2]
-
-# This didn't work
-#    d['name'] = struct.pack("\u
-#    for i in range(0, d['nlen']*2, 2):
-#        d['name']=d['name'] + struct.unpack("<H",s[66+i:66+i+1])
-
-# What follows is ugly. I'm trying to deal with the filename in Unicode and not doing well.
-# This solution works, though it is printing nulls between the characters. It'll do for now.
-#    d['name'] = struct.unpack("<%dH" % (int(d['nlen'])*2),s[66:66+(d['nlen']*2)])
-#    d['name'] = s[66:66+(d['nlen']*2)]
-#    d['decname'] = unicodedata.normalize('NFKD', d['name']).encode('ASCII','ignore')
-#    d['decname'] = unicode(d['name'],'iso-8859-1','ignore')
-
-    if hexFlag:
-        add_note(record, 'Filename - chars converted to hex')
+    bytes = s[66:66 + d['nlen']*2]
+    d['name'] = bytes.decode('utf-16').encode('utf-8')
 
     return d
 
@@ -583,20 +556,9 @@ def decodeAttributeList(s, record):
     d['file_ref'] = struct.unpack("<Lxx",s[16:22])[0]       # 6
     d['seq'] = struct.unpack("<H",s[22:24])[0]              # 2
     d['id'] = struct.unpack("<H",s[24:26])[0]               # 4
-    if (unicodeHack):
-        d['name'] = ''
-        for i in range(26, 26 + d['nlen']*2):
-            if s[i] != '\x00':                         # Just skip over nulls
-                if s[i] > '\x1F' and s[i] < '\x80':          # If it is printable, add it to the string
-                    d['name'] = d['name'] + s[i]
-                else:
-                    d['name'] = "%s0x%02s" % (d['name'], s[i].encode("hex"))
-                    hexFlag = True
-    else:
-        d['name'] = s[26:26+d['nlen']*2]
-
-    if hexFlag:
-        add_note(record, 'Filename - chars converted to hex')
+    
+    bytes = s[26:26 + d['nlen']*2]
+    d['name'] = bytes.decode('utf-16').encode('utf-8')
 
     return d
 
@@ -619,43 +581,15 @@ def decodeVolumeInfo(s,options):
 
     return d
 
-def decodeDataAttribute(s, offset, nlen):
+# Decode a Resident Data Attribute
+def decodeDataAttribute(s, ATRrecord):
 
-# File is filewithads.txt
-# ADS is filewithads.txt:ads.txt
-# Contents of ADS is "Hidden content in ADS"
-
-    d = {}
-    d['name'] = ''
-    i = 0
-    offset = offset - 16   # Account for the header
+        d = {}
+        d['data'] = s[:ATRrecord['ssize']]
     
-    d['content_len'] = struct.unpack("<L",s[:4])[0]
-    d['content_off'] = struct.unpack("<H",s[4:6])[0]
-    d['padding'] = struct.unpack("<H",s[6:8])[0]
-
-    d['name'] = s[offset:offset + nlen*2]
-
-    #if (unicodeHack):
-    #    d['name'] = ''
-    #    for i in range(offset, offset + nlen*2):
-    #        if s[i] != '\x00':                         # Just skip over nulls
-    #            if s[i] > '\x1F' and s[i] < '\x80':          # If it is printable, add it to the string
-    #                d['name'] = d['name'] + s[i]
-    #            else:
-    #                d['name'] = "%s0x%02s" % (d['name'], s[i].encode("hex"))
-    #
-    ## This statement produces a valid unicode string, I just cannot get it to print correctly
-    ## so I'm temporarily hacking it with the if (unicodeHack) above.
-    #else:
-    #    d['name'] = s[offset:offset + nlen*2]
-
-    d['data'] = s[d['content_off']:d['content_off']+d['content_len']]
-
-    print 'Name: ', d['name']
-    print 'Name length', nlen
-    print 'Content length', d['content_len']
-    print 'Content offset', d['content_off']
+#        print 'Data: ', d['data']
+        return d
+    
 
 def decodeObjectID(s):
 

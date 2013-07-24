@@ -9,7 +9,7 @@
 # Date: May 2013
 #
 
-VERSION = "v2.0.5"
+VERSION = "v2.0.7"
 
 import sys
 import ctypes
@@ -179,29 +179,43 @@ class MftSession:
                if self.options.debug: print record
                
                record['filename'] = self.mft[self.num_records]['filename']
+
+               self.do_output(record)
                
-               if self.options.inmemory:
-                    self.fullmft[self.num_records] = record
-
-               if self.options.output != None:
-                    self.file_csv.writerow(mft.mft_to_csv(record, False))
-
-               if self.options.csvtimefile != None:
-                    self.file_csv_time.write(mft.mft_to_l2t(record))
-
-               if self.options.bodyfile != None:
-                    self.file_body.write(mft.mft_to_body(record, self.options.bodyfull, self.options.bodystd))	
-
-               if self.options.progress:
-                    if self.num_records % (self.mftsize/5) == 0 and self.num_records > 0:
-                         print 'Building MFT: {0:.0f}'.format(100.0*self.num_records/self.mftsize) + '%'
-
                self.num_records = self.num_records + 1
-  
+               
+               if record['ads'] > 0:
+                    for i in range(0, record['ads']):
+#                         print "ADS: %s" % (record['data_name', i])
+                         record_ads = record.copy()
+                         record_ads['filename'] = record['filename'] + ':' + record['data_name', i]
+                         self.do_output(record_ads)
+
                raw_record = self.file_mft.read(1024)   
 
+     def do_output(self, record):
+          
+          if self.options.inmemory:
+               self.fullmft[self.num_records] = record
+
+          if self.options.output != None:
+               self.file_csv.writerow(mft.mft_to_csv(record, False))
+
+          if self.options.csvtimefile != None:
+               self.file_csv_time.write(mft.mft_to_l2t(record))
+
+          if self.options.bodyfile != None:
+               self.file_body.write(mft.mft_to_body(record, self.options.bodyfull, self.options.bodystd))	
+
+          if self.options.progress:
+               if self.num_records % (self.mftsize/5) == 0 and self.num_records > 0:
+                    print 'Building MFT: {0:.0f}'.format(100.0*self.num_records/self.mftsize) + '%'
+          
+     
      def plaso_process_mft_file(self):
-          		 
+          
+          # TODO - Add ADS support ....
+          
           self.build_filepaths()
           
           #reset the file reading

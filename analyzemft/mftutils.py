@@ -54,3 +54,5 @@ def hexdump( chars, sep, width ):
 
 def quotechars( chars ):
        return ''.join( ['.', c][c.isalnum()] for c in chars )
+
+

@@ -609,7 +609,10 @@ def decodeFNAttribute(s, localtz, record):
     d['nspace'] = struct.unpack("B",s[65])[0]
 
     bytes = s[66:66 + d['nlen']*2]
-    d['name'] = bytes.decode('utf-16').encode('utf-8')
+    try:
+        d['name'] = bytes.decode('utf-16').encode('utf-8')
+    except:
+        d['name'] = 'UnableToDecodeFilename'
 
     return d
 

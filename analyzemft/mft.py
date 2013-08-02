@@ -9,10 +9,13 @@
 # Date: May 2013
 #
 
+import sys
 import struct
 import mftutils
 import binascii
 from optparse import OptionParser
+import ctypes
+import bitparse
 
 def set_default_options():
 
@@ -128,9 +131,14 @@ def parse_record(raw_record, options):
             if ATRrecord['res'] == 0:
                 DataAttribute = decodeDataAttribute(raw_record[read_ptr+ATRrecord['soff']:],ATRrecord)
                 record['data',record['datacnt']] = DataAttribute
+                #try:
+                #    print "Resident files: %s"  % (FNrecord['name'])
+                #except:
+                #    pass
             else:
                 record['data',record['datacnt']] = "Non-resident $DATA"
             record['datacnt'] = record['datacnt'] + 1
+            
             if options.debug: print "Data attribute"
 
         elif ATRrecord['type'] == 0x90:                 # Index root
@@ -476,6 +484,7 @@ def decodeMFTrecordtype(record):
 
 def decodeATRHeader(s):
 
+    # mftutils.hexdump(s,':',16)
     d = {}
     d['type'] = struct.unpack("<L",s[:4])[0]
     if d['type'] == 0xffffffff:
@@ -487,20 +496,81 @@ def decodeATRHeader(s):
     d['flags'] = struct.unpack("<H",s[12:14])[0]
     d['id'] = struct.unpack("<H",s[14:16])[0]
     if d['res'] == 0:
-        d['ssize'] = struct.unpack("<L",s[16:20])[0]
-        d['soff'] = struct.unpack("<H",s[20:22])[0]
-        d['idxflag'] = struct.unpack("<H",s[22:24])[0]
+        d['ssize'] = struct.unpack("<L",s[16:20])[0]            # dwLength
+        d['soff'] = struct.unpack("<H",s[20:22])[0]             # wAttrOffset
+        d['idxflag'] = struct.unpack("B",s[22])[0]              # uchIndexedTag
+        padding = struct.unpack("B",s[23])[0]                   # Padding
     else:
-        d['start_vcn'] = struct.unpack("<Lxxxx",s[16:24])[0]
-        d['last_vcn'] = struct.unpack("<Lxxxx",s[24:32])[0]
-        d['run_off'] = struct.unpack("<H",s[32:34])[0]
-        d['compusize'] = struct.unpack("<H",s[34:36])[0]
-        d['f1'] = struct.unpack("<I",s[36:40])[0]
-        d['alen'] = struct.unpack("<Lxxxx",s[40:48])[0]
-        d['ssize'] = struct.unpack("<Lxxxx",s[48:56])[0]
-        d['initsize'] = struct.unpack("<Lxxxx",s[56:64])[0]
+        #d['start_vcn'] = struct.unpack("<Lxxxx",s[16:24])[0]    # n64StartVCN
+        #d['last_vcn'] = struct.unpack("<Lxxxx",s[24:32])[0]     # n64EndVCN
+        d['start_vcn'] = struct.unpack("<Q",s[16:24])[0]    # n64StartVCN
+        d['last_vcn'] = struct.unpack("<Q",s[24:32])[0]     # n64EndVCN
+        d['run_off'] = struct.unpack("<H",s[32:34])[0]          # wDataRunOffset (in clusters, from start of partition?)
+        d['compsize'] = struct.unpack("<H",s[34:36])[0]         # wCompressionSize
+        padding = struct.unpack("<I",s[36:40])[0]               # Padding
+        d['allocsize'] = struct.unpack("<Lxxxx",s[40:48])[0]    # n64AllocSize
+        d['realsize'] = struct.unpack("<Lxxxx",s[48:56])[0]     # n64RealSize
+        d['streamsize'] = struct.unpack("<Lxxxx",s[56:64])[0]   # n64StreamSize
+        (d['ndataruns'],d['dataruns'],d['drunerror']) = unpack_dataruns(s[64:])        
 
     return d
+
+# Dataruns - http://inform.pucp.edu.pe/~inf232/Ntfs/ntfs_doc_v0.5/concepts/data_runs.html
+def unpack_dataruns(str):
+    
+    dataruns = []
+    numruns = 0
+    pos = 0
+    prevoffset = 0
+    error = ''
+    
+    c_uint8 = ctypes.c_uint8
+
+    class Length_bits(ctypes.LittleEndianStructure):
+        _fields_ = [
+                ("lenlen", c_uint8, 4),
+                ("offlen", c_uint8, 4),
+                ]
+    
+    class Lengths(ctypes.Union):
+        _fields_ = [("b", Length_bits),
+                ("asbyte", c_uint8)]
+
+    lengths = Lengths()
+
+    #mftutils.hexdump(str,':',16)
+
+    while (True):
+        lengths.asbyte = struct.unpack("B",str[pos])[0]
+        pos += 1
+        if lengths.asbyte == 0x00:
+            break
+    
+        if (lengths.b.lenlen > 6 or lengths.b.lenlen == 0):
+            error = "Datarun oddity."
+            break
+
+        len = bitparse.parse_little_endian_signed(str[pos:pos+lengths.b.lenlen])
+
+        # print lengths.b.lenlen, lengths.b.offlen, len
+        pos += lengths.b.lenlen
+        
+        if (lengths.b.offlen > 0):
+            offset = bitparse.parse_little_endian_signed(str[pos:pos+lengths.b.offlen])
+            offset = offset + prevoffset
+            prevoffset = offset
+            pos += lengths.b.offlen
+        else: # Sparse
+            offset = 0
+            pos += 1            
+
+        dataruns.append([len, offset])
+        numruns += 1
+        
+                
+        # print "Lenlen: %d Offlen: %d Len: %d Offset: %d" % (lengths.b.lenlen, lengths.b.offlen, len, offset)
+
+    return numruns, dataruns, error
 
 def decodeSIAttribute(s, localtz):
 

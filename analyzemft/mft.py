@@ -130,13 +130,12 @@ def parse_record(raw_record, options):
                 record['ads'] = record['ads'] + 1
             if ATRrecord['res'] == 0:
                 DataAttribute = decodeDataAttribute(raw_record[read_ptr+ATRrecord['soff']:],ATRrecord)
-                record['data',record['datacnt']] = DataAttribute
-                #try:
-                #    print "Resident files: %s"  % (FNrecord['name'])
-                #except:
-                #    pass
             else:
-                record['data',record['datacnt']] = "Non-resident $DATA"
+                DataAttribute = {}
+                DataAttribute['ndataruns'] = ATRrecord['ndataruns']
+                DataAttribute['dataruns'] = ATRrecord['dataruns']
+                DataAttribute['drunerror'] = ATRrecord['drunerror']            
+            record['data',record['datacnt']] = DataAttribute    
             record['datacnt'] = record['datacnt'] + 1
             
             if options.debug: print "Data attribute"
@@ -484,7 +483,6 @@ def decodeMFTrecordtype(record):
 
 def decodeATRHeader(s):
 
-    # mftutils.hexdump(s,':',16)
     d = {}
     d['type'] = struct.unpack("<L",s[:4])[0]
     if d['type'] == 0xffffffff:

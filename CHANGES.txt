@@ -9,3 +9,5 @@ v2.0.7,07/21/2013 -- Fixed parsing and printing of UTF-16 strings, removed unico
                         Each ADS file gets a duplicate of the parent's record with the filename updated
                         All ADS records, parent and children, get a flag set in the new ADS column
 v2.0.8,08/02/2013 -- Started adding datarun support
+v2.0.9,08/02/2013 -- More datarun support
+v2.0.10,08/02/2013 -- More datarun support

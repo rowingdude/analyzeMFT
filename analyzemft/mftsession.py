@@ -9,7 +9,7 @@
 # Date: May 2013
 #
 
-VERSION = "v2.0.8"
+VERSION = "v2.0.10"
 
 import sys
 import ctypes

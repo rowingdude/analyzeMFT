@@ -11,3 +11,4 @@ v2.0.7,07/21/2013 -- Fixed parsing and printing of UTF-16 strings, removed unico
 v2.0.8,08/02/2013 -- Started adding datarun support
 v2.0.9,08/02/2013 -- More datarun support
 v2.0.10,08/02/2013 -- More datarun support
+v2.0.11,08/07/2013 -- Fixed reporting of filenames to favor non-8.3 format if it is available

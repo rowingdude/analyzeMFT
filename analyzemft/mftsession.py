@@ -21,6 +21,7 @@ import os
 import platform
 from optparse import OptionParser
 import mft
+import operator
 
 from mftutils import WindowsTime
 
@@ -38,6 +39,7 @@ class MftSession:
           self.folders = {}
           self.debug = False
           self.mftsize = 0
+          self.file_mod = {}
           
      def mft_options(self):
      
@@ -76,6 +78,11 @@ class MftSession:
          parser.add_option("-d", "--debug",
                            action="store_true", dest="debug",
                            help="turn on debugging output")
+
+         parser.add_option("--last_modified",
+                           action="store_true", dest="last_modified",
+                           default="False",
+                           help="Display the files last modified")
                            
          parser.add_option("-s", "--saveinmemory",
                            action="store_true", dest="inmemory",
@@ -191,7 +198,28 @@ class MftSession:
                          record_ads['filename'] = record['filename'] + ':' + record['data_name', i]
                          self.do_output(record_ads)
 
-               raw_record = self.file_mft.read(1024)   
+               raw_record = self.file_mft.read(1024)
+
+          if self.options.last_modified:
+               sort = sorted(self.file_mod.iteritems(), key=operator.itemgetter(1))
+               for (filename, moddate) in sort:
+                    print "%s: %s" % (str(moddate), filename)
+               return sort
+
+     def last_modified(self, record):
+          """ 
+          """
+
+          fn = record[('fn', 0)]["mtime"] if ('fn', 0) in record else None
+          si = record['si']["mtime"] if "si" in record else None
+          mod = None
+          if not fn is None:
+               mod = fn.dt
+          elif not si is None:
+               mod = si.dt
+          if not mod is None and not isinstance(mod, int):
+               self.file_mod[record["filename"]] = mod
+            
 
      def do_output(self, record):
           
@@ -200,6 +228,9 @@ class MftSession:
 
           if self.options.output != None:
                self.file_csv.writerow(mft.mft_to_csv(record, False))
+
+          if self.options.last_modified:
+               self.last_modified(record)
 
           if self.options.csvtimefile != None:
                self.file_csv_time.write(mft.mft_to_l2t(record))

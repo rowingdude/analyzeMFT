@@ -1,5 +1,7 @@
 v1.16,05/17/2013 -- Restructured layout in preparation for creating a module.
 v2.0.2,06/24/2013 -- OOP'd and then partially de-OOP'd to fix memory issue. Set up for PyPi (pip)
+v2.0.3,06/xx/2013 -- Restructured to support PyPi (pip)
+v2.0.4,07/xx/2013 -- Minor tweaks to support external programs
 v2.0.5,07/14/2013 -- Peter Ballen added -s switch to support small memory systems and -p switch to show progress
 v2.0.6,07/17/2013 -- Fixed bug in ATR processing
 v2.0.7,07/19/2013 -- Peter fixed the incorrect reading of some values. Will keep an eye out for other such issues.
@@ -12,3 +14,6 @@ v2.0.8,08/02/2013 -- Started adding datarun support
 v2.0.9,08/02/2013 -- More datarun support
 v2.0.10,08/02/2013 -- More datarun support
 v2.0.11,08/07/2013 -- Fixed reporting of filenames to favor non-8.3 format if it is available
+v2.0.12,03/15/2014 -- (Contributed by Brice) Added -e, --excel switch to print date/times in format that will
+                    cause Excel to import them properly.
+

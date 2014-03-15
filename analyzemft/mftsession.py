@@ -56,6 +56,10 @@ class MftSession:
          parser.add_option("-a", "--anomaly",
                            action="store_true", dest="anomaly",
                            help="turn on anomaly detection")
+
+         parser.add_option("-e", "--excel",
+                           action="store_true", dest="excel",
+                           help="print date/time in Excel friendly format")
          
          parser.add_option("-b", "--bodyfile", dest="bodyfile",
                            help="write MAC information to bodyfile", metavar="FILE")
@@ -170,7 +174,7 @@ class MftSession:
 
           
           if self.options.output != None:
-               self.file_csv.writerow(mft.mft_to_csv(None, True))                    
+               self.file_csv.writerow(mft.mft_to_csv(None, True, self.options))                    
 
           while raw_record != "":
 
@@ -199,7 +203,7 @@ class MftSession:
                self.fullmft[self.num_records] = record
 
           if self.options.output != None:
-               self.file_csv.writerow(mft.mft_to_csv(record, False))
+               self.file_csv.writerow(mft.mft_to_csv(record, False, self.options))
 
           if self.options.csvtimefile != None:
                self.file_csv_time.write(mft.mft_to_l2t(record))

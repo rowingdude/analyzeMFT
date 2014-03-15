@@ -184,7 +184,7 @@ def parse_record(raw_record, options):
     return record
 
 
-def mft_to_csv(record, ret_header):
+def mft_to_csv(record, ret_header,options):
     'Return a MFT record in CSV format'
 
     mftBuffer = ''
@@ -233,15 +233,29 @@ def mft_to_csv(record, ret_header):
         csv_string.extend(['NoParent', 'NoParent'])
 
     if record['fncnt'] > 0 and 'si' in record:
-        #filenameBuffer = [FNrecord['name'], str(record['si']['crtime'].dtstr),
-        filenameBuffer = [record['filename'], str(record['si']['crtime'].dtstr),
-                   record['si']['mtime'].dtstr, record['si']['atime'].dtstr, record['si']['ctime'].dtstr,
-                   record['fn',0]['crtime'].dtstr, record['fn',0]['mtime'].dtstr,
-                   record['fn',0]['atime'].dtstr, record['fn',0]['ctime'].dtstr]
+        if options.excel:
+            filenameBuffer = [record['filename'], str('=\"'+record['si']['crtime'].dtstr+'\"'),
+                       '=\"'+record['si']['mtime'].dtstr+'\"', '=\"'+record['si']['atime'].dtstr+'\"',
+                       '=\"'+record['si']['ctime'].dtstr+'\"',
+                       '=\"'+record['fn',0]['crtime'].dtstr+'\"', '=\"'+record['fn',0]['mtime'].dtstr+'\"',
+                       '=\"'+record['fn',0]['atime'].dtstr+'\"', '=\"'+record['fn',0]['ctime'].dtstr+'\"']
+        else:
+            filenameBuffer = [record['filename'], str(record['si']['crtime'].dtstr),
+                       record['si']['mtime'].dtstr, record['si']['atime'].dtstr, record['si']['ctime'].dtstr,
+                       record['fn',0]['crtime'].dtstr, record['fn',0]['mtime'].dtstr,
+                       record['fn',0]['atime'].dtstr, record['fn',0]['ctime'].dtstr] 
+            
     elif 'si' in record:
-        filenameBuffer = ['NoFNRecord', str(record['si']['crtime'].dtstr),
-                   record['si']['mtime'].dtstr, record['si']['atime'].dtstr, record['si']['ctime'].dtstr,
-                   'NoFNRecord', 'NoFNRecord', 'NoFNRecord','NoFNRecord']
+        if options.excel:
+            filenameBuffer = ['NoFNRecord', str('=\"'+record['si']['crtime'].dtstr+'\"'),
+                       '=\"'+record['si']['mtime'].dtstr+'\"', '=\"'+record['si']['atime'].dtstr+'\"',
+                       '=\"'+record['si']['ctime'].dtstr+'\"',
+                       'NoFNRecord', 'NoFNRecord', 'NoFNRecord','NoFNRecord']
+        else:
+            filenameBuffer = ['NoFNRecord', str(record['si']['crtime'].dtstr),
+                       record['si']['mtime'].dtstr, record['si']['atime'].dtstr, record['si']['ctime'].dtstr,
+                       'NoFNRecord', 'NoFNRecord', 'NoFNRecord','NoFNRecord']
+
     else:
         filenameBuffer = ['NoFNRecord', 'NoSIRecord', 'NoSIRecord', 'NoSIRecord', 'NoSIRecord',
                    'NoFNRecord', 'NoFNRecord', 'NoFNRecord','NoFNRecord']

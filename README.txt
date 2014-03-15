@@ -48,6 +48,7 @@ Other options:
 
   -a, --anomaly         turn on anomaly detection
   -l, --localtz         report times using local timezone
+  -e, --excel           print date/time in Excel friendly format
   -d, --debug           turn on debugging output
   -s, --saveinmemory    Save a copy of the decoded MFT in memory. Do not use
                         for very large MFTs
@@ -75,6 +76,8 @@ You can turn off all the GUI dependencies by setting the noGUI flag to 'True'. T
 
 Update History
 =============
+[See CHANGES.txt]
+
 Version 2.0.4:Minor tweaks to support external programs
 Version 2.0.3:Restructured to support PyPi (pip)
 Version 2.0.2:De-OOP'd MFT record parsing to reduce memory consumption

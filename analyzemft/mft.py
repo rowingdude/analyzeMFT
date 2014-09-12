@@ -35,7 +35,16 @@ def parse_record(raw_record, options):
     record['ads'] = 0
     record['datacnt'] = 0
 
-    decodeMFTHeader(record, raw_record);
+    decodeMFTHeader(record, raw_record)
+
+    # HACK: Apply the NTFS fixup on a 1024 byte record.
+    # Note that the fixup is only applied locally to this function.
+    if (record['seq_number'] == raw_record[510:512] and 
+        record['seq_number'] == raw_record[1022:1024]):
+        raw_record = "%s%s%s%s" % (raw_record[:510],
+                                   record['seq_attr1'],
+                                   raw_record[512:1022],
+                                   record['seq_attr2'])
 
     record_number = record['recordnum']
 
@@ -456,6 +465,10 @@ def decodeMFTHeader(record, raw_record):
     record['next_attrid'] = struct.unpack("<H",raw_record[40:42])[0]
     record['f1'] = raw_record[42:44]                            # Padding
     record['recordnum'] = struct.unpack("<I", raw_record[44:48])[0]  # Number of this MFT Record
+    record['seq_number'] = raw_record[48:50]  # Sequence number
+    # Sequence attributes location are hardcoded since the record size is hardcoded too.
+    record['seq_attr1'] = raw_record[50:52]  # Sequence attribute for sector 1
+    record['seq_attr2'] = raw_record[52:54]  # Sequence attribuet for sector 2
     record['fncnt'] = 0                              # Counter for number of FN attributes
     record['datacnt'] = 0                            # Counter for number of $DATA attributes
 

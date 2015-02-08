@@ -16,4 +16,6 @@ v2.0.10,08/02/2013 -- More datarun support
 v2.0.11,08/07/2013 -- Fixed reporting of filenames to favor non-8.3 format if it is available
 v2.0.12,03/15/2014 -- (Contributed by Brice) Added -e, --excel switch to print date/times in format that will
                     cause Excel to import them properly.
-
+v2.0.14,11/24/2014 - Fixing directory structure.
+v2.0.15,02/08/2015 - fix 2's complement computation (Willi)
+		   - Added anomaly detection back in. Missing since V2.0.0 in the summer of 2013

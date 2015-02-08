@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Author: David Kovar [dkovar <at> gmail [dot] com]
-# Name: analyzeMFT.py
+# Name: mft.py
 #
 # Copyright (c) 2010 David Kovar. All rights reserved.
 # This software is distributed under the Common Public License 1.0
@@ -190,6 +190,10 @@ def parse_record(raw_record, options):
             if options.debug: print "ATRrecord->len < 0, exiting loop"
             break
 
+
+    if options.anomaly:
+        anomalyDetect(record)
+        
     return record
 
 
@@ -708,3 +712,24 @@ def ObjectID(s):
             binascii.hexlify(s[6:8]),binascii.hexlify(s[8:10]),binascii.hexlify(s[10:16]))
 
     return objstr
+
+
+def anomalyDetect(record):
+     
+     
+     # Check for STD create times that are before the FN create times
+     if record['fncnt'] > 0:
+#          print record['si']['crtime'].dt, record['fn', 0]['crtime'].dt
+          
+          try:
+               if (record['fn', 0]['crtime'].dt == 0) or (record['si']['crtime'].dt < record['fn', 0]['crtime'].dt):
+                    record['stf-fn-shift'] = True
+          # This is a kludge - there seem to be some legit files that trigger an exception in the above. Needs to be
+          # investigated
+          except:
+               record['stf-fn-shift'] = True
+     
+          # Check for STD create times with a nanosecond value of '0'
+          if record['fn',0]['crtime'].dt != 0:
+               if record['fn',0]['crtime'].dt.microsecond == 0:
+                    record['usec-zero'] = True

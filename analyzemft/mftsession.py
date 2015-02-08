@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Author: David Kovar [dkovar <at> gmail [dot] com]
-# Name: analyzeMFT.py
+# Name: mftsession.py
 #
 # Copyright (c) 2010 David Kovar. All rights reserved.
 # This software is distributed under the Common Public License 1.0
@@ -9,7 +9,7 @@
 # Date: May 2013
 #
 
-VERSION = "v2.0.11"
+VERSION = "v2.0.15"
 
 import sys
 import ctypes

@@ -471,8 +471,10 @@ def decodeMFTHeader(record, raw_record):
     record['recordnum'] = struct.unpack("<I", raw_record[44:48])[0]  # Number of this MFT Record
     record['seq_number'] = raw_record[48:50]  # Sequence number
     # Sequence attributes location are hardcoded since the record size is hardcoded too.
-    record['seq_attr1'] = raw_record[50:52]  # Sequence attribute for sector 1
-    record['seq_attr2'] = raw_record[52:54]  # Sequence attribuet for sector 2
+    # The following two lines are subject to NTFS versions. See:
+    # https://github.com/libyal/libfsntfs/blob/master/documentation/New%20Technologies%20File%20System%20(NTFS).asciidoc#mft-entry-header
+    record['seq_attr1'] = raw_record[44:46]  # Sequence attribute for sector 1
+    record['seq_attr2'] = raw_record[46:58]  # Sequence attribute for sector 2
     record['fncnt'] = 0                              # Counter for number of FN attributes
     record['datacnt'] = 0                            # Counter for number of $DATA attributes
 

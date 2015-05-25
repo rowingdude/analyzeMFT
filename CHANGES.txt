@@ -19,3 +19,5 @@ v2.0.12,03/15/2014 -- (Contributed by Brice) Added -e, --excel switch to print d
 v2.0.14,11/24/2014 - Fixing directory structure.
 v2.0.15,02/08/2015 - fix 2's complement computation (Willi)
 		   - Added anomaly detection back in. Missing since V2.0.0 in the summer of 2013
+v2.0.16,05/21/2015 - Documentation fix and attribute fixes based on NTFS version with thanks to Joachim Metz 
+v2.0.17,05/23/2015 - Versioning hack

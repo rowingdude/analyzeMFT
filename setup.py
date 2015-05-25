@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='analyzeMFT',
-    version='2.0.15',
+    version='2.0.17',
     author='David Kovar',
     author_email='dkovar@gmail.com',
     packages=['analyzemft'],

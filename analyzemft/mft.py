@@ -473,8 +473,12 @@ def decodeMFTHeader(record, raw_record):
     # Sequence attributes location are hardcoded since the record size is hardcoded too.
     # The following two lines are subject to NTFS versions. See:
     # https://github.com/libyal/libfsntfs/blob/master/documentation/New%20Technologies%20File%20System%20(NTFS).asciidoc#mft-entry-header
-    record['seq_attr1'] = raw_record[44:46]  # Sequence attribute for sector 1
-    record['seq_attr2'] = raw_record[46:58]  # Sequence attribute for sector 2
+    if record['upd_off'] == 42:
+        record['seq_attr1'] = raw_record[44:46]  # Sequence attribute for sector 1
+        record['seq_attr2'] = raw_record[46:58]  # Sequence attribute for sector 2
+    else:
+        record['seq_attr1'] = raw_record[50:52]  # Sequence attribute for sector 1
+        record['seq_attr2'] = raw_record[52:54]  # Sequence attribute for sector 2
     record['fncnt'] = 0                              # Counter for number of FN attributes
     record['datacnt'] = 0                            # Counter for number of $DATA attributes
 

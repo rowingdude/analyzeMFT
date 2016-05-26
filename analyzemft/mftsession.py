@@ -296,7 +296,7 @@ class MftSession:
           try:
 #                if (self.mft[seqnum]['fn',0]['par_ref'] == 0) or (self.mft[seqnum]['fn',0]['par_ref'] == 5):  # There should be no seq number 0, not sure why I had that check in place.
                if (self.mft[seqnum]['par_ref'] == 5): # Seq number 5 is "/", root of the directory
-                    self.mft[seqnum]['filename'] = '/' + self.mft[seqnum]['name']
+                    self.mft[seqnum]['filename'] = '\\' + self.mft[seqnum]['name']
                     return self.mft[seqnum]['filename']
           except:  # If there was an error getting the parent's sequence number, then there is no FN record
                self.mft[seqnum]['filename'] = 'NoFNRecord'
@@ -305,12 +305,12 @@ class MftSession:
           # Self referential parent sequence number. The filename becomes a NoFNRecord note
           if (self.mft[seqnum]['par_ref']) == seqnum:
                if self.debug: print "Error, self-referential, while trying to determine path for seqnum %s" % seqnum
-               self.mft[seqnum]['filename'] = 'ORPHAN/' + self.mft[seqnum]['name']
+               self.mft[seqnum]['filename'] = 'ORPHAN\\' + self.mft[seqnum]['name']
                return self.mft[seqnum]['filename']
 
           # We're not at the top of the tree and we've not hit an error
           parentpath = self.get_folder_path((self.mft[seqnum]['par_ref']))
-          self.mft[seqnum]['filename'] =  parentpath + '/' + self.mft[seqnum]['name']
+          self.mft[seqnum]['filename'] =  parentpath + '\\' + self.mft[seqnum]['name']
 
           return self.mft[seqnum]['filename']
 

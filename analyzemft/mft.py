@@ -239,10 +239,6 @@ def parse_record(raw_record, options):
 def mft_to_csv(record, ret_header, options):
     """Return a MFT record in CSV format"""
 
-    mftBuffer = ''
-    tmpBuffer = ''
-    filenameBuffer = ''
-
     if ret_header:
         # Write headers
         csv_string = ['Record Number', 'Good', 'Active', 'Record type',
@@ -331,7 +327,6 @@ def mft_to_csv(record, ret_header, options):
         filenameBuffer = [record['fn', i]['name'], record['fn', i]['crtime'].dtstr, record['fn', i]['mtime'].dtstr,
                           record['fn', i]['atime'].dtstr, record['fn', i]['ctime'].dtstr]
         csv_string.extend(filenameBuffer)
-        filenameBuffer = ''
 
     # Pad out the remaining FN columns
     if record['fncnt'] < 2:
@@ -562,7 +557,6 @@ def decodeMFTisactive(record):
 
 
 def decodeMFTrecordtype(record):
-    tmpBuffer = int(record['flags'])
     if int(record['flags']) & 0x0002:
         tmpBuffer = 'Folder'
     else:
@@ -589,7 +583,7 @@ def decodeATRHeader(s):
         d['ssize'] = struct.unpack("<L", s[16:20])[0]  # dwLength
         d['soff'] = struct.unpack("<H", s[20:22])[0]  # wAttrOffset
         d['idxflag'] = struct.unpack("B", s[22])[0]  # uchIndexedTag
-        padding = struct.unpack("B", s[23])[0]  # Padding
+        _ = struct.unpack("B", s[23])[0]  # Padding
     else:
         # d['start_vcn'] = struct.unpack("<Lxxxx",s[16:24])[0]    # n64StartVCN
         # d['last_vcn'] = struct.unpack("<Lxxxx",s[24:32])[0]     # n64EndVCN
@@ -597,7 +591,7 @@ def decodeATRHeader(s):
         d['last_vcn'] = struct.unpack("<Q", s[24:32])[0]  # n64EndVCN
         d['run_off'] = struct.unpack("<H", s[32:34])[0]  # wDataRunOffset (in clusters, from start of partition?)
         d['compsize'] = struct.unpack("<H", s[34:36])[0]  # wCompressionSize
-        padding = struct.unpack("<I", s[36:40])[0]  # Padding
+        _ = struct.unpack("<I", s[36:40])[0]  # Padding
         d['allocsize'] = struct.unpack("<Lxxxx", s[40:48])[0]  # n64AllocSize
         d['realsize'] = struct.unpack("<Lxxxx", s[48:56])[0]  # n64RealSize
         d['streamsize'] = struct.unpack("<Lxxxx", s[56:64])[0]  # n64StreamSize
@@ -677,8 +671,7 @@ def decodeSIAttribute(s, localtz):
     return d
 
 
-def decodeFNAttribute(s, localtz, record):
-    hexFlag = False
+def decodeFNAttribute(s, localtz, _):
     # File name attributes can have null dates.
 
     d = {
@@ -701,9 +694,7 @@ def decodeFNAttribute(s, localtz, record):
     return d
 
 
-def decodeAttributeList(s, record):
-    hexFlag = False
-
+def decodeAttributeList(s, _):
     d = {
         'type': struct.unpack("<I", s[:4])[0], 'len': struct.unpack("<H", s[4:6])[0],
         'nlen': struct.unpack("B", s[6])[0], 'f1': struct.unpack("B", s[7])[0],
@@ -755,7 +746,6 @@ def decodeObjectID(s):
 
 
 def ObjectID(s):
-    objstr = ''
     if s == 0:
         objstr = 'Undefined'
     else:

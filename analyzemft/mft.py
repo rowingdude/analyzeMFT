@@ -18,6 +18,14 @@ import bitparse
 import mftutils
 
 
+def fmt_excel(date_str):
+    return '="{}"'.format(date_str)
+
+
+def fmt_norm(date_str):
+    return date_str
+
+
 def set_default_options():
     parser = OptionParser()
     parser.set_defaults(debug=False)
@@ -25,6 +33,10 @@ def set_default_options():
     parser.set_defaults(bodystd=False)
     parser.set_defaults(bodyfull=False)
     (options, args) = parser.parse_args()
+    if options.excel:
+        options.date_formatter = fmt_excel
+    else:
+        options.date_formatter = fmt_norm
     return options
 
 
@@ -81,8 +93,8 @@ def parse_record(raw_record, options):
             break
 
         if atr_record['nlen'] > 0:
-            record_bytes = raw_record[read_ptr + atr_record['name_off']:
-                                      read_ptr + atr_record['name_off'] + atr_record['nlen'] * 2]
+            record_bytes = raw_record[
+                read_ptr + atr_record['name_off']: read_ptr + atr_record['name_off'] + atr_record['nlen'] * 2]
             atr_record['name'] = record_bytes.decode('utf-16').encode('utf-8')
         else:
             atr_record['name'] = ''
@@ -281,50 +293,26 @@ def mft_to_csv(record, ret_header, options):
         csv_string.extend(['NoParent', 'NoParent'])
 
     if record['fncnt'] > 0 and 'si' in record:
-        if options.excel:
-            filename_buffer = [
-                record['filename'],
-                '="{}"'.format(record['si']['crtime'].dtstr),
-                '="{}"'.format(record['si']['mtime'].dtstr),
-                '="{}"'.format(record['si']['atime'].dtstr),
-                '="{}"'.format(record['si']['ctime'].dtstr),
-                '="{}"'.format(record['fn', 0]['crtime'].dtstr),
-                '="{}"'.format(record['fn', 0]['mtime'].dtstr),
-                '="{}"'.format(record['fn', 0]['atime'].dtstr),
-                '="{}"'.format(record['fn', 0]['ctime'].dtstr),
-            ]
-        else:
-            filename_buffer = [
-                record['filename'],
-                record['si']['crtime'].dtstr,
-                record['si']['mtime'].dtstr,
-                record['si']['atime'].dtstr,
-                record['si']['ctime'].dtstr,
-                record['fn', 0]['crtime'].dtstr,
-                record['fn', 0]['mtime'].dtstr,
-                record['fn', 0]['atime'].dtstr,
-                record['fn', 0]['ctime'].dtstr,
-            ]
-
+        filename_buffer = [
+            record['filename'],
+            options.date_formatter(record['si']['crtime'].dtstr),
+            options.date_formatter(record['si']['mtime'].dtstr),
+            options.date_formatter(record['si']['atime'].dtstr),
+            options.date_formatter(record['si']['ctime'].dtstr),
+            options.date_formatter(record['fn', 0]['crtime'].dtstr),
+            options.date_formatter(record['fn', 0]['mtime'].dtstr),
+            options.date_formatter(record['fn', 0]['atime'].dtstr),
+            options.date_formatter(record['fn', 0]['ctime'].dtstr),
+        ]
     elif 'si' in record:
-        if options.excel:
-            filename_buffer = [
-                'NoFNRecord',
-                '="{}"'.format(record['si']['crtime'].dtstr),
-                '="{}"'.format(record['si']['mtime'].dtstr),
-                '="{}"'.format(record['si']['atime'].dtstr),
-                '="{}"'.format(record['si']['ctime'].dtstr),
-                'NoFNRecord', 'NoFNRecord', 'NoFNRecord', 'NoFNRecord',
-            ]
-        else:
-            filename_buffer = [
-                'NoFNRecord',
-                record['si']['crtime'].dtstr,
-                record['si']['mtime'].dtstr,
-                record['si']['atime'].dtstr,
-                record['si']['ctime'].dtstr,
-                'NoFNRecord', 'NoFNRecord', 'NoFNRecord', 'NoFNRecord',
-            ]
+        filename_buffer = [
+            'NoFNRecord',
+            options.date_formatter(record['si']['crtime'].dtstr),
+            options.date_formatter(record['si']['mtime'].dtstr),
+            options.date_formatter(record['si']['atime'].dtstr),
+            options.date_formatter(record['si']['ctime'].dtstr),
+            'NoFNRecord', 'NoFNRecord', 'NoFNRecord', 'NoFNRecord',
+        ]
 
     else:
         filename_buffer = [
@@ -336,8 +324,6 @@ def mft_to_csv(record, ret_header, options):
     csv_string.extend(filename_buffer)
 
     if 'objid' in record:
-        #        objidBuffer = [record['objid']['objid'].objstr, record['objid']['orig_volid'].objstr,
-        #                    record['objid']['orig_objid'].objstr, record['objid']['orig_domid'].objstr]
         objid_buffer = [
             record['objid']['objid'],
             record['objid']['orig_volid'],
@@ -489,12 +475,11 @@ def mft_to_l2t(record):
                 type_str = '$FN [...B] time'
                 macb_str = '...B'
 
-            csv_string = ("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n" %
-                          (
-                              date, time, 'TZ', macb_str, 'FILE', 'NTFS $MFT', type_str, 'user', 'host',
-                              record['filename'],
-                              'desc',
-                              'version', record['filename'], record['seq'], record['notes'], 'format', 'extra'))
+            csv_string = ("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n" % (
+                date, time, 'TZ', macb_str, 'FILE', 'NTFS $MFT', type_str, 'user', 'host',
+                record['filename'],
+                'desc',
+                'version', record['filename'], record['seq'], record['notes'], 'format', 'extra'))
 
     elif 'si' in record:
         for i in ('atime', 'mtime', 'ctime', 'crtime'):

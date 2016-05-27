@@ -287,7 +287,7 @@ def mft_to_csv(record, ret_header,options):
     csv_string.extend(objidBuffer)
 
     # If this goes above four FN attributes, the number of columns will exceed the headers
-    for i in range(1, record['fncnt']):
+    for i in range(1, min(4, record['fncnt'])):
         filenameBuffer = [record['fn',i]['name'], record['fn',i]['crtime'].dtstr, record['fn',i]['mtime'].dtstr,
                    record['fn',i]['atime'].dtstr, record['fn',i]['ctime'].dtstr]
         csv_string.extend(filenameBuffer)

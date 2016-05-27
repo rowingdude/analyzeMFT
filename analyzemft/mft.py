@@ -420,10 +420,13 @@ def mft_to_body(record, full, std):
 def mft_to_l2t(record):
     """ Return a MFT record in l2t CSV output format"""
 
+    csv_string = ''
     if record['fncnt'] > 0:
         for i in ('atime', 'mtime', 'ctime', 'crtime'):
             (date, time) = record['fn', 0][i].dtstr.split(' ')
 
+            macb_str = '....'
+            type_str = '....'
             if i == 'atime':
                 type_str = '$FN [.A..] time'
                 macb_str = '.A..'
@@ -448,6 +451,8 @@ def mft_to_l2t(record):
         for i in ('atime', 'mtime', 'ctime', 'crtime'):
             (date, time) = record['si'][i].dtstr.split(' ')
 
+            macb_str = '....'
+            type_str = '....'
             if i == 'atime':
                 type_str = '$SI [.A..] time'
                 macb_str = '.A..'

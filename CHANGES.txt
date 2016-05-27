@@ -22,3 +22,7 @@ v2.0.15,02/08/2015 - fix 2's complement computation (Willi)
 v2.0.16,05/21/2015 - Documentation fix and attribute fixes based on NTFS version with thanks to Joachim Metz 
 v2.0.17,05/23/2015 - Versioning hack
 v2.0.18,05/24/2015 - Versioning hack
+v2.0.19,05/27/2016 - (Contributed by lespea)
+                   - Properly deal with fncnt findings > 3
+                   - Allow the user to use either windows or unix path seperators
+                   - General code cleanup

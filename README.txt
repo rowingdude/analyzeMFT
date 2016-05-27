@@ -53,6 +53,7 @@ Other options:
   -s, --saveinmemory    Save a copy of the decoded MFT in memory. Do not use
                         for very large MFTs
   -p, --progress        Show systematic progress reports.
+  -w, --windows-path    Use windows path separator when constructing the filepath instead of linux
 
 Output
 =========

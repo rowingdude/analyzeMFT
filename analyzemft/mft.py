@@ -300,6 +300,8 @@ def mft_to_csv(record, ret_header,options):
         tmp_string = ['','','','','','','','','','']
     elif record['fncnt'] == 3:
         tmp_string = ['','','','','']
+    else:
+        tmp_string = []
 
     csv_string.extend(tmp_string)
 

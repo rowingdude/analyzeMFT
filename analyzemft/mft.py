@@ -81,9 +81,9 @@ def parse_record(raw_record, options):
             break
 
         if ATRrecord['nlen'] > 0:
-            bytes = raw_record[
+            record_bytes = raw_record[
                     read_ptr + ATRrecord['name_off']:read_ptr + ATRrecord['name_off'] + ATRrecord['nlen'] * 2]
-            ATRrecord['name'] = bytes.decode('utf-16').encode('utf-8')
+            ATRrecord['name'] = record_bytes.decode('utf-16').encode('utf-8')
         else:
             ATRrecord['name'] = ''
 
@@ -584,7 +584,7 @@ def decodeATRHeader(s):
 
 
 # Dataruns - http://inform.pucp.edu.pe/~inf232/Ntfs/ntfs_doc_v0.5/concepts/data_runs.html
-def unpack_dataruns(str):
+def unpack_dataruns(datarun_str):
     dataruns = []
     numruns = 0
     pos = 0
@@ -611,7 +611,7 @@ def unpack_dataruns(str):
     # mftutils.hexdump(str,':',16)
 
     while True:
-        lengths.asbyte = struct.unpack("B", str[pos])[0]
+        lengths.asbyte = struct.unpack("B", datarun_str[pos])[0]
         pos += 1
         if lengths.asbyte == 0x00:
             break
@@ -620,13 +620,13 @@ def unpack_dataruns(str):
             error = "Datarun oddity."
             break
 
-        len = bitparse.parse_little_endian_signed(str[pos:pos + lengths.b.lenlen])
+        bit_len = bitparse.parse_little_endian_signed(datarun_str[pos:pos + lengths.b.lenlen])
 
-        # print lengths.b.lenlen, lengths.b.offlen, len
+        # print lengths.b.lenlen, lengths.b.offlen, bit_len
         pos += lengths.b.lenlen
 
         if lengths.b.offlen > 0:
-            offset = bitparse.parse_little_endian_signed(str[pos:pos + lengths.b.offlen])
+            offset = bitparse.parse_little_endian_signed(datarun_str[pos:pos + lengths.b.offlen])
             offset = offset + prevoffset
             prevoffset = offset
             pos += lengths.b.offlen
@@ -634,11 +634,11 @@ def unpack_dataruns(str):
             offset = 0
             pos += 1
 
-        dataruns.append([len, offset])
+        dataruns.append([bit_len, offset])
         numruns += 1
 
 
-        # print "Lenlen: %d Offlen: %d Len: %d Offset: %d" % (lengths.b.lenlen, lengths.b.offlen, len, offset)
+        # print "Lenlen: %d Offlen: %d Len: %d Offset: %d" % (lengths.b.lenlen, lengths.b.offlen, bit_len, offset)
 
     return numruns, dataruns, error
 
@@ -673,9 +673,9 @@ def decodeFNAttribute(s, localtz, record):
         'nspace': struct.unpack("B", s[65])[0],
     }
 
-    bytes = s[66:66 + d['nlen'] * 2]
+    attr_bytes = s[66:66 + d['nlen'] * 2]
     try:
-        d['name'] = bytes.decode('utf-16').encode('utf-8')
+        d['name'] = attr_bytes.decode('utf-16').encode('utf-8')
     except:
         d['name'] = 'UnableToDecodeFilename'
 
@@ -692,8 +692,8 @@ def decodeAttributeList(s, record):
         'seq': struct.unpack("<H", s[22:24])[0], 'id': struct.unpack("<H", s[24:26])[0],
     }
 
-    bytes = s[26:26 + d['nlen'] * 2]
-    d['name'] = bytes.decode('utf-16').encode('utf-8')
+    attr_bytes = s[26:26 + d['nlen'] * 2]
+    d['name'] = attr_bytes.decode('utf-16').encode('utf-8')
 
     return d
 

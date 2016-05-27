@@ -219,7 +219,7 @@ def parse_record(raw_record, options):
 
 
 def mft_to_csv(record, ret_header, options):
-    'Return a MFT record in CSV format'
+    """Return a MFT record in CSV format"""
 
     mftBuffer = ''
     tmpBuffer = ''
@@ -370,7 +370,7 @@ def mft_to_csv(record, ret_header, options):
 
 # MD5|name|inode|mode_as_string|UID|GID|size|atime|mtime|ctime|crtime
 def mft_to_body(record, full, std):
-    ' Return a MFT record in bodyfile format'
+    """ Return a MFT record in bodyfile format"""
 
     # Add option to use STD_INFO
 
@@ -418,7 +418,7 @@ def mft_to_body(record, full, std):
 # http://code.google.com/p/log2timeline/wiki/l2t_csv
 
 def mft_to_l2t(record):
-    ' Return a MFT record in l2t CSV output format'
+    """ Return a MFT record in l2t CSV output format"""
 
     if record['fncnt'] > 0:
         for i in ('atime', 'mtime', 'ctime', 'crtime'):

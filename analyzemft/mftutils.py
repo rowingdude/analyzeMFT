@@ -5,7 +5,7 @@ import os
 # DevelNote: need to pass in localtz now
 
 class WindowsTime:
-    "Convert the Windows time in 100 nanosecond intervals since Jan 1, 1601 to time in seconds since Jan 1, 1970"
+    """Convert the Windows time in 100 nanosecond intervals since Jan 1, 1601 to time in seconds since Jan 1, 1970"""
 
 
     def __init__(self, low, high, localtz):

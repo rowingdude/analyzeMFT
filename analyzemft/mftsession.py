@@ -30,7 +30,7 @@ SIAttributeSizeNT = 48
 
 
 class MftSession:
-    'Class to describe an entire MFT processing session'
+    """Class to describe an entire MFT processing session"""
 
 
     def __init__(self):

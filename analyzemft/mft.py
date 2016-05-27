@@ -82,7 +82,7 @@ def parse_record(raw_record, options):
 
         if ATRrecord['nlen'] > 0:
             record_bytes = raw_record[
-                    read_ptr + ATRrecord['name_off']:read_ptr + ATRrecord['name_off'] + ATRrecord['nlen'] * 2]
+                read_ptr + ATRrecord['name_off']:read_ptr + ATRrecord['name_off'] + ATRrecord['nlen'] * 2]
             ATRrecord['name'] = record_bytes.decode('utf-16').encode('utf-8')
         else:
             ATRrecord['name'] = ''
@@ -123,34 +123,41 @@ def parse_record(raw_record, options):
                 record['al'] = None
 
         elif ATRrecord['type'] == 0x30:  # File name
-            if options.debug: print "File name record"
+            if options.debug:
+                print "File name record"
             FNrecord = decodeFNAttribute(raw_record[read_ptr + ATRrecord['soff']:], options.localtz, record)
             record['fn', record['fncnt']] = FNrecord
-            if options.debug: print "Name: %s (%d)" % (FNrecord['name'], record['fncnt'])
+            if options.debug:
+                print "Name: %s (%d)" % (FNrecord['name'], record['fncnt'])
             record['fncnt'] += 1
             if FNrecord['crtime'] != 0:
-                if options.debug: print "\tCRTime: %s MTime: %s ATime: %s EntryTime: %s" % (
-                    FNrecord['crtime'].dtstr,
-                    FNrecord['mtime'].dtstr,
-                    FNrecord['atime'].dtstr,
-                    FNrecord['ctime'].dtstr,
-                )
+                if options.debug:
+                    print "\tCRTime: %s MTime: %s ATime: %s EntryTime: %s" % (
+                        FNrecord['crtime'].dtstr,
+                        FNrecord['mtime'].dtstr,
+                        FNrecord['atime'].dtstr,
+                        FNrecord['ctime'].dtstr,
+                    )
 
         elif ATRrecord['type'] == 0x40:  # Object ID
             ObjectIDRecord = decodeObjectID(raw_record[read_ptr + ATRrecord['soff']:])
             record['objid'] = ObjectIDRecord
-            if options.debug: print "Object ID"
+            if options.debug:
+                print "Object ID"
 
         elif ATRrecord['type'] == 0x50:  # Security descriptor
             record['sd'] = True
-            if options.debug: print "Security descriptor"
+            if options.debug:
+                print "Security descriptor"
 
         elif ATRrecord['type'] == 0x60:  # Volume name
             record['volname'] = True
-            if options.debug: print "Volume name"
+            if options.debug:
+                print "Volume name"
 
         elif ATRrecord['type'] == 0x70:  # Volume information
-            if options.debug: print "Volume info attribute"
+            if options.debug:
+                print "Volume info attribute"
             VolumeInfoRecord = decodeVolumeInfo(raw_record[read_ptr + ATRrecord['soff']:], options)
             record['volinfo'] = VolumeInfoRecord
 
@@ -169,47 +176,58 @@ def parse_record(raw_record, options):
             record['data', record['datacnt']] = DataAttribute
             record['datacnt'] += 1
 
-            if options.debug: print "Data attribute"
+            if options.debug:
+                print "Data attribute"
 
         elif ATRrecord['type'] == 0x90:  # Index root
             record['indexroot'] = True
-            if options.debug: print "Index root"
+            if options.debug:
+                print "Index root"
 
         elif ATRrecord['type'] == 0xA0:  # Index allocation
             record['indexallocation'] = True
-            if options.debug: print "Index allocation"
+            if options.debug:
+                print "Index allocation"
 
         elif ATRrecord['type'] == 0xB0:  # Bitmap
             record['bitmap'] = True
-            if options.debug: print "Bitmap"
+            if options.debug:
+                print "Bitmap"
 
         elif ATRrecord['type'] == 0xC0:  # Reparse point
             record['reparsepoint'] = True
-            if options.debug: print "Reparse point"
+            if options.debug:
+                print "Reparse point"
 
         elif ATRrecord['type'] == 0xD0:  # EA Information
             record['eainfo'] = True
-            if options.debug: print "EA Information"
+            if options.debug:
+                print "EA Information"
 
         elif ATRrecord['type'] == 0xE0:  # EA
             record['ea'] = True
-            if options.debug: print "EA"
+            if options.debug:
+                print "EA"
 
         elif ATRrecord['type'] == 0xF0:  # Property set
             record['propertyset'] = True
-            if options.debug: print "Property set"
+            if options.debug:
+                print "Property set"
 
         elif ATRrecord['type'] == 0x100:  # Logged utility stream
             record['loggedutility'] = True
-            if options.debug: print "Logged utility stream"
+            if options.debug:
+                print "Logged utility stream"
 
         else:
-            if options.debug: print "Found an unknown attribute"
+            if options.debug:
+                print "Found an unknown attribute"
 
         if ATRrecord['len'] > 0:
             read_ptr = read_ptr + ATRrecord['len']
         else:
-            if options.debug: print "ATRrecord->len < 0, exiting loop"
+            if options.debug:
+                print "ATRrecord->len < 0, exiting loop"
             break
 
     if options.anomaly:
@@ -598,18 +616,15 @@ def unpack_dataruns(datarun_str):
 
     c_uint8 = ctypes.c_uint8
 
-
     class Length_bits(ctypes.LittleEndianStructure):
         _fields_ = [
             ("lenlen", c_uint8, 4),
             ("offlen", c_uint8, 4),
         ]
 
-
     class Lengths(ctypes.Union):
         _fields_ = [("b", Length_bits),
                     ("asbyte", c_uint8)]
-
 
     lengths = Lengths()
 
@@ -641,7 +656,6 @@ def unpack_dataruns(datarun_str):
 
         dataruns.append([bit_len, offset])
         numruns += 1
-
 
         # print "Lenlen: %d Offlen: %d Len: %d Offset: %d" % (lengths.b.lenlen, lengths.b.offlen, bit_len, offset)
 

@@ -7,7 +7,6 @@ import os
 class WindowsTime:
     """Convert the Windows time in 100 nanosecond intervals since Jan 1, 1601 to time in seconds since Jan 1, 1970"""
 
-
     def __init__(self, low, high, localtz):
         self.low = long(low)
         self.high = long(high)
@@ -36,7 +35,6 @@ class WindowsTime:
             self.dt = 0
             self.dtstr = "Invalid timestamp"
             self.unixtime = 0
-
 
     def GetUnixTime(self):
         t = float(self.high) * 2 ** 32 + self.low

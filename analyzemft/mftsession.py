@@ -32,14 +32,12 @@ SIAttributeSizeNT = 48
 class MftSession:
     """Class to describe an entire MFT processing session"""
 
-
     def __init__(self):
         self.mft = {}
         self.fullmft = {}
         self.folders = {}
         self.debug = False
         self.mftsize = 0
-
 
     def mft_options(self):
 
@@ -99,7 +97,6 @@ class MftSession:
 
         self.path_sep = '\\' if self.options.winpath else '/'
 
-
     def open_files(self):
         if self.options.version:
             print("Version is: %s" % VERSION)
@@ -140,7 +137,6 @@ class MftSession:
                 print "Unable to open file: %s" % self.options.csvtimefile
                 sys.exit()
 
-
     # Provides a very rudimentary check to see if it's possible to store the entire MFT in memory
     # Not foolproof by any means, but could stop you from wasting time on a doomed to failure run.
     def sizecheck(self):
@@ -148,7 +144,8 @@ class MftSession:
         # The number of records in the MFT is the size of the MFT / 1024
         self.mftsize = long(os.path.getsize(self.options.filename)) / 1024
 
-        if self.options.debug: print 'There are %d records in the MFT' % self.mftsize
+        if self.options.debug:
+            print 'There are %d records in the MFT' % self.mftsize
 
         if not self.options.inmemory:
             return
@@ -157,7 +154,8 @@ class MftSession:
         # Avg record size was determined empirically using some test data
         sizeinbytes = self.mftsize * 4500
 
-        if self.options.debug: print 'Need %d bytes of memory to save into memory' % sizeinbytes
+        if self.options.debug:
+            print 'Need %d bytes of memory to save into memory' % sizeinbytes
 
         try:
             arr = []
@@ -167,7 +165,6 @@ class MftSession:
         except MemoryError:
             print 'Error: Not enough memory to store MFT in memory. Try running again without -s option'
             sys.exit()
-
 
     def process_mft_file(self):
 
@@ -187,7 +184,8 @@ class MftSession:
 
             record = {}
             record = mft.parse_record(raw_record, self.options)
-            if self.options.debug: print record
+            if self.options.debug:
+                print record
 
             record['filename'] = self.mft[self.num_records]['filename']
 
@@ -203,7 +201,6 @@ class MftSession:
                     self.do_output(record_ads)
 
             raw_record = self.file_mft.read(1024)
-
 
     def do_output(self, record):
 
@@ -223,7 +220,6 @@ class MftSession:
             if self.num_records % (self.mftsize / 5) == 0 and self.num_records > 0:
                 print 'Building MFT: {0:.0f}'.format(100.0 * self.num_records / self.mftsize) + '%'
 
-
     def plaso_process_mft_file(self):
 
         # TODO - Add ADS support ....
@@ -239,7 +235,8 @@ class MftSession:
 
             record = {}
             record = mft.parse_record(raw_record, self.options)
-            if self.options.debug: print record
+            if self.options.debug:
+                print record
 
             record['filename'] = self.mft[self.num_records]['filename']
 
@@ -248,7 +245,6 @@ class MftSession:
             self.num_records += 1
 
             raw_record = self.file_mft.read(1024)
-
 
     def build_filepaths(self):
         # reset the file reading
@@ -263,7 +259,8 @@ class MftSession:
             record = {}
             minirec = {}
             record = mft.parse_record(raw_record, self.options)
-            if self.options.debug: print record
+            if self.options.debug:
+                print record
 
             minirec['filename'] = record['filename']
             minirec['fncnt'] = record['fncnt']
@@ -291,9 +288,9 @@ class MftSession:
 
         self.gen_filepaths()
 
-
     def get_folder_path(self, seqnum):
-        if self.debug: print "Building Folder For Record Number (%d)" % seqnum
+        if self.debug:
+            print "Building Folder For Record Number (%d)" % seqnum
 
         if seqnum not in self.mft:
             return 'Orphan'
@@ -303,7 +300,9 @@ class MftSession:
             return self.mft[seqnum]['filename']
 
         try:
-            #                if (self.mft[seqnum]['fn',0]['par_ref'] == 0) or (self.mft[seqnum]['fn',0]['par_ref'] == 5):  # There should be no seq number 0, not sure why I had that check in place.
+            # if (self.mft[seqnum]['fn',0]['par_ref'] == 0) or
+            # (self.mft[seqnum]['fn',0]['par_ref'] == 5):  # There should be no seq
+            # number 0, not sure why I had that check in place.
             if self.mft[seqnum]['par_ref'] == 5:  # Seq number 5 is "/", root of the directory
                 self.mft[seqnum]['filename'] = self.path_sep + self.mft[seqnum]['name']
                 return self.mft[seqnum]['filename']
@@ -313,7 +312,8 @@ class MftSession:
 
         # Self referential parent sequence number. The filename becomes a NoFNRecord note
         if (self.mft[seqnum]['par_ref']) == seqnum:
-            if self.debug: print "Error, self-referential, while trying to determine path for seqnum %s" % seqnum
+            if self.debug:
+                print "Error, self-referential, while trying to determine path for seqnum %s" % seqnum
             self.mft[seqnum]['filename'] = 'ORPHAN' + self.path_sep + self.mft[seqnum]['name']
             return self.mft[seqnum]['filename']
 
@@ -322,7 +322,6 @@ class MftSession:
         self.mft[seqnum]['filename'] = parentpath + self.path_sep + self.mft[seqnum]['name']
 
         return self.mft[seqnum]['filename']
-
 
     def gen_filepaths(self):
 
@@ -338,6 +337,7 @@ class MftSession:
                     self.get_folder_path(i)
                     # self.mft[i]['filename'] = self.mft[i]['filename'] + '/' + self.mft[i]['fn',self.mft[i]['fncnt']-1]['name']
                     # self.mft[i]['filename'] = self.mft[i]['filename'].replace('//','/')
-                    if self.debug: print "Filename (with path): %s" % self.mft[i]['filename']
+                    if self.debug:
+                        print "Filename (with path): %s" % self.mft[i]['filename']
                 else:
                     self.mft[i]['filename'] = 'NoFNRecord'

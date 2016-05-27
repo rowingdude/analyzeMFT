@@ -12,4 +12,3 @@ setup(
     long_description=open('README.txt').read(),
     scripts=['analyzeMFT.py']
 )
-

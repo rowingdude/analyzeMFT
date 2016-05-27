@@ -124,6 +124,9 @@ Version 1.15: Added file size (real, not allocated) to bodyfile.
               Added bodyfile option to use STD_INFO timestamps rather than FN timestamps
 
 
+Version 2 history is in CHANGES.txt
+
+
 
 
 

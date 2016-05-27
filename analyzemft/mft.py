@@ -29,11 +29,12 @@ def set_default_options():
 
 
 def parse_record(raw_record, options):
-    record = {}
-    record['filename'] = ''
-    record['notes'] = ''
-    record['ads'] = 0
-    record['datacnt'] = 0
+    record = {
+        'filename': '',
+        'notes': '',
+        'ads': 0,
+        'datacnt': 0,
+    }
 
     decodeMFTHeader(record, raw_record)
 
@@ -160,10 +161,11 @@ def parse_record(raw_record, options):
             if ATRrecord['res'] == 0:
                 DataAttribute = decodeDataAttribute(raw_record[read_ptr + ATRrecord['soff']:], ATRrecord)
             else:
-                DataAttribute = {}
-                DataAttribute['ndataruns'] = ATRrecord['ndataruns']
-                DataAttribute['dataruns'] = ATRrecord['dataruns']
-                DataAttribute['drunerror'] = ATRrecord['drunerror']
+                DataAttribute = {
+                    'ndataruns': ATRrecord['ndataruns'],
+                    'dataruns': ATRrecord['dataruns'],
+                    'drunerror': ATRrecord['drunerror'],
+                }
             record['data', record['datacnt']] = DataAttribute
             record['datacnt'] += 1
 
@@ -551,8 +553,7 @@ def decodeMFTrecordtype(record):
 
 
 def decodeATRHeader(s):
-    d = {}
-    d['type'] = struct.unpack("<L", s[:4])[0]
+    d = {'type': struct.unpack("<L", s[:4])[0]}
     if d['type'] == 0xffffffff:
         return d
     d['len'] = struct.unpack("<L", s[4:8])[0]
@@ -643,19 +644,16 @@ def unpack_dataruns(str):
 
 
 def decodeSIAttribute(s, localtz):
-    d = {}
-    d['crtime'] = mftutils.WindowsTime(struct.unpack("<L", s[:4])[0], struct.unpack("<L", s[4:8])[0], localtz)
-    d['mtime'] = mftutils.WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], localtz)
-    d['ctime'] = mftutils.WindowsTime(struct.unpack("<L", s[16:20])[0], struct.unpack("<L", s[20:24])[0], localtz)
-    d['atime'] = mftutils.WindowsTime(struct.unpack("<L", s[24:28])[0], struct.unpack("<L", s[28:32])[0], localtz)
-    d['dos'] = struct.unpack("<I", s[32:36])[0]  # 4
-    d['maxver'] = struct.unpack("<I", s[36:40])[0]  # 4
-    d['ver'] = struct.unpack("<I", s[40:44])[0]  # 4
-    d['class_id'] = struct.unpack("<I", s[44:48])[0]  # 4
-    d['own_id'] = struct.unpack("<I", s[48:52])[0]  # 4
-    d['sec_id'] = struct.unpack("<I", s[52:56])[0]  # 4
-    d['quota'] = struct.unpack("<d", s[56:64])[0]  # 8
-    d['usn'] = struct.unpack("<d", s[64:72])[0]  # 8 - end of date to here is 40
+    d = {
+        'crtime': mftutils.WindowsTime(struct.unpack("<L", s[:4])[0], struct.unpack("<L", s[4:8])[0], localtz),
+        'mtime': mftutils.WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], localtz),
+        'ctime': mftutils.WindowsTime(struct.unpack("<L", s[16:20])[0], struct.unpack("<L", s[20:24])[0], localtz),
+        'atime': mftutils.WindowsTime(struct.unpack("<L", s[24:28])[0], struct.unpack("<L", s[28:32])[0], localtz),
+        'dos': struct.unpack("<I", s[32:36])[0], 'maxver': struct.unpack("<I", s[36:40])[0],
+        'ver': struct.unpack("<I", s[40:44])[0], 'class_id': struct.unpack("<I", s[44:48])[0],
+        'own_id': struct.unpack("<I", s[48:52])[0], 'sec_id': struct.unpack("<I", s[52:56])[0],
+        'quota': struct.unpack("<d", s[56:64])[0], 'usn': struct.unpack("<d", s[64:72])[0],
+    }
 
     return d
 
@@ -664,19 +662,16 @@ def decodeFNAttribute(s, localtz, record):
     hexFlag = False
     # File name attributes can have null dates.
 
-    d = {}
-    d['par_ref'] = struct.unpack("<Lxx", s[:6])[
-        0]  # Parent reference nummber + seq number = 8 byte "File reference to the parent directory."
-    d['par_seq'] = struct.unpack("<H", s[6:8])[0]  # Parent sequence number
-    d['crtime'] = mftutils.WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], localtz)
-    d['mtime'] = mftutils.WindowsTime(struct.unpack("<L", s[16:20])[0], struct.unpack("<L", s[20:24])[0], localtz)
-    d['ctime'] = mftutils.WindowsTime(struct.unpack("<L", s[24:28])[0], struct.unpack("<L", s[28:32])[0], localtz)
-    d['atime'] = mftutils.WindowsTime(struct.unpack("<L", s[32:36])[0], struct.unpack("<L", s[36:40])[0], localtz)
-    d['alloc_fsize'] = struct.unpack("<q", s[40:48])[0]
-    d['real_fsize'] = struct.unpack("<q", s[48:56])[0]
-    d['flags'] = struct.unpack("<d", s[56:64])[0]  # 0x01=NTFS, 0x02=DOS
-    d['nlen'] = struct.unpack("B", s[64])[0]
-    d['nspace'] = struct.unpack("B", s[65])[0]
+    d = {
+        'par_ref': struct.unpack("<Lxx", s[:6])[0], 'par_seq': struct.unpack("<H", s[6:8])[0],
+        'crtime': mftutils.WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], localtz),
+        'mtime': mftutils.WindowsTime(struct.unpack("<L", s[16:20])[0], struct.unpack("<L", s[20:24])[0], localtz),
+        'ctime': mftutils.WindowsTime(struct.unpack("<L", s[24:28])[0], struct.unpack("<L", s[28:32])[0], localtz),
+        'atime': mftutils.WindowsTime(struct.unpack("<L", s[32:36])[0], struct.unpack("<L", s[36:40])[0], localtz),
+        'alloc_fsize': struct.unpack("<q", s[40:48])[0], 'real_fsize': struct.unpack("<q", s[48:56])[0],
+        'flags': struct.unpack("<d", s[56:64])[0], 'nlen': struct.unpack("B", s[64])[0],
+        'nspace': struct.unpack("B", s[65])[0],
+    }
 
     bytes = s[66:66 + d['nlen'] * 2]
     try:
@@ -690,15 +685,12 @@ def decodeFNAttribute(s, localtz, record):
 def decodeAttributeList(s, record):
     hexFlag = False
 
-    d = {}
-    d['type'] = struct.unpack("<I", s[:4])[0]  # 4
-    d['len'] = struct.unpack("<H", s[4:6])[0]  # 2
-    d['nlen'] = struct.unpack("B", s[6])[0]  # 1
-    d['f1'] = struct.unpack("B", s[7])[0]  # 1
-    d['start_vcn'] = struct.unpack("<d", s[8:16])[0]  # 8
-    d['file_ref'] = struct.unpack("<Lxx", s[16:22])[0]  # 6
-    d['seq'] = struct.unpack("<H", s[22:24])[0]  # 2
-    d['id'] = struct.unpack("<H", s[24:26])[0]  # 4
+    d = {
+        'type': struct.unpack("<I", s[:4])[0], 'len': struct.unpack("<H", s[4:6])[0],
+        'nlen': struct.unpack("B", s[6])[0], 'f1': struct.unpack("B", s[7])[0],
+        'start_vcn': struct.unpack("<d", s[8:16])[0], 'file_ref': struct.unpack("<Lxx", s[16:22])[0],
+        'seq': struct.unpack("<H", s[22:24])[0], 'id': struct.unpack("<H", s[24:26])[0],
+    }
 
     bytes = s[26:26 + d['nlen'] * 2]
     d['name'] = bytes.decode('utf-16').encode('utf-8')
@@ -707,12 +699,11 @@ def decodeAttributeList(s, record):
 
 
 def decodeVolumeInfo(s, options):
-    d = {}
-    d['f1'] = struct.unpack("<d", s[:8])[0]  # 8
-    d['maj_ver'] = struct.unpack("B", s[8])[0]  # 1
-    d['min_ver'] = struct.unpack("B", s[9])[0]  # 1
-    d['flags'] = struct.unpack("<H", s[10:12])[0]  # 2
-    d['f2'] = struct.unpack("<I", s[12:16])[0]  # 4
+    d = {
+        'f1': struct.unpack("<d", s[:8])[0], 'maj_ver': struct.unpack("B", s[8])[0],
+        'min_ver': struct.unpack("B", s[9])[0], 'flags': struct.unpack("<H", s[10:12])[0],
+        'f2': struct.unpack("<I", s[12:16])[0],
+    }
 
     if (options.debug):
         print "+Volume Info"
@@ -727,19 +718,19 @@ def decodeVolumeInfo(s, options):
 
 # Decode a Resident Data Attribute
 def decodeDataAttribute(s, ATRrecord):
-    d = {}
-    d['data'] = s[:ATRrecord['ssize']]
+    d = {'data': s[:ATRrecord['ssize']]}
 
     #        print 'Data: ', d['data']
     return d
 
 
 def decodeObjectID(s):
-    d = {}
-    d['objid'] = ObjectID(s[0:16])
-    d['orig_volid'] = ObjectID(s[16:32])
-    d['orig_objid'] = ObjectID(s[32:48])
-    d['orig_domid'] = ObjectID(s[48:64])
+    d = {
+        'objid': ObjectID(s[0:16]),
+        'orig_volid': ObjectID(s[16:32]),
+        'orig_objid': ObjectID(s[32:48]),
+        'orig_domid': ObjectID(s[48:64]),
+    }
 
     return d
 

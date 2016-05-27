@@ -18,28 +18,6 @@ import bitparse
 import mftutils
 
 
-def fmt_excel(date_str):
-    return '="{}"'.format(date_str)
-
-
-def fmt_norm(date_str):
-    return date_str
-
-
-def set_default_options():
-    parser = OptionParser()
-    parser.set_defaults(debug=False)
-    parser.set_defaults(localtz=None)
-    parser.set_defaults(bodystd=False)
-    parser.set_defaults(bodyfull=False)
-    (options, args) = parser.parse_args()
-    if options.excel:
-        options.date_formatter = fmt_excel
-    else:
-        options.date_formatter = fmt_norm
-    return options
-
-
 def parse_record(raw_record, options):
     record = {
         'filename': '',

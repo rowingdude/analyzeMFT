@@ -26,6 +26,15 @@ SIAttributeSizeNT = 48
 class MftSession:
     """Class to describe an entire MFT processing session"""
 
+    @staticmethod
+    def fmt_excel(date_str):
+        return '="{}"'.format(date_str)
+
+    @staticmethod
+    def fmt_norm(date_str):
+        return date_str
+
+
     def __init__(self):
         self.mft = {}
         self.fullmft = {}
@@ -90,6 +99,11 @@ class MftSession:
         (self.options, args) = parser.parse_args()
 
         self.path_sep = '\\' if self.options.winpath else '/'
+
+        if self.options.excel:
+            self.options.date_formatter = MftSession.fmt_excel
+        else:
+            self.options.date_formatter = MftSession.fmt_norm
 
     def open_files(self):
         if self.options.version:

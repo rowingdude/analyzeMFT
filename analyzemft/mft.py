@@ -223,7 +223,7 @@ def mft_to_csv(record, ret_header, options):
     tmpBuffer = ''
     filenameBuffer = ''
 
-    if ret_header == True:
+    if ret_header:
         # Write headers
         csv_string = ['Record Number', 'Good', 'Active', 'Record type',
                       # '$Logfile Seq. Num.',
@@ -374,12 +374,12 @@ def mft_to_body(record, full, std):
 
     if record['fncnt'] > 0:
 
-        if full == True:  # Use full path
+        if full:  # Use full path
             name = record['filename']
         else:
             name = record['fn', 0]['name']
 
-        if std == True:  # Use STD_INFO
+        if std:  # Use STD_INFO
             rec_bodyfile = ("%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d\n" %
                             ('0', name, '0', '0', '0', '0',
                              int(record['fn', 0]['real_fsize']),

@@ -150,7 +150,7 @@ class MftSession:
 
         if self.options.debug: print 'There are %d records in the MFT' % self.mftsize
 
-        if self.options.inmemory == False:
+        if not self.options.inmemory:
             return
 
         # The size of the full MFT is approximately the number of records * the avg record size

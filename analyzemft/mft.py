@@ -81,8 +81,8 @@ def parse_record(raw_record, options):
             break
 
         if atr_record['nlen'] > 0:
-            record_bytes = raw_record[
-                read_ptr + atr_record['name_off']:read_ptr + atr_record['name_off'] + atr_record['nlen'] * 2]
+            record_bytes = raw_record[read_ptr + atr_record['name_off']:
+                                      read_ptr + atr_record['name_off'] + atr_record['nlen'] * 2]
             atr_record['name'] = record_bytes.decode('utf-16').encode('utf-8')
         else:
             atr_record['name'] = ''
@@ -282,41 +282,68 @@ def mft_to_csv(record, ret_header, options):
 
     if record['fncnt'] > 0 and 'si' in record:
         if options.excel:
-            filename_buffer = [record['filename'], str('=\"' + record['si']['crtime'].dtstr + '\"'),
-                              '=\"' + record['si']['mtime'].dtstr + '\"', '=\"' + record['si']['atime'].dtstr + '\"',
-                              '=\"' + record['si']['ctime'].dtstr + '\"',
-                              '=\"' + record['fn', 0]['crtime'].dtstr + '\"',
-                              '=\"' + record['fn', 0]['mtime'].dtstr + '\"',
-                              '=\"' + record['fn', 0]['atime'].dtstr + '\"',
-                              '=\"' + record['fn', 0]['ctime'].dtstr + '\"']
+            filename_buffer = [
+                record['filename'],
+                '="{}"'.format(record['si']['crtime'].dtstr),
+                '="{}"'.format(record['si']['mtime'].dtstr),
+                '="{}"'.format(record['si']['atime'].dtstr),
+                '="{}"'.format(record['si']['ctime'].dtstr),
+                '="{}"'.format(record['fn', 0]['crtime'].dtstr),
+                '="{}"'.format(record['fn', 0]['mtime'].dtstr),
+                '="{}"'.format(record['fn', 0]['atime'].dtstr),
+                '="{}"'.format(record['fn', 0]['ctime'].dtstr),
+            ]
         else:
-            filename_buffer = [record['filename'], str(record['si']['crtime'].dtstr),
-                              record['si']['mtime'].dtstr, record['si']['atime'].dtstr, record['si']['ctime'].dtstr,
-                              record['fn', 0]['crtime'].dtstr, record['fn', 0]['mtime'].dtstr,
-                              record['fn', 0]['atime'].dtstr, record['fn', 0]['ctime'].dtstr]
+            filename_buffer = [
+                record['filename'],
+                record['si']['crtime'].dtstr,
+                record['si']['mtime'].dtstr,
+                record['si']['atime'].dtstr,
+                record['si']['ctime'].dtstr,
+                record['fn', 0]['crtime'].dtstr,
+                record['fn', 0]['mtime'].dtstr,
+                record['fn', 0]['atime'].dtstr,
+                record['fn', 0]['ctime'].dtstr,
+            ]
 
     elif 'si' in record:
         if options.excel:
-            filename_buffer = ['NoFNRecord', str('=\"' + record['si']['crtime'].dtstr + '\"'),
-                              '=\"' + record['si']['mtime'].dtstr + '\"', '=\"' + record['si']['atime'].dtstr + '\"',
-                              '=\"' + record['si']['ctime'].dtstr + '\"',
-                              'NoFNRecord', 'NoFNRecord', 'NoFNRecord', 'NoFNRecord']
+            filename_buffer = [
+                'NoFNRecord',
+                '="{}"'.format(record['si']['crtime'].dtstr),
+                '="{}"'.format(record['si']['mtime'].dtstr),
+                '="{}"'.format(record['si']['atime'].dtstr),
+                '="{}"'.format(record['si']['ctime'].dtstr),
+                'NoFNRecord', 'NoFNRecord', 'NoFNRecord', 'NoFNRecord',
+            ]
         else:
-            filename_buffer = ['NoFNRecord', str(record['si']['crtime'].dtstr),
-                              record['si']['mtime'].dtstr, record['si']['atime'].dtstr, record['si']['ctime'].dtstr,
-                              'NoFNRecord', 'NoFNRecord', 'NoFNRecord', 'NoFNRecord']
+            filename_buffer = [
+                'NoFNRecord',
+                record['si']['crtime'].dtstr,
+                record['si']['mtime'].dtstr,
+                record['si']['atime'].dtstr,
+                record['si']['ctime'].dtstr,
+                'NoFNRecord', 'NoFNRecord', 'NoFNRecord', 'NoFNRecord',
+            ]
 
     else:
-        filename_buffer = ['NoFNRecord', 'NoSIRecord', 'NoSIRecord', 'NoSIRecord', 'NoSIRecord',
-                          'NoFNRecord', 'NoFNRecord', 'NoFNRecord', 'NoFNRecord']
+        filename_buffer = [
+            'NoFNRecord',
+            'NoSIRecord', 'NoSIRecord', 'NoSIRecord', 'NoSIRecord',
+            'NoFNRecord', 'NoFNRecord', 'NoFNRecord', 'NoFNRecord',
+        ]
 
     csv_string.extend(filename_buffer)
 
     if 'objid' in record:
         #        objidBuffer = [record['objid']['objid'].objstr, record['objid']['orig_volid'].objstr,
         #                    record['objid']['orig_objid'].objstr, record['objid']['orig_domid'].objstr]
-        objid_buffer = [record['objid']['objid'], record['objid']['orig_volid'],
-                       record['objid']['orig_objid'], record['objid']['orig_domid']]
+        objid_buffer = [
+            record['objid']['objid'],
+            record['objid']['orig_volid'],
+            record['objid']['orig_objid'],
+            record['objid']['orig_domid'],
+        ]
     else:
         objid_buffer = ['', '', '', '']
 
@@ -324,8 +351,13 @@ def mft_to_csv(record, ret_header, options):
 
     # If this goes above four FN attributes, the number of columns will exceed the headers
     for i in range(1, min(4, record['fncnt'])):
-        filename_buffer = [record['fn', i]['name'], record['fn', i]['crtime'].dtstr, record['fn', i]['mtime'].dtstr,
-                          record['fn', i]['atime'].dtstr, record['fn', i]['ctime'].dtstr]
+        filename_buffer = [
+            record['fn', i]['name'],
+            record['fn', i]['crtime'].dtstr,
+            record['fn', i]['mtime'].dtstr,
+            record['fn', i]['atime'].dtstr,
+            record['fn', i]['ctime'].dtstr,
+        ]
         csv_string.extend(filename_buffer)
 
     # Pad out the remaining FN columns
@@ -340,22 +372,26 @@ def mft_to_csv(record, ret_header, options):
 
     csv_string.extend(tmp_string)
 
-    # One darned big if statement, alas.
-    csv_string.append('True') if 'si' in record else csv_string.append('False')
-    csv_string.append('True') if 'al' in record else csv_string.append('False')
+    for record_str in ['si', 'al']:
+        csv_string.append('True') if record_str in record else csv_string.append('False')
+
     csv_string.append('True') if record['fncnt'] > 0 else csv_string.append('False')
-    csv_string.append('True') if 'objid' in record else csv_string.append('False')
-    csv_string.append('True') if 'volname' in record else csv_string.append('False')
-    csv_string.append('True') if 'volinfo' in record else csv_string.append('False')
-    csv_string.append('True') if 'data' in record else csv_string.append('False')
-    csv_string.append('True') if 'indexroot' in record else csv_string.append('False')
-    csv_string.append('True') if 'indexallocation' in record else csv_string.append('False')
-    csv_string.append('True') if 'bitmap' in record else csv_string.append('False')
-    csv_string.append('True') if 'reparse' in record else csv_string.append('False')
-    csv_string.append('True') if 'eainfo' in record else csv_string.append('False')
-    csv_string.append('True') if 'ea' in record else csv_string.append('False')
-    csv_string.append('True') if 'propertyset' in record else csv_string.append('False')
-    csv_string.append('True') if 'loggedutility' in record else csv_string.append('False')
+
+    for record_str in [
+        'objid',
+        'volname',
+        'volinfo',
+        'data',
+        'indexroot',
+        'indexallocation',
+        'bitmap',
+        'reparse',
+        'eainfo',
+        'ea',
+        'propertyset',
+        'loggedutility',
+    ]:
+        csv_string.append('True') if record_str in record else csv_string.append('False')
 
     if 'notes' in record:  # Log of abnormal activity related to this record
         csv_string.append(record['notes'])
@@ -479,18 +515,17 @@ def mft_to_l2t(record):
                 type_str = '$SI [...B] time'
                 macb_str = '...B'
 
-            csv_string = ("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n" %
-                          (
-                              date, time, 'TZ', macb_str, 'FILE', 'NTFS $MFT', type_str, 'user', 'host',
-                              record['filename'],
-                              'desc',
-                              'version', record['filename'], record['seq'], record['notes'], 'format', 'extra'))
+            csv_string = ("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n" % (
+                date, time, 'TZ', macb_str, 'FILE', 'NTFS $MFT', type_str, 'user', 'host',
+                record['filename'],
+                'desc',
+                'version', record['filename'], record['seq'], record['notes'], 'format', 'extra'))
 
     else:
-        csv_string = ("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n" %
-                      ('-', '-', 'TZ', 'unknown time', 'FILE', 'NTFS $MFT', 'unknown time', 'user', 'host',
-                       'Corrupt Record', 'desc',
-                       'version', 'NoFNRecord', record['seq'], '-', 'format', 'extra'))
+        csv_string = ("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n" % (
+            '-', '-', 'TZ', 'unknown time', 'FILE', 'NTFS $MFT', 'unknown time', 'user', 'host',
+            'Corrupt Record', 'desc',
+            'version', 'NoFNRecord', record['seq'], '-', 'format', 'extra'))
 
     return csv_string
 

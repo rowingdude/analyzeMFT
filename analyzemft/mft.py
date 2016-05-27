@@ -40,7 +40,7 @@ def parse_record(raw_record, options):
 
     # HACK: Apply the NTFS fixup on a 1024 byte record.
     # Note that the fixup is only applied locally to this function.
-    if (record['seq_number'] == raw_record[510:512] and record['seq_number'] == raw_record[1022:1024]):
+    if record['seq_number'] == raw_record[510:512] and record['seq_number'] == raw_record[1022:1024]:
         raw_record = "%s%s%s%s" % (
             raw_record[:510],
             record['seq_attr1'],
@@ -74,7 +74,7 @@ def parse_record(raw_record, options):
     read_ptr = record['attr_off']
 
     # How should we preserve the multiple attributes? Do we need to preserve them all?
-    while (read_ptr < 1024):
+    while read_ptr < 1024:
 
         ATRrecord = decodeATRHeader(raw_record[read_ptr:])
         if ATRrecord['type'] == 0xffffffff:  # End of attributes
@@ -410,7 +410,7 @@ def mft_to_body(record, full, std):
             rec_bodyfile = ("%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d\n" %
                             ('0', 'Corrupt Record', '0', '0', '0', '0', '0', 0, 0, 0, 0))
 
-    return (rec_bodyfile)
+    return rec_bodyfile
 
 
 # l2t CSV output support
@@ -610,13 +610,13 @@ def unpack_dataruns(str):
 
     # mftutils.hexdump(str,':',16)
 
-    while (True):
+    while True:
         lengths.asbyte = struct.unpack("B", str[pos])[0]
         pos += 1
         if lengths.asbyte == 0x00:
             break
 
-        if (lengths.b.lenlen > 6 or lengths.b.lenlen == 0):
+        if lengths.b.lenlen > 6 or lengths.b.lenlen == 0:
             error = "Datarun oddity."
             break
 
@@ -625,7 +625,7 @@ def unpack_dataruns(str):
         # print lengths.b.lenlen, lengths.b.offlen, len
         pos += lengths.b.lenlen
 
-        if (lengths.b.offlen > 0):
+        if lengths.b.offlen > 0:
             offset = bitparse.parse_little_endian_signed(str[pos:pos + lengths.b.offlen])
             offset = offset + prevoffset
             prevoffset = offset
@@ -705,7 +705,7 @@ def decodeVolumeInfo(s, options):
         'f2': struct.unpack("<I", s[12:16])[0],
     }
 
-    if (options.debug):
+    if options.debug:
         print "+Volume Info"
         print "++F1%d" % d['f1']
         print "++Major Version: %d" % d['maj_ver']

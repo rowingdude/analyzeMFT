@@ -24,7 +24,7 @@ class WindowsTime:
         self.unixtime = self.GetUnixTime()
 
         try:
-            if (localtz == True):
+            if localtz == True:
                 self.dt = datetime.fromtimestamp(self.unixtime)
             else:
                 self.dt = datetime.utcfromtimestamp(self.unixtime)
@@ -43,7 +43,7 @@ class WindowsTime:
 
         # The '//' does a floor on the float value, where *1e-7 does not, resulting in an off by one second error
         # However, doing the floor loses the usecs....
-        return (t * 1e-7 - 11644473600)
+        return t * 1e-7 - 11644473600
         # return((t//10000000)-11644473600)
 
 

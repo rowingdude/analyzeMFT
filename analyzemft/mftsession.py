@@ -101,8 +101,8 @@ class MftSession:
 
 
     def open_files(self):
-        if (self.options.version == True):
-            print("Version is: %s" % (VERSION))
+        if self.options.version == True:
+            print("Version is: %s" % VERSION)
             sys.exit()
 
         if self.options.filename is None:
@@ -164,7 +164,7 @@ class MftSession:
             for i in range(0, sizeinbytes / 10):
                 arr.append(1)
 
-        except(MemoryError):
+        except MemoryError:
             print 'Error: Not enough memory to store MFT in memory. Try running again without -s option'
             sys.exit()
 
@@ -274,9 +274,9 @@ class MftSession:
                 minirec['par_ref'] = record['fn', 0]['par_ref']
                 for i in (0, record['fncnt'] - 1):
                     # print record['fn',i]
-                    if (record['fn', i]['nspace'] == 0x1 or record['fn', i]['nspace'] == 0x3):
+                    if record['fn', i]['nspace'] == 0x1 or record['fn', i]['nspace'] == 0x3:
                         minirec['name'] = record['fn', i]['name']
-                if (minirec.get('name') is None):
+                if minirec.get('name') is None:
                     minirec['name'] = record['fn', record['fncnt'] - 1]['name']
 
             self.mft[self.num_records] = minirec
@@ -304,7 +304,7 @@ class MftSession:
 
         try:
             #                if (self.mft[seqnum]['fn',0]['par_ref'] == 0) or (self.mft[seqnum]['fn',0]['par_ref'] == 5):  # There should be no seq number 0, not sure why I had that check in place.
-            if (self.mft[seqnum]['par_ref'] == 5):  # Seq number 5 is "/", root of the directory
+            if self.mft[seqnum]['par_ref'] == 5:  # Seq number 5 is "/", root of the directory
                 self.mft[seqnum]['filename'] = self.path_sep + self.mft[seqnum]['name']
                 return self.mft[seqnum]['filename']
         except:  # If there was an error getting the parent's sequence number, then there is no FN record
@@ -334,7 +334,7 @@ class MftSession:
             # If we've not already calculated the full path ....
             if (self.mft[i]['filename']) == '':
 
-                if (self.mft[i]['fncnt'] > 0):
+                if self.mft[i]['fncnt'] > 0:
                     self.get_folder_path(i)
                     # self.mft[i]['filename'] = self.mft[i]['filename'] + '/' + self.mft[i]['fn',self.mft[i]['fncnt']-1]['name']
                     # self.mft[i]['filename'] = self.mft[i]['filename'].replace('//','/')

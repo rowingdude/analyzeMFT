@@ -193,7 +193,7 @@ class MftSession:
 
             self.do_output(record)
 
-            self.num_records = self.num_records + 1
+            self.num_records += 1
 
             if record['ads'] > 0:
                 for i in range(0, record['ads']):
@@ -245,7 +245,7 @@ class MftSession:
 
             self.fullmft[self.num_records] = record
 
-            self.num_records = self.num_records + 1
+            self.num_records += 1
 
             raw_record = self.file_mft.read(1024)
 
@@ -285,7 +285,7 @@ class MftSession:
                 if self.num_records % (self.mftsize / 5) == 0 and self.num_records > 0:
                     print 'Building Filepaths: {0:.0f}'.format(100.0 * self.num_records / self.mftsize) + '%'
 
-            self.num_records = self.num_records + 1
+            self.num_records += 1
 
             raw_record = self.file_mft.read(1024)
 

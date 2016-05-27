@@ -126,7 +126,7 @@ def parse_record(raw_record, options):
             FNrecord = decodeFNAttribute(raw_record[read_ptr + ATRrecord['soff']:], options.localtz, record)
             record['fn', record['fncnt']] = FNrecord
             if options.debug: print "Name: %s (%d)" % (FNrecord['name'], record['fncnt'])
-            record['fncnt'] = record['fncnt'] + 1
+            record['fncnt'] += 1
             if FNrecord['crtime'] != 0:
                 if options.debug: print "\tCRTime: %s MTime: %s ATime: %s EntryTime: %s" % (
                     FNrecord['crtime'].dtstr,
@@ -156,7 +156,7 @@ def parse_record(raw_record, options):
         elif ATRrecord['type'] == 0x80:  # Data
             if ATRrecord['name'] != '':
                 record['data_name', record['ads']] = ATRrecord['name']
-                record['ads'] = record['ads'] + 1
+                record['ads'] += 1
             if ATRrecord['res'] == 0:
                 DataAttribute = decodeDataAttribute(raw_record[read_ptr + ATRrecord['soff']:], ATRrecord)
             else:
@@ -165,7 +165,7 @@ def parse_record(raw_record, options):
                 DataAttribute['dataruns'] = ATRrecord['dataruns']
                 DataAttribute['drunerror'] = ATRrecord['drunerror']
             record['data', record['datacnt']] = DataAttribute
-            record['datacnt'] = record['datacnt'] + 1
+            record['datacnt'] += 1
 
             if options.debug: print "Data attribute"
 

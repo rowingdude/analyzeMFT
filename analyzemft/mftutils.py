@@ -24,7 +24,7 @@ class WindowsTime:
         self.unixtime = self.GetUnixTime()
 
         try:
-            if localtz == True:
+            if localtz:
                 self.dt = datetime.fromtimestamp(self.unixtime)
             else:
                 self.dt = datetime.utcfromtimestamp(self.unixtime)

@@ -101,7 +101,7 @@ class MftSession:
 
 
     def open_files(self):
-        if self.options.version == True:
+        if self.options.version:
             print("Version is: %s" % VERSION)
             sys.exit()
 

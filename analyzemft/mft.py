@@ -9,13 +9,13 @@
 # Date: May 2013
 #
 
-import sys
-import struct
-import mftutils
 import binascii
-from optparse import OptionParser
 import ctypes
+import struct
+from optparse import OptionParser
+
 import bitparse
+import mftutils
 
 
 def set_default_options():

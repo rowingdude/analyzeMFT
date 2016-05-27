@@ -11,18 +11,12 @@
 
 VERSION = "v2.0.18"
 
-import sys
-import ctypes
-import re
-import time
-import unicodedata
 import csv
 import os
-import platform
+import sys
 from optparse import OptionParser
-import mft
 
-from mftutils import WindowsTime
+import mft
 
 
 SIAttributeSizeXP = 72

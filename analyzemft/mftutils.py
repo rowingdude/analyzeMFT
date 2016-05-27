@@ -1,5 +1,4 @@
-from datetime import date, datetime
-import os
+from datetime import datetime
 
 
 # DevelNote: need to pass in localtz now

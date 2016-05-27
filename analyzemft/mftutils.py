@@ -20,7 +20,7 @@ class WindowsTime:
         # Windows NT time is specified as the number of 100 nanosecond intervals since January 1, 1601.
         # UNIX time is specified as the number of seconds since January 1, 1970.
         # There are 134,774 days (or 11,644,473,600 seconds) between these dates.
-        self.unixtime = self.GetUnixTime()
+        self.unixtime = self.get_unix_time()
 
         try:
             if localtz:
@@ -36,7 +36,7 @@ class WindowsTime:
             self.dtstr = "Invalid timestamp"
             self.unixtime = 0
 
-    def GetUnixTime(self):
+    def get_unix_time(self):
         t = float(self.high) * 2 ** 32 + self.low
 
         # The '//' does a floor on the float value, where *1e-7 does not, resulting in an off by one second error

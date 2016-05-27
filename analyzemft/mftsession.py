@@ -329,7 +329,8 @@ class MftSession:
 
                 if self.mft[i]['fncnt'] > 0:
                     self.get_folder_path(i)
-                    # self.mft[i]['filename'] = self.mft[i]['filename'] + '/' + self.mft[i]['fn',self.mft[i]['fncnt']-1]['name']
+                    # self.mft[i]['filename'] = self.mft[i]['filename'] + '/' +
+                    #   self.mft[i]['fn',self.mft[i]['fncnt']-1]['name']
                     # self.mft[i]['filename'] = self.mft[i]['filename'].replace('//','/')
                     if self.debug:
                         print "Filename (with path): %s" % self.mft[i]['filename']

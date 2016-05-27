@@ -105,7 +105,7 @@ class MftSession:
             print("Version is: %s" % (VERSION))
             sys.exit()
 
-        if self.options.filename == None:
+        if self.options.filename is None:
             print "-f <filename> required."
             sys.exit()
 
@@ -119,21 +119,21 @@ class MftSession:
             print "Unable to open file: %s" % self.options.filename
             sys.exit()
 
-        if self.options.output != None:
+        if self.options.output is not None:
             try:
                 self.file_csv = csv.writer(open(self.options.output, 'wb'), dialect=csv.excel, quoting=1)
             except (IOError, TypeError):
                 print "Unable to open file: %s" % self.options.output
                 sys.exit()
 
-        if self.options.bodyfile != None:
+        if self.options.bodyfile is not None:
             try:
                 self.file_body = open(self.options.bodyfile, 'w')
             except:
                 print "Unable to open file: %s" % self.options.bodyfile
                 sys.exit()
 
-        if self.options.csvtimefile != None:
+        if self.options.csvtimefile is not None:
             try:
                 self.file_csv_time = open(self.options.csvtimefile, 'w')
             except (IOError, TypeError):
@@ -180,7 +180,7 @@ class MftSession:
         self.file_mft.seek(0)
         raw_record = self.file_mft.read(1024)
 
-        if self.options.output != None:
+        if self.options.output is not None:
             self.file_csv.writerow(mft.mft_to_csv(None, True, self.options))
 
         while raw_record != "":
@@ -210,13 +210,13 @@ class MftSession:
         if self.options.inmemory:
             self.fullmft[self.num_records] = record
 
-        if self.options.output != None:
+        if self.options.output is not None:
             self.file_csv.writerow(mft.mft_to_csv(record, False, self.options))
 
-        if self.options.csvtimefile != None:
+        if self.options.csvtimefile is not None:
             self.file_csv_time.write(mft.mft_to_l2t(record))
 
-        if self.options.bodyfile != None:
+        if self.options.bodyfile is not None:
             self.file_body.write(mft.mft_to_body(record, self.options.bodyfull, self.options.bodystd))
 
         if self.options.progress:
@@ -276,7 +276,7 @@ class MftSession:
                     # print record['fn',i]
                     if (record['fn', i]['nspace'] == 0x1 or record['fn', i]['nspace'] == 0x3):
                         minirec['name'] = record['fn', i]['name']
-                if (minirec.get('name') == None):
+                if (minirec.get('name') is None):
                     minirec['name'] = record['fn', record['fncnt'] - 1]['name']
 
             self.mft[self.num_records] = minirec

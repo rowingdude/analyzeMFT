@@ -87,10 +87,16 @@ class MftSession:
                            
          parser.add_option("-p", "--progress",
                            action="store_true", dest="progress",
-                           help="Show systematic progress reports.")                          
-         
+                           help="Show systematic progress reports.")
+
+         parser.add_option("-w", "--windows-path",
+                           action="store_true", dest="winpath",
+                           help="File paths should use the windows path separator instead of linux")
+
          (self.options, args) = parser.parse_args()
-         
+
+         self.path_sep = '\\' if self.options.winpath else '/'
+
      def open_files(self):
           if (self.options.version == True):
                print("Version is: %s" % (VERSION))
@@ -296,7 +302,7 @@ class MftSession:
           try:
 #                if (self.mft[seqnum]['fn',0]['par_ref'] == 0) or (self.mft[seqnum]['fn',0]['par_ref'] == 5):  # There should be no seq number 0, not sure why I had that check in place.
                if (self.mft[seqnum]['par_ref'] == 5): # Seq number 5 is "/", root of the directory
-                    self.mft[seqnum]['filename'] = '\\' + self.mft[seqnum]['name']
+                    self.mft[seqnum]['filename'] = self.path_sep + self.mft[seqnum]['name']
                     return self.mft[seqnum]['filename']
           except:  # If there was an error getting the parent's sequence number, then there is no FN record
                self.mft[seqnum]['filename'] = 'NoFNRecord'
@@ -305,12 +311,12 @@ class MftSession:
           # Self referential parent sequence number. The filename becomes a NoFNRecord note
           if (self.mft[seqnum]['par_ref']) == seqnum:
                if self.debug: print "Error, self-referential, while trying to determine path for seqnum %s" % seqnum
-               self.mft[seqnum]['filename'] = 'ORPHAN\\' + self.mft[seqnum]['name']
+               self.mft[seqnum]['filename'] = 'ORPHAN' + self.path_sep + self.mft[seqnum]['name']
                return self.mft[seqnum]['filename']
 
           # We're not at the top of the tree and we've not hit an error
           parentpath = self.get_folder_path((self.mft[seqnum]['par_ref']))
-          self.mft[seqnum]['filename'] =  parentpath + '\\' + self.mft[seqnum]['name']
+          self.mft[seqnum]['filename'] =  parentpath + self.path_sep + self.mft[seqnum]['name']
 
           return self.mft[seqnum]['filename']
 

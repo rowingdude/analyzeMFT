@@ -340,4 +340,4 @@ class MftSession:
                     # self.mft[i]['filename'] = self.mft[i]['filename'].replace('//','/')
                     if self.debug: print "Filename (with path): %s" % self.mft[i]['filename']
                 else:
-                    self.mft[i]['filename'] == 'NoFNRecord'
+                    self.mft[i]['filename'] = 'NoFNRecord'

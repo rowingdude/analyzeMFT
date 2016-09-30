@@ -10,6 +10,7 @@
 #
 
 import binascii
+import json
 import ctypes
 import struct
 from optparse import OptionParser
@@ -382,6 +383,21 @@ def mft_to_csv(record, ret_header, options):
 
 
 # MD5|name|inode|mode_as_string|UID|GID|size|atime|mtime|ctime|crtime
+def mft_to_json(record):
+    json_object = {}
+    
+    if record.has_key('si'):
+        #print "Make Me JSON %s, %s, %s , %s, %s"  % (str(record['recordnum']), str(record['filename']), str(record['magic']), str(record['size']), record['si']['mtime'].dtstr)
+        json_object['filename'] = str(record['filename'])
+        json_object['recordnumber'] = str(record['recordnum'])
+        json_object['recordtype'] = str(record['recordtype'])
+    else:
+        #print str(record['recordnum'])  + str(record['filename'])
+        json_object['filename'] = "nFn"
+        json_object['recordnumber'] = str(record['recordnum'])        
+        
+    return json_object
+
 def mft_to_body(record, full, std):
     """ Return a MFT record in bodyfile format"""
 

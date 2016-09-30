@@ -12,6 +12,7 @@
 VERSION = "v2.0.18"
 
 import csv
+import json
 import os
 import sys
 from optparse import OptionParser
@@ -53,6 +54,10 @@ class MftSession:
         parser.add_option("-f", "--file", dest="filename",
                           help="read MFT from FILE", metavar="FILE")
 
+        parser.add_option("-j", "--json",
+                          dest="json",
+                          help="File paths should use the windows path separator instead of linux")        
+        
         parser.add_option("-o", "--output", dest="output",
                           help="write results to FILE", metavar="FILE")
 
@@ -95,7 +100,8 @@ class MftSession:
         parser.add_option("-w", "--windows-path",
                           action="store_true", dest="winpath",
                           help="File paths should use the windows path separator instead of linux")
-
+        
+        
         (self.options, args) = parser.parse_args()
 
         self.path_sep = '\\' if self.options.winpath else '/'
@@ -106,6 +112,8 @@ class MftSession:
             self.options.date_formatter = MftSession.fmt_norm
 
     def open_files(self):
+       
+            
         if self.options.version:
             print("Version is: %s" % VERSION)
             sys.exit()
@@ -130,7 +138,7 @@ class MftSession:
             except (IOError, TypeError):
                 print "Unable to open file: %s" % self.options.output
                 sys.exit()
-
+        
         if self.options.bodyfile is not None:
             try:
                 self.file_body = open(self.options.bodyfile, 'w')
@@ -209,13 +217,23 @@ class MftSession:
             raw_record = self.file_mft.read(1024)
 
     def do_output(self, record):
-
+        
+        
         if self.options.inmemory:
             self.fullmft[self.num_records] = record
 
         if self.options.output is not None:
             self.file_csv.writerow(mft.mft_to_csv(record, False, self.options))
-
+        
+        if self.options.json is not None:    
+            with open(self.options.json, 'a') as outfile:
+                json.dump(mft.mft_to_json(record), outfile)
+                outfile.write('\n')
+            
+        
+ 
+    
+            
         if self.options.csvtimefile is not None:
             self.file_csv_time.write(mft.mft_to_l2t(record))
 

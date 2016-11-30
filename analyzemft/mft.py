@@ -763,8 +763,8 @@ def object_id(s):
     if s == 0:
         objstr = 'Undefined'
     else:
-        objstr = "%s-%s-%s-%s-%s" % (binascii.hexlify(s[0:4]), binascii.hexlify(s[4:6]),
-                                     binascii.hexlify(s[6:8]), binascii.hexlify(s[8:10]), binascii.hexlify(s[10:16]))
+        objstr = '-'.join(map(bytes.decode, map(binascii.hexlify, (s[0:4][::-1], s[4:6][::-1], \
+                                                                   s[6:8][::-1], s[8:10], s[10:]))))
 
     return objstr
 

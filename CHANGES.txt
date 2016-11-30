@@ -26,3 +26,4 @@ v2.0.19,05/27/2016 - (Contributed by lespea)
                    - Properly deal with fncnt findings > 3
                    - Allow the user to use either windows or unix path seperators
                    - General code cleanup
+v2.0.19,11/30/2016 - Bárður Christiansen - Changed objectID parsing so that it translates the first 8 bytes to little endian

@@ -13,7 +13,8 @@ You should now be able to install analyzeMFT with pip:
     
 Alternatively:
 
-    git pull https://github.com/dkovar/analyzeMFT.git
+    git clone https://github.com/dkovar/analyzeMFT.git
+    cd analyzeMFT
     python setup.py install (or, just run it from that directory)
 
 Usage

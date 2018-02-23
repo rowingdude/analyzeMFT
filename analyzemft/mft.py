@@ -786,3 +786,11 @@ def anomaly_detect(record):
         if record['fn', 0]['crtime'].dt != 0:
             if record['fn', 0]['crtime'].dt.microsecond == 0:
                 record['usec-zero'] = True
+
+        
+        try:
+            if record['si']['crtime'].dt != 0:
+                if record['si']['crtime'].dt.microsecond == 0:
+                    record['usec-zero'] = True
+        except:
+            pass

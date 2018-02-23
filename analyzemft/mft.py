@@ -782,12 +782,7 @@ def anomaly_detect(record):
         except:
             record['stf-fn-shift'] = True
 
-        # Check for STD create times with a nanosecond value of '0'
-        if record['fn', 0]['crtime'].dt != 0:
-            if record['fn', 0]['crtime'].dt.microsecond == 0:
-                record['usec-zero'] = True
-
-        
+        # Check for STD create times with a nanosecond value of '0'     
         try:
             if record['si']['crtime'].dt != 0:
                 if record['si']['crtime'].dt.microsecond == 0:

@@ -802,7 +802,6 @@ def anomaly_detect(record):
             pass
 
         # Check for STD create times that are after the STD modify times.  This is often the result of a file copy.
-
         try:
             if record['si']['crtime'].dt > record['si']['mtime'].dt:
                 record['possible-copy'] = True
@@ -811,7 +810,6 @@ def anomaly_detect(record):
 
         # Check for STD access times that are after the STD modify and STD create times.  For systems with last access 
         # timestamp disabled (Windows Vista+), this is an indication of a file moved from one volume to another.
-
         try:
             if record['si']['atime'].dt > record['si']['mtime'].dt and record['si']['atime'].dt > record['si']['crtime'].dt:
                 record['possible-volmove'] = True

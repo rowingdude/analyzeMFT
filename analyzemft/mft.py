@@ -246,7 +246,8 @@ def mft_to_csv(record, ret_header, options):
                       'FN Info Entry date', 'Standard Information', 'Attribute List', 'Filename',
                       'Object ID', 'Volume Name', 'Volume Info', 'Data', 'Index Root',
                       'Index Allocation', 'Bitmap', 'Reparse Point', 'EA Information', 'EA',
-                      'Property Set', 'Logged Utility Stream', 'Log/Notes', 'STF FN Shift', 'uSec Zero', 'ADS']
+                      'Property Set', 'Logged Utility Stream', 'Log/Notes', 'STF FN Shift', 'uSec Zero',
+                      'ADS', 'Possible Copy', 'Possible Volume Move']
         return csv_string
 
     if 'baad' in record:
@@ -375,6 +376,16 @@ def mft_to_csv(record, ret_header, options):
         csv_string.append('N')
 
     if record['ads'] > 0:
+        csv_string.append('Y')
+    else:
+        csv_string.append('N')
+
+    if 'possible-copy' in record:
+        csv_string.append('Y')
+    else:
+        csv_string.append('N')
+
+    if 'possible-volmove' in record:
         csv_string.append('Y')
     else:
         csv_string.append('N')
@@ -787,5 +798,20 @@ def anomaly_detect(record):
             if record['si']['crtime'].dt != 0:
                 if record['si']['crtime'].dt.microsecond == 0:
                     record['usec-zero'] = True
+        except:
+            pass
+
+        # Check for STD create times that are after the STD modify times.  This is often the result of a file copy.
+        try:
+            if record['si']['crtime'].dt > record['si']['mtime'].dt:
+                record['possible-copy'] = True
+        except:
+            pass
+
+        # Check for STD access times that are after the STD modify and STD create times.  For systems with last access 
+        # timestamp disabled (Windows Vista+), this is an indication of a file moved from one volume to another.
+        try:
+            if record['si']['atime'].dt > record['si']['mtime'].dt and record['si']['atime'].dt > record['si']['crtime'].dt:
+                record['possible-volmove'] = True
         except:
             pass

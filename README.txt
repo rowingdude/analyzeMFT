@@ -1,9 +1,11 @@
 ===========
-Analyze MFT
+Analyze MFT 3
 ===========
 
 analyzeMFT.py is designed to fully parse the MFT file from an NTFS filesystem
 and present the results as accurately as possible in multiple formats.
+
+Now using Python3!
 
 Installation
 ===========

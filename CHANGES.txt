@@ -27,3 +27,4 @@ v2.0.19,05/27/2016 - (Contributed by lespea)
                    - Allow the user to use either windows or unix path seperators
                    - General code cleanup
 v2.0.19,11/30/2016 - Bárður Christiansen - Changed objectID parsing so that it translates the first 8 bytes to little endian
+v3.0.0,07/19/2019  - Edd Salkield - Updated to Python3

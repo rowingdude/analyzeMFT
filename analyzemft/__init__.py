@@ -1,5 +1,6 @@
 __all__ = ["mftutils", "mft", "mftsession", "bitparse"]
-import bitparse
-import mft
-import mftsession
-import mftutils
+
+import analyzemft.bitparse
+import analyzemft.mft
+import analyzemft.mftsession
+import analyzemft.mftutils

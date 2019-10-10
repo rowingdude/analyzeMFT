@@ -1,4 +1,3 @@
-===========
 Analyze MFT
 ===========
 
@@ -7,7 +6,7 @@ and present the results as accurately as possible in multiple formats.
 
 Installation
 ===========
-You should now be able to install analyzeMFT with pip:
+This needs to be updated to support Python3. As of now, to get the Python2 version you should now be able to install analyzeMFT with pip:
 
     pip install analyzeMFT
     
@@ -50,7 +49,6 @@ Other options:
   -a, --anomaly         turn on anomaly detection
   -l, --localtz         report times using local timezone
   -e, --excel           print date/time in Excel friendly format
-  -d, --debug           turn on debugging output
   -s, --saveinmemory    Save a copy of the decoded MFT in memory. Do not use
                         for very large MFTs
   -p, --progress        Show systematic progress reports.
@@ -125,7 +123,11 @@ Version 1.15: Added file size (real, not allocated) to bodyfile.
               Added bodyfile option to use STD_INFO timestamps rather than FN timestamps
 
 
-Version 2 and version 3 history is in CHANGES.txt
+Version 2 history is in CHANGES.txt
+
+
+
+
 
 
 Inspiration
@@ -174,4 +176,3 @@ Useful Documentation
 ====================
 
 1) http://dubeyko.com/development/FileSystems/NTFS/ntfsdoc.pdf
-

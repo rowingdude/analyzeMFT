@@ -1,21 +1,21 @@
-v1.16,05/17/2013 -- Restructured layout in preparation for creating a module.
-v2.0.2,06/24/2013 -- OOP'd and then partially de-OOP'd to fix memory issue. Set up for PyPi (pip)
-v2.0.3,06/xx/2013 -- Restructured to support PyPi (pip)
-v2.0.4,07/xx/2013 -- Minor tweaks to support external programs
-v2.0.5,07/14/2013 -- Peter Ballen added -s switch to support small memory systems and -p switch to show progress
-v2.0.6,07/17/2013 -- Fixed bug in ATR processing
-v2.0.7,07/19/2013 -- Peter fixed the incorrect reading of some values. Will keep an eye out for other such issues.
-v2.0.7,07/21/2013 -- Fixed parsing and printing of UTF-16 strings, removed unicodeHack stuff.
-		  -- Fixed printing of unicode strings to output files
-                  -- Added ADS support.
-                        Each ADS file gets a duplicate of the parent's record with the filename updated
-                        All ADS records, parent and children, get a flag set in the new ADS column
-v2.0.8,08/02/2013 -- Started adding datarun support
-v2.0.9,08/02/2013 -- More datarun support
-v2.0.10,08/02/2013 -- More datarun support
-v2.0.11,08/07/2013 -- Fixed reporting of filenames to favor non-8.3 format if it is available
-v2.0.12,03/15/2014 -- (Contributed by Brice) Added -e, --excel switch to print date/times in format that will
-                    cause Excel to import them properly.
+v1.16,  05/17/2013 - Restructured layout in preparation for creating a module.
+v2.0.2, 06/24/2013 - OOP'd and then partially de-OOP'd to fix memory issue. Set up for PyPi (pip)
+v2.0.3, 06/xx/2013 - Restructured to support PyPi (pip)
+v2.0.4, 07/xx/2013 - Minor tweaks to support external programs
+v2.0.5, 07/14/2013 - Peter Ballen added -s switch to support small memory systems and -p switch to show progress
+v2.0.6, 07/17/2013 - Fixed bug in ATR processing
+v2.0.7, 07/19/2013 - Peter fixed the incorrect reading of some values. Will keep an eye out for other such issues.
+v2.0.7, 07/21/2013 - Fixed parsing and printing of UTF-16 strings, removed unicodeHack stuff.
+		     Fixed printing of unicode strings to output files
+                     Added ADS support.
+                     Each ADS file gets a duplicate of the parent's record with the filename updated
+                     All ADS records, parent and children, get a flag set in the new ADS column
+v2.0.8, 08/02/2013 - Started adding datarun support
+v2.0.9, 08/02/2013 - More datarun support
+v2.0.10,08/02/2013 - More datarun support
+v2.0.11,08/07/2013 - Fixed reporting of filenames to favor non-8.3 format if it is available
+v2.0.12,03/15/2014 - (Contributed by Brice) Added -e, --excel switch to print date/times in format that will
+                     cause Excel to import them properly.
 v2.0.14,11/24/2014 - Fixing directory structure.
 v2.0.15,02/08/2015 - fix 2's complement computation (Willi)
 		   - Added anomaly detection back in. Missing since V2.0.0 in the summer of 2013
@@ -27,3 +27,8 @@ v2.0.19,05/27/2016 - (Contributed by lespea)
                    - Allow the user to use either windows or unix path seperators
                    - General code cleanup
 v2.0.19,11/30/2016 - Bárður Christiansen - Changed objectID parsing so that it translates the first 8 bytes to little endian
+v3.0.0, 10/10/2019 - Brandon Helms - Migrated code to support python3.6+ This breaks backwards compatability
+                     Removed references to long type as Python3 no longer supports
+                     Updated struct references to adhere to bytes vice strings
+                     Python2 did not care about bytes vs strings (in most situations), Python3 does. Fixed all known issues
+                     Removed debug statements and ambiguous comments   

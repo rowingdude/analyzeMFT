@@ -1,14 +1,11 @@
 from datetime import datetime
 
-
-# DevelNote: need to pass in localtz now
-
 class WindowsTime:
     """Convert the Windows time in 100 nanosecond intervals since Jan 1, 1601 to time in seconds since Jan 1, 1970"""
 
     def __init__(self, low, high, localtz):
-        self.low = long(low)
-        self.high = long(high)
+        self.low = low
+        self.high = high
 
         if (low == 0) and (high == 0):
             self.dt = 0
@@ -49,9 +46,7 @@ def hexdump(chars, sep, width):
         line = chars[:width]
         chars = chars[width:]
         line = line.ljust(width, '\000')
-        print "%s%s%s" % (sep.join("%02x" % ord(c) for c in line),
-                          sep, quotechars(line))
-
+        print(f"{sep.join('%02x' % ord(c) for c in line)}{sep}{quotechars(line)}")
 
 def quotechars(chars):
     return ''.join(['.', c][c.isalnum()] for c in chars)

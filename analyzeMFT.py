@@ -2,7 +2,7 @@
 
 try:
     from analyzemft import mftsession
-except:
+except ModuleNotFoundError::
     from .analyzemft import mftsession
 
 if __name__ == "__main__":

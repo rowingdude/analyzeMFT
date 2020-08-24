@@ -2,6 +2,8 @@
 Analyze MFT 3
 =============
 
+This repository is no longer being maintained, and has been archived.
+
 analyzeMFT.py is designed to fully parse the MFT file from an NTFS filesystem
 and present the results as accurately as possible in multiple formats.
 

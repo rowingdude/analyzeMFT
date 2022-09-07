@@ -1,16 +1,22 @@
-=============
-Analyze MFT 3
-=============
+===========
+STATUS
 
-This repository is no longer being maintained, and has been archived.
+This project was my passion and my vehicle for exploring digital forensics for many years as well as a means for giving back to a
+community that gave me so much.
+
+Unfortunately, I am no doing forensics on Windows filesystems and am not contributing to this project anymore. If someone else
+wishes to adopt it, please let me know.
+
+-David (02/02/2020)
+===========
+Analyze MFT
+===========
 
 analyzeMFT.py is designed to fully parse the MFT file from an NTFS filesystem
 and present the results as accurately as possible in multiple formats.
 
-Now using Python3!
-
 Installation
-============
+===========
 You should now be able to install analyzeMFT with pip:
 
     pip install analyzeMFT
@@ -22,7 +28,7 @@ Alternatively:
     python setup.py install (or, just run it from that directory)
 
 Usage
-=====
+===========
 Usage: analyzeMFT.py [options]
 
 Options:
@@ -61,12 +67,12 @@ Other options:
   -w, --windows-path    Use windows path separator when constructing the filepath instead of linux
 
 Output
-======
+=========
 
 analyzeMFT can produce output in CSV or bodyfile format.
 
 CSV output
-----------
+---------
 The output is currently written in CSV format. Due to the fact that Excel
 automatically determines the type of data in a column, it is recommended that
 you write the output to a file without the .csv extension, open it in Excel, and
@@ -81,39 +87,39 @@ GUI:
 You can turn off all the GUI dependencies by setting the noGUI flag to 'True'. This is for installations that don't want to install the tk/tcl libraries.
 
 Update History
-==============
+=============
 [See CHANGES.txt]
 
 Version 2.0.4:Minor tweaks to support external programs
 Version 2.0.3:Restructured to support PyPi (pip)
 Version 2.0.2:De-OOP'd MFT record parsing to reduce memory consumption
-Version 2.0.1:Added L2T CSV and body file support back in, fixed some minor bugs along the way.
-Made full file path calculation more efficient
+Version 2.0.1:Added L2T CSV and body file support back in, fixed some minor bugs along the way
+              Made full file path calculation more efficient
 Version 2.0.0 Restructured layout to turn it into a module.
-Made it more OOP.
-Improved error handling and corrupt record detection
+              Made it more OOP.
+              Improved error handling and corrupt record detection
               
 ------ Version 1 history follows ------
 
 Version 1.0: Initial release
 Version 1.1: Split parent folder reference and sequence into two fields. I'm still trying to figure out the
-significance of the parent folder sequence number, but I'm convinced that what some documentation
-refers to as the parent folder record number is really two values - the parent folder record number
-and the parent folder sequence number.
+             significance of the parent folder sequence number, but I'm convinced that what some documentation
+             refers to as the parent folder record number is really two values - the parent folder record number
+             and the parent folder sequence number.
 Version 1.2: Fixed problem with non-printable characters in filenames. Any Unicode character is legal in a
-filename, including newlines. This presented some problems in my output. Characters that do not
-render well are now converted to hex and a note is added to the Notes column indicating this.
-(I've learned a lot about Unicode since I first wrote this.)
-Added "compile time" flag to turn off the inclusion of any GUI related modules and libraries
-for systems missing tk/tcl support. (Set noGUI to True in the code)
+             filename, including newlines. This presented some problems in my output. Characters that do not
+             render well are now converted to hex and a note is added to the Notes column indicating this.
+             (I've learned a lot about Unicode since I first wrote this.)
+             Added "compile time" flag to turn off the inclusion of any GUI related modules and libraries
+             for systems missing tk/tcl support. (Set noGUI to True in the code)
 Version 1.3: Added new column to hold log entries relating to each record. For example, a note stating that
-some characters in the filename were converted to hex as they could not be printed.
+             some characters in the filename were converted to hex as they could not be printed.
 Version 1.4: Credit: Spencer Lynch. I was misusing the flags field in the MFT header. The first bit is
-Active/Inactive. The second bit is File/Folder.
+             Active/Inactive. The second bit is File/Folder.
 Version 1.5: Fixed date/time reporting. I wasn't reporting useconds at all.
-Added anomaly detection. Adds two columns:
-std-fn-shift:  If Y, entry's FN create time is after the STD create time
-usec-zero: If Y, entry's STD create time's usec value is zero
+             Added anomaly detection. Adds two columns:
+                    std-fn-shift:  If Y, entry's FN create time is after the STD create time
+                    usec-zero: If Y, entry's STD create time's usec value is zero
 Version 1.6: Various bug fixes
 Version 1.7: Bodyfile support, with thanks to Dave Hull
 Version 1.8: Added support for full path extraction, written by Kristinn Gudjonsson
@@ -122,11 +128,11 @@ Version 1.10: Just for Tom
 Version 1.11: Fixed TSK bodyfile output
 Version 1.12: Fix orphan file detection issue that caused recursion error (4/18/2013)
 Version 1.13: Changed from walking all sequence numbers to pulling sequence number from MFT. Previous approach did not handle
-gaps well
+              gaps well
 Version 1.14: Made -o output optional if -b is specified. (Either/or)
 Version 1.15: Added file size (real, not allocated) to bodyfile.
-Added bodyfile option to include fullpath + filename rather than just filename
-Added bodyfile option to use STD_INFO timestamps rather than FN timestamps
+              Added bodyfile option to include fullpath + filename rather than just filename
+              Added bodyfile option to use STD_INFO timestamps rather than FN timestamps
 
 
 Version 2 history is in CHANGES.txt
@@ -170,7 +176,7 @@ wizard and the date fields are treated as "General" and the date is chopped leav
 7) Improve the documentation so I can use the structures as a reference and reuse the code more effectively
 8) Clean up the code and, in particular, follow standard naming conventions
 9) There are two MFT entry flags that appear that I can't determine the significance of. These appear in
-the output as Unknown1 and Unknown2
+    the output as Unknown1 and Unknown2
 10) Parse filename based on 'nspace' value in FN structure
 11) Test it and ensure that it works on all major Windows OS versions
 12) Output HTML as well as CSV

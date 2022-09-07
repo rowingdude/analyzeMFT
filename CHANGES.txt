@@ -28,3 +28,4 @@ v2.0.19,05/27/2016 - (Contributed by lespea)
                    - General code cleanup
 v2.0.19,11/30/2016 - Bárður Christiansen - Changed objectID parsing so that it translates the first 8 bytes to little endian
 v3.0.0,07/19/2019  - Edd Salkield - Updated to Python3
+v3.0.1,09/07/2022  - Complete the python3 update (fix unicode related stuff, change shebangs, etc)

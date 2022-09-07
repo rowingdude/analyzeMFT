@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Author: David Kovar [dkovar <at> gmail [dot] com]
 # Name: mft.py
@@ -15,8 +15,8 @@ import ctypes
 import struct
 from optparse import OptionParser
 
-from . import bitparse
-from . import mftutils
+from analyzemft import bitparse
+from analyzemft import mftutils
 
 
 def parse_record(raw_record, options):
@@ -32,12 +32,7 @@ def parse_record(raw_record, options):
     # HACK: Apply the NTFS fixup on a 1024 byte record.
     # Note that the fixup is only applied locally to this function.
     if record['seq_number'] == raw_record[510:512] and record['seq_number'] == raw_record[1022:1024]:
-        raw_record = "%s%s%s%s" % (
-            raw_record[:510],
-            record['seq_attr1'],
-            raw_record[512:1022],
-            record['seq_attr2'],
-        )
+        raw_record = raw_record[:510] + record['seq_attr1'] + raw_record[512:1022] + record['seq_attr2']
 
     record_number = record['recordnum']
 
@@ -599,16 +594,16 @@ def decode_atr_header(s):
     if d['type'] == 0xffffffff:
         return d
     d['len'] = struct.unpack("<L", s[4:8])[0]
-    d['res'] = struct.unpack("B", s[8])[0]
-    d['nlen'] = struct.unpack("B", s[9])[0]
+    d['res'] = struct.unpack("B", s[8:9])[0]
+    d['nlen'] = struct.unpack("B", s[9:10])[0]
     d['name_off'] = struct.unpack("<H", s[10:12])[0]
     d['flags'] = struct.unpack("<H", s[12:14])[0]
     d['id'] = struct.unpack("<H", s[14:16])[0]
     if d['res'] == 0:
         d['ssize'] = struct.unpack("<L", s[16:20])[0]  # dwLength
         d['soff'] = struct.unpack("<H", s[20:22])[0]  # wAttrOffset
-        d['idxflag'] = struct.unpack("B", s[22])[0]  # uchIndexedTag
-        _ = struct.unpack("B", s[23])[0]  # Padding
+        d['idxflag'] = struct.unpack("B", s[22:23])[0]  # uchIndexedTag
+        _ = struct.unpack("B", s[23:24])[0]  # Padding
     else:
         # d['start_vcn'] = struct.unpack("<Lxxxx",s[16:24])[0]    # n64StartVCN
         # d['last_vcn'] = struct.unpack("<Lxxxx",s[24:32])[0]     # n64EndVCN
@@ -650,7 +645,7 @@ def unpack_dataruns(datarun_str):
     # mftutils.hexdump(str,':',16)
 
     while True:
-        lengths.asbyte = struct.unpack("B", datarun_str[pos])[0]
+        lengths.asbyte = struct.unpack("B", datarun_str[pos:pos + 1])[0]
         pos += 1
         if lengths.asbyte == 0x00:
             break
@@ -706,8 +701,8 @@ def decode_fn_attribute(s, localtz, _):
         'ctime': mftutils.WindowsTime(struct.unpack("<L", s[24:28])[0], struct.unpack("<L", s[28:32])[0], localtz),
         'atime': mftutils.WindowsTime(struct.unpack("<L", s[32:36])[0], struct.unpack("<L", s[36:40])[0], localtz),
         'alloc_fsize': struct.unpack("<q", s[40:48])[0], 'real_fsize': struct.unpack("<q", s[48:56])[0],
-        'flags': struct.unpack("<d", s[56:64])[0], 'nlen': struct.unpack("B", s[64])[0],
-        'nspace': struct.unpack("B", s[65])[0],
+        'flags': struct.unpack("<d", s[56:64])[0], 'nlen': struct.unpack("B", s[64:65])[0],
+        'nspace': struct.unpack("B", s[65:66])[0],
     }
 
     attr_bytes = s[66:66 + d['nlen'] * 2]
@@ -722,7 +717,7 @@ def decode_fn_attribute(s, localtz, _):
 def decode_attribute_list(s, _):
     d = {
         'type': struct.unpack("<I", s[:4])[0], 'len': struct.unpack("<H", s[4:6])[0],
-        'nlen': struct.unpack("B", s[6])[0], 'f1': struct.unpack("B", s[7])[0],
+        'nlen': struct.unpack("B", s[6:7])[0], 'f1': struct.unpack("B", s[7:8])[0],
         'start_vcn': struct.unpack("<d", s[8:16])[0], 'file_ref': struct.unpack("<Lxx", s[16:22])[0],
         'seq': struct.unpack("<H", s[22:24])[0], 'id': struct.unpack("<H", s[24:26])[0],
     }
@@ -735,8 +730,8 @@ def decode_attribute_list(s, _):
 
 def decode_volume_info(s, options):
     d = {
-        'f1': struct.unpack("<d", s[:8])[0], 'maj_ver': struct.unpack("B", s[8])[0],
-        'min_ver': struct.unpack("B", s[9])[0], 'flags': struct.unpack("<H", s[10:12])[0],
+        'f1': struct.unpack("<d", s[:8])[0], 'maj_ver': struct.unpack("B", s[8:9])[0],
+        'min_ver': struct.unpack("B", s[9:10])[0], 'flags': struct.unpack("<H", s[10:12])[0],
         'f2': struct.unpack("<I", s[12:16])[0],
     }
 

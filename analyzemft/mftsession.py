@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Author: David Kovar [dkovar <at> gmail [dot] com]
 # Name: mftsession.py
@@ -9,7 +9,7 @@
 # Date: May 2013
 #
 
-VERSION = "v2.0.18"
+VERSION = "v3.0.1"
 
 import csv
 import json
@@ -17,7 +17,7 @@ import os
 import sys
 from optparse import OptionParser
 
-from . import mft
+from analyzemft import mft
 
 
 SIAttributeSizeXP = 72
@@ -134,7 +134,7 @@ class MftSession:
 
         if self.options.output is not None:
             try:
-                self.file_csv = csv.writer(open(self.options.output, 'wb'), dialect=csv.excel, quoting=1)
+                self.file_csv = csv.writer(open(self.options.output, 'w'), dialect=csv.excel, quoting=1)
             except (IOError, TypeError):
                 print("Unable to open file: %s" % self.options.output)
                 sys.exit()
@@ -196,7 +196,7 @@ class MftSession:
         if self.options.output is not None:
             self.file_csv.writerow(mft.mft_to_csv(None, True, self.options))
 
-        while raw_record != "":
+        while raw_record != b"":
             record = mft.parse_record(raw_record, self.options)
             if self.options.debug:
                 print(record)
@@ -211,7 +211,7 @@ class MftSession:
                 for i in range(0, record['ads']):
                     #                         print "ADS: %s" % (record['data_name', i])
                     record_ads = record.copy()
-                    record_ads['filename'] = record['filename'] + ':' + record['data_name', i]
+                    record_ads['filename'] = record['filename'] + ':' + record['data_name', i].decode()
                     self.do_output(record_ads)
 
             raw_record = self.file_mft.read(1024)
@@ -255,7 +255,7 @@ class MftSession:
         self.file_mft.seek(0)
         raw_record = self.file_mft.read(1024)
 
-        while raw_record != "":
+        while raw_record != b"":
             record = mft.parse_record(raw_record, self.options)
             if self.options.debug:
                 print(record)
@@ -276,7 +276,7 @@ class MftSession:
 
         # 1024 is valid for current version of Windows but should really get this value from somewhere
         raw_record = self.file_mft.read(1024)
-        while raw_record != "":
+        while raw_record != b"":
             minirec = {}
             record = mft.parse_record(raw_record, self.options)
             if self.options.debug:
@@ -324,7 +324,7 @@ class MftSession:
             # (self.mft[seqnum]['fn',0]['par_ref'] == 5):  # There should be no seq
             # number 0, not sure why I had that check in place.
             if self.mft[seqnum]['par_ref'] == 5:  # Seq number 5 is "/", root of the directory
-                self.mft[seqnum]['filename'] = self.path_sep + self.mft[seqnum]['name']
+                self.mft[seqnum]['filename'] = self.path_sep + self.mft[seqnum]['name'].decode()
                 return self.mft[seqnum]['filename']
         except:  # If there was an error getting the parent's sequence number, then there is no FN record
             self.mft[seqnum]['filename'] = 'NoFNRecord'
@@ -334,12 +334,12 @@ class MftSession:
         if (self.mft[seqnum]['par_ref']) == seqnum:
             if self.debug:
                 print("Error, self-referential, while trying to determine path for seqnum %s" % seqnum)
-            self.mft[seqnum]['filename'] = 'ORPHAN' + self.path_sep + self.mft[seqnum]['name']
+            self.mft[seqnum]['filename'] = 'ORPHAN' + self.path_sep + self.mft[seqnum]['name'].decode()
             return self.mft[seqnum]['filename']
 
         # We're not at the top of the tree and we've not hit an error
         parentpath = self.get_folder_path((self.mft[seqnum]['par_ref']))
-        self.mft[seqnum]['filename'] = parentpath + self.path_sep + self.mft[seqnum]['name']
+        self.mft[seqnum]['filename'] = parentpath + self.path_sep + self.mft[seqnum]['name'].decode()
 
         return self.mft[seqnum]['filename']
 

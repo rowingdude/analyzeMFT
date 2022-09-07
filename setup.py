@@ -1,8 +1,9 @@
+import setuptools
 from distutils.core import setup
 
 setup(
     name='analyzeMFT',
-    version='2.0.19',
+    version='3.0.1',
     author='David Kovar',
     author_email='dkovar@gmail.com',
     packages=['analyzemft'],

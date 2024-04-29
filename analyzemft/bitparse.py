@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
-
-# This is all Willi Ballenthin's. Saved me a lot of headaches
+# Author: Benjamin Cance [ maintainer <at> analyzemft [dot] com ]
+# Name: mftsession.py
+#
+# Copyright (c) 2024 Benjamin Cance. All rights reserved.
+# This software is distributed under the MIT License
+#
+# Date: May 2024
+#
 
 
 def parse_little_endian_signed_positive(buf):
@@ -20,11 +26,16 @@ def parse_little_endian_signed_negative(buf):
     return ret
 
 
-def parse_little_endian_signed(buf):
-    try:
-        if not ord(buf[-1:]) & 0b10000000:
-            return parse_little_endian_signed_positive(buf)
-        else:
-            return parse_little_endian_signed_negative(buf)
-    except Exception:
-        return ''
+def parse_little_endian_signed(buf, size=4):
+  
+  if not buf:
+      raise ValueError("Empty buffer")
+
+  value = 0
+  for i in range(size):
+      value |= buf[i] << (i * 8)
+
+  if value & (1 << ((size * 8) - 1)):
+      value = - (value + (1 << size * 8))
+
+  return value

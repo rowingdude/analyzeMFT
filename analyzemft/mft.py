@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 
-# Author: David Kovar [dkovar <at> gmail [dot] com]
-# Name: mft.py
+#!/usr/bin/env python3
+
+# Author: Benjamin Cance [ maintainer <at> analyzemft [dot] com ]
+# Name: mftsession.py
 #
-# Copyright (c) 2010 David Kovar. All rights reserved.
-# This software is distributed under the Common Public License 1.0
+# Copyright (c) 2024 Benjamin Cance. All rights reserved.
+# This software is distributed under the MIT License
 #
-# Date: May 2013
+# Date: May 2024
 #
+
 
 import binascii
 import json

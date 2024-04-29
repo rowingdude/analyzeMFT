@@ -14,18 +14,30 @@ v2.0.8,08/02/2013 -- Started adding datarun support
 v2.0.9,08/02/2013 -- More datarun support
 v2.0.10,08/02/2013 -- More datarun support
 v2.0.11,08/07/2013 -- Fixed reporting of filenames to favor non-8.3 format if it is available
+
+
 v2.0.12,03/15/2014 -- (Contributed by Brice) Added -e, --excel switch to print date/times in format that will
                     cause Excel to import them properly.
 v2.0.14,11/24/2014 - Fixing directory structure.
+
+
 v2.0.15,02/08/2015 - fix 2's complement computation (Willi)
 		   - Added anomaly detection back in. Missing since V2.0.0 in the summer of 2013
 v2.0.16,05/21/2015 - Documentation fix and attribute fixes based on NTFS version with thanks to Joachim Metz 
 v2.0.17,05/23/2015 - Versioning hack
 v2.0.18,05/24/2015 - Versioning hack
+
+
 v2.0.19,05/27/2016 - (Contributed by lespea)
                    - Properly deal with fncnt findings > 3
                    - Allow the user to use either windows or unix path seperators
                    - General code cleanup
 v2.0.19,11/30/2016 - Bárður Christiansen - Changed objectID parsing so that it translates the first 8 bytes to little endian
+
+
 v3.0.0,07/19/2019  - Edd Salkield - Updated to Python3
+
+
 v3.0.1,09/07/2022  - Complete the python3 update (fix unicode related stuff, change shebangs, etc)
+
+v4.0.0,04/29/2024  - New Maintainer, rework of older Python ideas to new PEPs, added type hinting.

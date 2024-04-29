@@ -177,5 +177,5 @@ error about the output filename.
 Useful Documentation
 ====================
 
-1) http://dubeyko.com/development/FileSystems/NTFS/ntfsdoc.pdf
+1) https://analyzemft.com
 

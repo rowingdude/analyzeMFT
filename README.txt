@@ -1,14 +1,4 @@
 ===========
-STATUS
-
-This project was my passion and my vehicle for exploring digital forensics for many years as well as a means for giving back to a
-community that gave me so much.
-
-Unfortunately, I am no doing forensics on Windows filesystems and am not contributing to this project anymore. If someone else
-wishes to adopt it, please let me know.
-
--David (02/02/2020)
-===========
 Analyze MFT
 ===========
 
@@ -23,7 +13,7 @@ You should now be able to install analyzeMFT with pip:
     
 Alternatively:
 
-    git clone https://github.com/dkovar/analyzeMFT.git
+    git clone https://github.com/rowingdude/analyzeMFT.git
     cd analyzeMFT
     python setup.py install (or, just run it from that directory)
 

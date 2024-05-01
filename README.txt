@@ -174,8 +174,3 @@ wizard and the date fields are treated as "General" and the date is chopped leav
 error about the output filename.
 
 
-Useful Documentation
-====================
-
-1) https://analyzemft.com
-

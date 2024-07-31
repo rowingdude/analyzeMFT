@@ -27,15 +27,18 @@ def parse_little_endian_signed_negative(buf):
 
 
 def parse_little_endian_signed(buf, size=4):
-  
-  if not buf:
-      raise ValueError("Empty buffer")
+    if not buf:
+        raise ValueError("Empty buffer")
 
-  value = 0
-  for i in range(size):
-      value |= buf[i] << (i * 8)
+    value = 0
+    if len(buf) != size:
+        print(F'Invalid buffer size: {len(buf)}')
+        size = len(buf)
 
-  if value & (1 << ((size * 8) - 1)):
-      value = - (value + (1 << size * 8))
+    for i in range(size):
+        value |= buf[i] << (i * 8)
 
-  return value
+    if value & (1 << ((size * 8) - 1)):
+        value = - (value + (1 << size * 8))
+
+    return value

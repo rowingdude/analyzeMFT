@@ -2,9 +2,9 @@
 
 ## [Unreleased]
 - Created a testing branch:
--- This branch is the basis for a (almost) complete rewrite. When it's finished, the current branch here will be archived.
--- There will be GUI additions called analyzeMFT-gtk and analyzeMFT-qt
--- It would be nice to see an ncurses also
+  - This branch is the basis for a (almost) complete rewrite. When it's finished, the current branch here will be archived.
+  - There will be GUI additions called analyzeMFT-gtk and analyzeMFT-qt
+  - It would be nice to see an ncurses also
 
 - All of the standing issues will be considered and worked through the new re-write.
 

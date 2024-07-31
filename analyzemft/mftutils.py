@@ -1,69 +1,75 @@
 #!/usr/bin/env python3
 
-# Author: Benjamin Cance [ maintainer <at> analyzemft [dot] com ]
-# Name: mftsession.py
+# Author: Benjamin Cance [ bjc <at> tdx [dot] li ]
+# Name: mftutils.py
 #
 # Copyright (c) 2024 Benjamin Cance. All rights reserved.
 # This software is distributed under the MIT License
 #
 # Date: May 2024
 #
+# Changes:
+# 
+# 31-July-2024: 
+#           
+#       a. Added datetime/timezone support + UTC support 
+#       b. Added typehints    
+#       c. Updated 'quotechars' to use modern Python string conventions    
+#       d. More descriptive error messages from WindowsTime errors
+#       e. Updated ourput strings to 'f' strings for better aesthetics
 
+from datetime import datetime, timezone
+from typing import Union
 
-from datetime import datetime
-
-
-# DevelNote: need to pass in localtz now
-
+# Converts Windows time ...
+#  Input in 100 nanosecond intervals since Jan 1, 1601.
+#  Output is Unix time which is seconds since Jan 1, 1970.
 class WindowsTime:
-    """Convert the Windows time in 100 nanosecond intervals since Jan 1, 1601 to time in seconds since Jan 1, 1970"""
-
-    def __init__(self, low, high, localtz):
-        self.low = int(low)
+  
+    def __init__(self, low: Union[int, str], 
+                      high: Union[int, str], 
+                   localtz: bool            ):
+        
+        self.low  = int(low)
         self.high = int(high)
 
-        if (low == 0) and (high == 0):
-            self.dt = 0
-            self.dtstr = "Not defined"
+        if self.low == 0 and self.high == 0:
+            self.dt       = None
+            self.dtstr    = "Not defined"
             self.unixtime = 0
             return
 
-        # Windows NT time is specified as the number of 100 nanosecond intervals since January 1, 1601.
-        # UNIX time is specified as the number of seconds since January 1, 1970.
-        # There are 134,774 days (or 11,644,473,600 seconds) between these dates.
         self.unixtime = self.get_unix_time()
 
         try:
             if localtz:
                 self.dt = datetime.fromtimestamp(self.unixtime)
             else:
-                self.dt = datetime.utcfromtimestamp(self.unixtime)
+                self.dt = datetime.fromtimestamp(self.unixtime, tz=timezone.utc)
 
-            # Pass isoformat a delimiter if you don't like the default "T".
-            self.dtstr = self.dt.isoformat(' ')
+            self.dtstr  = self.dt.isoformat(' ')
 
-        except:
-            self.dt = 0
-            self.dtstr = "Invalid timestamp"
+        except (OSError, OverflowError, ValueError) as e:
+            self.dt       = None
+            self.dtstr    = f"Invalid timestamp: {e}"
             self.unixtime = 0
 
-    def get_unix_time(self):
+    # Converts Windows time to Unix time.
+    def get_unix_time(self) -> float:
         t = float(self.high) * 2 ** 32 + self.low
-
-        # The '//' does a floor on the float value, where *1e-7 does not, resulting in an off by one second error
-        # However, doing the floor loses the usecs....
         return t * 1e-7 - 11644473600
-        # return((t//10000000)-11644473600)
 
-
-def hexdump(chars, sep, width):
+# Generate a hexdump of the given string: 
+def hexdump(chars: str, sep: str, width: int) -> None:
+    
     while chars:
-        line = chars[:width]
+        line  = chars[:width]
         chars = chars[width:]
-        line = line.ljust(width, '\000')
-        print("%s%s%s" % (sep.join("%02x" % ord(c) for c in line),
-                          sep, quotechars(line)))
+        line  = line.ljust(width, '\000')
+        print(f"{sep.join(f'{ord(c):02x}' for c in line)}{sep}{quotechars(line)}")
 
 
-def quotechars(chars):
-    return ''.join(['.', c][c.isalnum()] for c in chars)
+# Returns a string with non-alphanumeric characters replaced by a dot:
+def quotechars(chars: str) -> str: 
+    
+    return ''.join(c if c.isalnum() else '.' for c in chars)

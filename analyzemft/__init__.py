@@ -5,13 +5,14 @@
 #
 # Copyright (c) 2024 Benjamin Cance. All rights reserved.
 # This software is distributed under the MIT License
-#
+# 
 # Date: May 2024
 #
 
+__all__ = ["MFTRecord", "MftSession", "WindowsTime", "hexdump", "quotechars"]
+__version__ = "4.0"
 
-__all__ = ["mftutils", "mft", "mftsession", "bitparse"]
-from analyzemft import bitparse
-from analyzemft import mft
-from analyzemft import mftsession
-from analyzemft import mftutils
+from .mft import MFTRecord
+from .mftsession import MftSession
+from .mftutils import WindowsTime, hexdump, quotechars
+

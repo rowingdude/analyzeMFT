@@ -40,6 +40,7 @@ def parse_little_endian_signed(buf: List[int], size: int = 4) -> int:
         raise ValueError("Empty buffer")
 
     value = 0
+
     for i in range(size):
         value |= buf[i] << (i * 8)
 

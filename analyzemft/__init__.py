@@ -15,4 +15,5 @@ __version__ = "4.0"
 from .mft import MFTRecord
 from .mftsession import MftSession
 from .mftutils import WindowsTime, hexdump, quotechars
-
+from .mftfilepathbuilder import MftFilePathBuilder
+from .mftanomalydetector import AnomalyDetector

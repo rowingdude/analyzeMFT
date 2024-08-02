@@ -1,21 +1,16 @@
-#!/usr/bin/env python3
+# Version 2.1
+#
+# Author: Benjamin Cance (bjc@tdx.li)
+#
+# 2-Aug-24 
+# - Updating to current PEP
 
-# Author: Benjamin Cance [ maintainer <at> analyzemft [dot] com ]
-# Name: mftsession.py
-#
-# Copyright (c) 2024 Benjamin Cance. All rights reserved.
-# This software is distributed under the MIT License
-#
-# Date: May 2024
-#
-
-try:
-    from analyzemft import mftsession
-except:
-    from .analyzemft import mftsession
+import sys
+from analyzemft import mftsession
 
 if __name__ == "__main__":
     session = mftsession.MftSession()
     session.mft_options()
     session.open_files()
     session.process_mft_file()
+    session.print_records()

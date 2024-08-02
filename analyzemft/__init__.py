@@ -1,19 +1,16 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
-# Author: Benjamin Cance bjc@tdx.li
-# Name: init.py
+# Version 2.1
 #
-# Copyright (c) 2024 Benjamin Cance. All rights reserved.
-# This software is distributed under the MIT License
-# 
-# Date: May 2024
+# Author: Benjamin Cance (bjc@tdx.li)
+# Copyright Benjamin Cance 2024
 #
+# 2-Aug-24 
+# - Updating to current PEP
 
-__all__ = ["MFTRecord", "MftSession", "WindowsTime", "hexdump", "quotechars"]
-__version__ = "4.0"
 
-from .mft import MFTRecord
-from .mftsession import MftSession
-from .mftutils import WindowsTime, hexdump, quotechars
-from .mftfilepathbuilder import MftFilePathBuilder
-from .mftanomalydetector import AnomalyDetector
+from . import mftutils
+from . import mft
+from . import mftsession
+
+__all__ = ["mftutils", "mft", "mftsession"]

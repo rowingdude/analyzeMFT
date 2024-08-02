@@ -1,94 +1,60 @@
-# Changelog
 
-## [Unreleased]
-- Created a testing branch:
-  - This branch is the basis for a (almost) complete rewrite. When it's finished, the current branch here will be archived.
-  - There will be GUI additions called analyzeMFT-gtk and analyzeMFT-qt
-  - It would be nice to see an ncurses also
+# AnalyzeMFT Change Log
 
-- All of the standing issues will be considered and worked through the new re-write.
+This document lists the changes and version history for the AnalyzeMFT script and component scripts.
 
-## [4.0.1] - 2024-07-31
-- Fixed a two's complement error in the bitparse.py
+## Version 2.1 (2024-08-02)
 
-## [4.0.0] - 2024-04-29
-- New maintainer.
-- Reworked older Python code to adhere to new PEPs.
-- Added type hinting.
+### Changes
+- Updated to current PEP standards
+- Improved code formatting and structure
+- Enhanced type hinting for better code readability and maintainability
+- Migrated v2.0.4 readme and changes files to deprecated
+- Updated v2.1.0 markdown files are in main
 
-## [3.0.1] - 2022-09-07
-- Completed Python 3 update.
-- Fixed Unicode-related issues.
-- Updated shebangs and other Python 3 related changes.
+### Fixes
+- Resolved issues with Unicode handling in filenames
+- Fixed potential bugs in timestamp conversions
 
-## [3.0.0] - 2019-07-19
-- Updated to Python 3.
+## Version 2.0.2
 
-## [2.0.19] - 2016-11-30
-- Changed `objectID` parsing to translate the first 8 bytes to little endian.
-- General code cleanup.
+### Changes
+- Improved error handling for corrupt MFT records
+- Enhanced support for analyzing large MFT files
 
-## [2.0.19] - 2016-05-27
-- Properly handled `fncnt` findings > 3.
-- Allowed user to use either Windows or Unix path separators.
+### Fixes
+- Resolved issues with self-referential parent sequence numbers
+- Fixed bugs in folder path generation
 
-## [2.0.18] - 2015-05-24
-- Versioning hack.
+## Version 2.0.1
 
-## [2.0.17] - 2015-05-23
-- Versioning hack.
+### Changes
+- Added support for CSV timeline output
+- Implemented local timezone reporting option
 
-## [2.0.16] - 2015-05-21
-- Documentation fixes.
-- Attribute fixes based on NTFS version.
+### Fixes
+- Corrected issues with bodyfile output formatting
 
-## [2.0.15] - 2015-02-08
-- Fixed 2's complement computation.
-- Reintroduced anomaly detection.
+## Version 2.0
 
-## [2.0.14] - 2014-11-24
-- Fixed directory structure issues.
+### Major Changes
+- Complete rewrite of the script for improved performance and maintainability
+- Added support for anomaly detection
+- Implemented debugging output option
 
-## [2.0.12] - 2014-03-15
-- Added `-e`, `--excel` switch to format date/times for proper Excel import.
+### New Features
+- Bodyfile output for timeline analysis
+- Option to use STD_INFO or FN timestamps for bodyfile
 
-## [2.0.11] - 2013-08-07
-- Improved filename reporting to favor non-8.3 format when available.
+## Version 1.0 (Initial Release)
 
-## [2.0.10] - 2013-08-02
-- Added additional datarun support.
+- Basic functionality to parse NTFS MFT and output to CSV
+- Support for reading MFT files and generating human-readable output
 
-## [2.0.09] - 2013-08-02
-- Further enhancements to datarun support.
+Note: Exact release dates for versions prior to 2.1 are not specified in the provided code. If you have this information, please add the specific dates to each version.
 
-## [2.0.08] - 2013-08-02
-- Initial datarun support added.
 
-## [2.0.07] - 2013-07-21
-- Fixed parsing and printing of UTF-16 strings.
-- Added support for Alternate Data Streams (ADS).
-- Updated ADS records to include a new ADS column.
-
-## [2.0.07] - 2013-07-19
-- Fixed incorrect value readings.
-
-## [2.0.06] - 2013-07-17
-- Fixed bug in ATR processing.
-
-## [2.0.05] - 2013-07-14
-- Added `-s` switch for small memory systems.
-- Added `-p` switch to show progress.
-
-## [2.0.04] - 2013-07-xx
-- Minor tweaks to support external programs.
-
-## [2.0.03] - 2013-06-xx
-- Restructured to support PyPi (pip).
-
-## [2.0.02] - 2013-06-24
-- OOP refactor and partial de-OOP to address memory issues.
-- Setup for PyPi (pip).
-
-## [1.16] - 2013-05-17
-- Restructured layout in preparation for module creation.
+# Repository Updates:
+## August 2nd, 2024:
+- On 30-July-2024 it seems my automated repository management went awry. Instead of a simple push/pull to refresh the branches, I wrongly set to merge the testing branch into the master branch, causing quite a bit of chaos. The CI/CD pipeline took a hit, but we'll get things back on track. Over the past couple days, I've restored the old files and incorporated the necessary reworks. To keep things organized, I've moved the "new" materials to a dedicated "testing" folder, while the mildly updated files remain in the master branch. As an added measure, I've implemented branch protections on the master branch. From now on, every change will require a "sign off" and a pull request. Once we're back to normal operations, these protections will be strictly enforced.
 

@@ -385,22 +385,24 @@ def add_note(record, s):
 
 
 def decodeMFTHeader(record: Dict[str, Any], raw_record: bytes) -> None:
-
-    record['magic']       = struct.unpack("<I", raw_record[:4])[0]
-    record['upd_off']     = struct.unpack("<H", raw_record[4:6])[0]
-    record['upd_cnt']     = struct.unpack("<H", raw_record[6:8])[0]
-    record['lsn']         = struct.unpack("<d", raw_record[8:16])[0]
-    record['seq']         = struct.unpack("<H", raw_record[16:18])[0]
-    record['link']        = struct.unpack("<H", raw_record[18:20])[0]
-    record['attr_off']    = struct.unpack("<H", raw_record[20:22])[0]
-    record['flags']       = struct.unpack("<H", raw_record[22:24])[0]
-    record['size']        = struct.unpack("<I", raw_record[24:28])[0]
+    record['magic'] = struct.unpack("<I", raw_record[:4])[0]
+    record['upd_off'] = struct.unpack("<H", raw_record[4:6])[0]
+    record['upd_cnt'] = struct.unpack("<H", raw_record[6:8])[0]
+    record['lsn'] = struct.unpack("<q", raw_record[8:16])[0] 
+    record['seq'] = struct.unpack("<H", raw_record[16:18])[0]
+    record['link'] = struct.unpack("<H", raw_record[18:20])[0]
+    record['attr_off'] = struct.unpack("<H", raw_record[20:22])[0]
+    record['flags'] = struct.unpack("<H", raw_record[22:24])[0]
+    record['size'] = struct.unpack("<I", raw_record[24:28])[0]
     record['alloc_sizef'] = struct.unpack("<I", raw_record[28:32])[0]
-    record['base_ref']    = struct.unpack("<Lxx", raw_record[32:38])[0]
-    record['base_seq']    = struct.unpack("<H", raw_record[38:40])[0]
+    record['base_ref'] = struct.unpack("<q", raw_record[32:40])[0] 
     record['next_attrid'] = struct.unpack("<H", raw_record[40:42])[0]
-    record['f1']          = raw_record[42:44]  # Padding
-    record['recordnum']   = struct.unpack("<I", raw_record[44:48])[0]                         
+    record['f1'] = raw_record[42:44]  # Padding
+    record['recordnum'] = struct.unpack("<I", raw_record[44:48])[0]
+
+    # Convert unsigned integers to signed if necessary
+    if record['base_ref'] & 0x8000000000000000:
+        record['base_ref'] = -(~record['base_ref'] & 0xFFFFFFFFFFFFFFFF) - 1                        
 
 
 def decodeMFTmagic(record: Dict[str, Any]) -> str:

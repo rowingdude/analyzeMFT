@@ -240,23 +240,17 @@ def mft_to_csv(record: Dict[str, Any], ret_header: bool) -> List[str]:
 
     csv_string.extend(tmp_string)
 
-    # One darned big if statement, alas.
-    csv_string.append('True') if 'si' in record else csv_string.append('False')
-    csv_string.append('True') if 'al' in record else csv_string.append('False')
-    csv_string.append('True') if record['fncnt'] > 0 else csv_string.append('False')
-    csv_string.append('True') if 'objid' in record else csv_string.append('False')
-    csv_string.append('True') if 'volname' in record else csv_string.append('False')
-    csv_string.append('True') if 'volinfo' in record else csv_string.append('False')
-    csv_string.append('True') if 'data' in record else csv_string.append('False')
-    csv_string.append('True') if 'indexroot' in record else csv_string.append('False')
-    csv_string.append('True') if 'indexallocation' in record else csv_string.append('False')
-    csv_string.append('True') if 'bitmap' in record else csv_string.append('False')
-    csv_string.append('True') if 'reparse' in record else csv_string.append('False')
-    csv_string.append('True') if 'eainfo' in record else csv_string.append('False')
-    csv_string.append('True') if 'ea' in record else csv_string.append('False')
-    csv_string.append('True') if 'propertyset' in record else csv_string.append('False')
-    csv_string.append('True') if 'loggedutility' in record else csv_string.append('False')
+    
+    attributes = ['si', 'al', 'objid', 'volname', 'volinfo', 'data', 'indexroot', 
+                'indexallocation', 'bitmap', 'reparse', 'eainfo', 'ea', 
+                'propertyset', 'loggedutility']
 
+    csv_string.extend(
+        ['True' if attr in record else 'False' for attr in attributes]
+    )
+
+    # Special case for 'fncnt'
+    csv_string.append('True' if record.get('fncnt', 0) > 0 else 'False')
 
     if 'notes' in record:                        # Log of abnormal activity related to this record
         csv_string.append(record['notes'])

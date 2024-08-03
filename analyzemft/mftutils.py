@@ -7,6 +7,7 @@
 #
 # 2-Aug-24 
 # - Updating to current PEP
+# - Correctly calculate the Unix timestamp from Windows filetime
 
 from datetime import datetime, timezone
 from typing import Union
@@ -38,5 +39,9 @@ class WindowsTime:
             self.unixtime = 0.0
 
     def get_unix_time(self) -> float:
-        t = float(self.high) * 2**32 + self.low
-        return (t * 1e-7 - 11644473600)
+        wintime = (self.high << 32) | self.low
+        unix_time = wintime / 10000000 - 11644473600
+        return unix_time
+
+    def __str__(self):
+        return self.dtstr

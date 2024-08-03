@@ -64,6 +64,10 @@ class MftSession:
          
          parser.add_option("-c", "--csvtimefile", dest="csvtimefile",
                            help="write CSV format timeline file", metavar="FILE")
+
+         parser.add_option("--no-csv-header",
+                          action="store_true", dest="no_csv_header", default=False,
+                          help="Suppresses the CSV header") 
          
          parser.add_option("-l", "--localtz",
                            action="store_true", dest="localtz",
@@ -121,7 +125,7 @@ class MftSession:
           # mft_file.seek(0)
 
           self.num_records = 0
-          if self.options.output != None:
+          if self.options.output is not None and not self.options.no_csv_header:
                self.file_csv.writerow(mft.mft_to_csv('',True))
 
           # 1024 is valid for current version of Windows but should really get this value from somewhere

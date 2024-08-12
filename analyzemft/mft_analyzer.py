@@ -4,8 +4,8 @@
 # Author: Benjamin Cance (bjc@tdx.li)
 # Copyright Benjamin Cance 2024
 
-
 import struct
+import logging
 from typing import Dict, Any, Callable
 from .mftutils import WindowsTime
 
@@ -33,7 +33,11 @@ class MFTAnalyzer:
             0xF0:  self.handle_property_set,
             0x100: self.handle_logged_utility_stream,
         }
-    
+        self.setup_logging()
+    def setup_logging(self):
+        level = logging.DEBUG if self.options.debug else logging.INFO
+        logging.basicConfig(level=level, format='%(asctime)s - %(levelname)s - %(message)s')
+
     def decode_unicode(self, s: bytes, length: int) -> str:
         # More effective handling of unicode 
         try:
@@ -45,20 +49,23 @@ class MFTAnalyzer:
                 return s[:length].decode('utf-8')
         
             except UnicodeDecodeError:
-                # If both fail, return a hex representation
+                logging.warning(f"Failed to decode: {s[:length].hex()}")
                 return ' '.join([f'0x{b:02x}' for b in s[:length]])
 
     def process_mft_file(self, file_mft):
         self.num_records = 0
-        raw_record = file_mft.read(1024)
-
-        while raw_record:
-            record = self.parse_record(raw_record)
-            if self.options.debug:
-                print(record)
-            self.mft[self.num_records] = record
-            self.num_records += 1
+        while True:
             raw_record = file_mft.read(1024)
+            if not raw_record:
+                break
+            try:
+                record = self.parse_record(raw_record)
+                self.mft[self.num_records] = record
+                self.num_records += 1
+                if self.num_records % 1000 == 0:
+                    logging.info(f"Processed {self.num_records} records")
+            except Exception as e:
+                logging.error(f"Error processing record {self.num_records}: {e}")
 
         self.gen_filepaths()
 

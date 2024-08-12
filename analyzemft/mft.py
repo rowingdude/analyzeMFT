@@ -253,13 +253,6 @@ def mft_to_l2t(record):
 
     return csv_string
 
-
-def add_note(record, s):
-    if  record['notes'] == '':
-        record['notes'] = "%s" % s
-    else:
-        record['notes'] = f"{record['notes']} | {s} |"
-
 def decodeMFTmagic(record: Dict[str, Any]) -> str:
     magic_values = {
         0x454c4946: "Good",

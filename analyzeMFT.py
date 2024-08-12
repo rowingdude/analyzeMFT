@@ -6,10 +6,10 @@
 # - Updating to current PEP
 
 import sys
-from analyzemft import mftsession
+from analyzemft import mft_session
 
 if __name__ == "__main__":
-    session = mftsession.MftSession()
+    session = mft_session.MftSession()
     session.mft_options()
     session.open_files()
     session.process_mft_file()

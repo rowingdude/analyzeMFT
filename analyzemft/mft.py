@@ -67,113 +67,23 @@ def parse_record(raw_record: bytes, options: Any) -> Dict[str, Any]:
 
     read_ptr = record['attr_off']
 
-    while (read_ptr < 1024):
-
+    while read_ptr < 1024:
         ATRrecord = decodeATRHeader(raw_record[read_ptr:])
-        if ATRrecord['type'] == 0xffffffff:  # End of attributes
+        if ATRrecord['type'] == 0xffffffff:  
             break
 
         if options.debug:
             print(f"Attribute type: {ATRrecord['type']:x} Length: {ATRrecord['len']} Res: {ATRrecord['res']:x}")
 
-        if ATRrecord['type'] == 0x10:  # Standard Information
-            if options.debug:
-                print(f"Standard Information:\n++Type: {hex(ATRrecord['type'])} Length: {ATRrecord['len']} Resident: {ATRrecord['res']} Name Len:{ATRrecord['nlen']} Name Offset: {ATRrecord['name_off']}")
-            SIrecord = decodeSIAttribute(raw_record[read_ptr+ATRrecord['soff']:], options.localtz)
-            record['si'] = SIrecord
-            if options.debug:
-                print(f"++CRTime: {SIrecord['crtime'].dtstr}\n++MTime: {SIrecord['mtime'].dtstr}\n++ATime: {SIrecord['atime'].dtstr}\n++EntryTime: {SIrecord['ctime'].dtstr}")
-
-        elif ATRrecord['type'] == 0x20:  # Attribute list
-            if options.debug:
-                print("Attribute list")
-            if ATRrecord['res'] == 0:
-                ALrecord = decodeAttributeList(raw_record[read_ptr+ATRrecord['soff']:], record)
-                record['al'] = ALrecord
-                if options.debug:
-                    print(f"Name: {ALrecord['name']}")
-            else:
-                if options.debug:
-                    print("Non-resident Attribute List?")
-                record['al'] = None
-
-
-        elif ATRrecord['type'] == 0x30:  # File name
-            if options.debug:
-                print("File name record")
-            FNrecord = decodeFNAttribute(raw_record[read_ptr+ATRrecord['soff']:], options.localtz, record)
-            record[('fn', record['fncnt'])] = FNrecord
-            if options.debug:
-                print(f"Name: {FNrecord['name']} ({record['fncnt']})")
-            record['fncnt'] += 1
-            if FNrecord['crtime'] != 0:
-                if options.debug:
-                    print(f"\tCRTime: {FNrecord['crtime'].dtstr} MTime: {FNrecord['mtime'].dtstr} ATime: {FNrecord['atime'].dtstr} EntryTime: {FNrecord['ctime'].dtstr}")
-
-        elif ATRrecord['type'] == 0x40:                 #  Object ID
-            ObjectIDRecord = decodeObjectID(raw_record[read_ptr+ATRrecord['soff']:])
-            record['objid'] = ObjectIDRecord
-            if options.debug: print(f"Object ID")
-
-        elif ATRrecord['type'] == 0x50:                 # Security descriptor
-            record['sd'] = True
-            if options.debug: print(f"Security descriptor")
-
-        elif ATRrecord['type'] == 0x60:                 # Volume name
-            record['volname'] = True
-            if options.debug: print(f"Volume name")
-
-        elif ATRrecord['type'] == 0x70:                 # Volume information
-            if options.debug: print(f"Volume info attribute")
-            VolumeInfoRecord = decodeVolumeInfo(raw_record[read_ptr+ATRrecord['soff']:],options)
-            record['volinfo'] = VolumeInfoRecord
-
-        elif ATRrecord['type'] == 0x80:                 # Data
-            record['data'] = True
-            if options.debug: print(f"Data attribute")
-
-        elif ATRrecord['type'] == 0x90:                 # Index root
-            record['indexroot'] = True
-            if options.debug: print(f"Index root")
-
-        elif ATRrecord['type'] == 0xA0:                 # Index allocation
-            record['indexallocation'] = True
-            if options.debug: print(f"Index allocation")
-
-        elif ATRrecord['type'] == 0xB0:                 # Bitmap
-            record['bitmap'] = True
-            if options.debug: print(f"Bitmap")
-
-        elif ATRrecord['type'] == 0xC0:                 # Reparse point
-            record['reparsepoint'] = True
-            if options.debug: print(f"Reparse point")
-
-        elif ATRrecord['type'] == 0xD0:                 # EA Information
-            record['eainfo'] = True
-            if options.debug: print(f"EA Information")
-
-        elif ATRrecord['type'] == 0xE0:                 # EA
-            record['ea'] = True
-            if options.debug: print(f"EA")
-
-        elif ATRrecord['type'] == 0xF0:                 # Property set
-            record['propertyset'] = True
-            if options.debug: print(f"Property set")
-
-        elif ATRrecord['type'] == 0x100:                 # Logged utility stream
-            record['loggedutility'] = True
-            if options.debug: print(f"Logged utility stream")
-
-        else:
-            if options.debug: print(f"Found an unknown attribute")
+        handler = attribute_handlers.get(ATRrecord['type'], handle_unknown_attribute)
+        handler(ATRrecord, raw_record[read_ptr:], record, options)
 
         if ATRrecord['len'] > 0:
-            read_ptr = read_ptr + ATRrecord['len']
+            read_ptr += ATRrecord['len']
         else:
-            if options.debug: print(f"ATRrecord->len < 0, exiting loop")
+            if options.debug:
+                print("ATRrecord->len <= 0, exiting loop")
             break
-
-    return record
 
 
 def mft_to_csv(record: Dict[str, Any], ret_header: bool) -> List[str]:

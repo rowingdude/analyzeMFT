@@ -15,7 +15,7 @@
 import json
 import logging
 from typing import Dict, Any, List
-from .mftutils import decodeMFTmagic, decodeMFTisactive, decodeMFTrecordtype
+from .mft_utils import decodeMFTmagic, decodeMFTisactive, decodeMFTrecordtype
 
 
 def mft_to_csv(record: Dict[str, Any], ret_header: bool) -> List[str]:
@@ -242,7 +242,7 @@ def mft_to_l2t(record: Dict[str, Any]) -> str:
 def mft_to_json(record: Dict[str, Any]) -> str:
 
     try:
-        
+
         for key, value in record.items():
             if isinstance(value, dict):
                 for sub_key, sub_value in value.items():

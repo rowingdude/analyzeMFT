@@ -35,7 +35,7 @@ import struct
 from optparse import OptionParser
 
 from analyzemft import bitparse
-from analyzemft import mftutils
+from analyzemft import mft_utils
 
 
 class MFTRecord:

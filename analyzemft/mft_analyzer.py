@@ -7,7 +7,7 @@
 import struct
 import logging
 from typing import Dict, Any, Callable
-from .mftutils import WindowsTime
+from .mft_utils import WindowsTime
 
 class MFTAnalyzer:
     def __init__(self, options: Any):

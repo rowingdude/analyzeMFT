@@ -9,8 +9,8 @@
 # - Updating to current PEP
 
 
-from . import mftutils
+from . import mft_utils
 from . import mft
 from . import mftsession
 
-__all__ = ["mftutils", "mft", "mftsession"]
+__all__ = ["mft_utils", "mft", "mftsession"]

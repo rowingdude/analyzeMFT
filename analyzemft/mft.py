@@ -1,9 +1,9 @@
 import argparse
 import logging
 from typing import Dict, Any
-from . import mftutils
+from . import mft_utils
 from .mft_formatters import mft_to_csv, mft_to_body, mft_to_l2t, mft_to_json
-from .mftutils import decodeMFTmagic, decodeMFTisactive, decodeMFTrecordtype, decodeVolumeInfo, decodeObjectID, ObjectID
+from .mft_utils import decodeMFTmagic, decodeMFTisactive, decodeMFTrecordtype, decodeVolumeInfo, decodeObjectID, ObjectID
 
 def set_default_options() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="MFT Analyzer")

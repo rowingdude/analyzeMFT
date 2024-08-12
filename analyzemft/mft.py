@@ -43,49 +43,6 @@ def set_default_options() -> ArgumentParser:
     parser.add_argument("--bodyfull", action="store_true", default=False)
     return parser
 
-def parse_record(raw_record: bytes, options: Any) -> Dict[str, Any]:
-    record: Dict[str, Any] = {'filename': '', 'notes': '', 'fncnt': 0}
-
-    decodeMFTHeader(record, raw_record)
-
-    record_number = record['recordnum']
-
-    if options.debug:
-        print(f"-->Record number: {record_number}\n\tMagic: {record['magic']} Attribute offset: {record['attr_off']} Flags: {hex(int(record['flags']))} Size:{record['size']}")
-
-    if record['magic'] == 0x44414142:
-        if options.debug:
-            print("BAAD MFT Record")
-        record['baad'] = True
-        return record
-
-    if record['magic'] != 0x454c4946:
-        if options.debug:
-            print("Corrupt MFT Record")
-        record['corrupt'] = True
-        return record
-
-    read_ptr = record['attr_off']
-
-    while read_ptr < 1024:
-        ATRrecord = decodeATRHeader(raw_record[read_ptr:])
-        if ATRrecord['type'] == 0xffffffff:  
-            break
-
-        if options.debug:
-            print(f"Attribute type: {ATRrecord['type']:x} Length: {ATRrecord['len']} Res: {ATRrecord['res']:x}")
-
-        handler = attribute_handlers.get(ATRrecord['type'], handle_unknown_attribute)
-        handler(ATRrecord, raw_record[read_ptr:], record, options)
-
-        if ATRrecord['len'] > 0:
-            read_ptr += ATRrecord['len']
-        else:
-            if options.debug:
-                print("ATRrecord->len <= 0, exiting loop")
-            break
-
-
 def mft_to_csv(record: Dict[str, Any], ret_header: bool) -> List[str]:
     if ret_header:
         return [

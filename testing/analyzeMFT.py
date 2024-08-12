@@ -11,8 +11,9 @@
 
 try:
     from analyzemft import mft_session
+    
 except:
-    from .analyzemft import mftsession
+    from .analyzemft import mft_session
 
 if __name__ == "__main__":
     session = mft_session.MftSession()

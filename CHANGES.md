@@ -3,7 +3,7 @@
 
 This document lists the changes and version history for the AnalyzeMFT script and component scripts.
 
-## Version 2.1 (2024-08-02)
+## Version 2.1.1 (2024-08-02)
 
 ### Changes
 - Updated to current PEP standards

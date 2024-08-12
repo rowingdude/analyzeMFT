@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Version 2.1
+# Version 2.1.1
 # Author: Benjamin Cance (bjc@tdx.li)
 # Copyright Benjamin Cance 2024
 

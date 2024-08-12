@@ -94,64 +94,64 @@ def parse_record(raw_record: bytes, options: Any) -> Dict[str, Any]:
         elif ATRrecord['type'] == 0x40:                 #  Object ID
             ObjectIDRecord = decodeObjectID(raw_record[read_ptr+ATRrecord['soff']:])
             record['objid'] = ObjectIDRecord
-            if options.debug: print (f"Object ID")
+            if options.debug: print(f"Object ID")
 
         elif ATRrecord['type'] == 0x50:                 # Security descriptor
             record['sd'] = True
-            if options.debug: print (f"Security descriptor")
+            if options.debug: print(f"Security descriptor")
 
         elif ATRrecord['type'] == 0x60:                 # Volume name
             record['volname'] = True
-            if options.debug: print (f"Volume name")
+            if options.debug: print(f"Volume name")
 
         elif ATRrecord['type'] == 0x70:                 # Volume information
-            if options.debug: print (f"Volume info attribute")
+            if options.debug: print(f"Volume info attribute")
             VolumeInfoRecord = decodeVolumeInfo(raw_record[read_ptr+ATRrecord['soff']:],options)
             record['volinfo'] = VolumeInfoRecord
 
         elif ATRrecord['type'] == 0x80:                 # Data
             record['data'] = True
-            if options.debug: print (f"Data attribute")
+            if options.debug: print(f"Data attribute")
 
         elif ATRrecord['type'] == 0x90:                 # Index root
             record['indexroot'] = True
-            if options.debug: print (f"Index root")
+            if options.debug: print(f"Index root")
 
         elif ATRrecord['type'] == 0xA0:                 # Index allocation
             record['indexallocation'] = True
-            if options.debug: print (f"Index allocation")
+            if options.debug: print(f"Index allocation")
 
         elif ATRrecord['type'] == 0xB0:                 # Bitmap
             record['bitmap'] = True
-            if options.debug: print (f"Bitmap")
+            if options.debug: print(f"Bitmap")
 
         elif ATRrecord['type'] == 0xC0:                 # Reparse point
             record['reparsepoint'] = True
-            if options.debug: print (f"Reparse point")
+            if options.debug: print(f"Reparse point")
 
         elif ATRrecord['type'] == 0xD0:                 # EA Information
             record['eainfo'] = True
-            if options.debug: print (f"EA Information")
+            if options.debug: print(f"EA Information")
 
         elif ATRrecord['type'] == 0xE0:                 # EA
             record['ea'] = True
-            if options.debug: print (f"EA")
+            if options.debug: print(f"EA")
 
         elif ATRrecord['type'] == 0xF0:                 # Property set
             record['propertyset'] = True
-            if options.debug: print (f"Property set")
+            if options.debug: print(f"Property set")
 
         elif ATRrecord['type'] == 0x100:                 # Logged utility stream
             record['loggedutility'] = True
-            if options.debug: print (f"Logged utility stream")
+            if options.debug: print(f"Logged utility stream")
 
         else:
-            if options.debug: print (f"Found an unknown attribute")
+            if options.debug: print(f"Found an unknown attribute")
 
         if ATRrecord['len'] > 0:
             read_ptr = read_ptr + ATRrecord['len']
         else:
-            if options.debug: print (f"ATRrecord->len < 0, exiting loop")
+            if options.debug: print(f"ATRrecord->len < 0, exiting loop")
             break
 
     return record
@@ -509,7 +509,7 @@ def decodeFNAttribute(s, localtz, record):
     # I just ran across an example of "any sequence of ..." - filenames with backspaces and newlines
     # in them. Thus, the "isalpha" check. I really need to figure out how to handle Unicode better.
 
-    if (UNICODE_HACK):
+    if UNICODE_HACK:
         d['name'] = ''
         for i in range(66, 66 + d['nlen']*2):
             if s[i] != '\x00':                         # Just skip over nulls
@@ -580,13 +580,13 @@ def decodeVolumeInfo(s,options):
     d['flags'] = struct.unpack("<H",s[10:12])[0]            # 2
     d['f2'] = struct.unpack("<I",s[12:16])[0]               # 4
 
-    if (options.debug):
-        print (f"+Volume Info")
-        print (f"++F1%d" % d['f1'])
-        print (f"++Major Version: %d" % d['maj_ver'])
-        print (f"++Minor Version: %d" % d['min_ver'])
-        print (f"++Flags: %d" % d['flags'])
-        print (f"++F2: %d" % d['f2'])
+    if options.debug:
+        print(f"+Volume Info")
+        print(f"++F1%d" % d['f1'])
+        print(f"++Major Version: %d" % d['maj_ver'])
+        print(f"++Minor Version: %d" % d['min_ver'])
+        print(f"++Flags: %d" % d['flags'])
+        print(f"++F2: %d" % d['f2'])
 
     return d
 

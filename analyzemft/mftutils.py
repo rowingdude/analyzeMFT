@@ -10,7 +10,8 @@
 # - Correctly calculate the Unix timestamp from Windows filetime
 
 from datetime import datetime, timezone
-from typing import Union
+from typing import Union,Dict,Any
+import struct
 
 class WindowsTime:
     def __init__(self, low: int, high: int, localtz: bool):

@@ -11,7 +11,7 @@
 from argparse import ArgumentParser
 from typing import Dict, Any
 from . import mftutils
-from .mft_formatter import mft_to_csv, mft_to_body, mft_to_l2t
+from .mft_formatters import mft_to_csv, mft_to_body, mft_to_l2t, mft_to_json
 from .mftutils import decodeMFTmagic, decodeMFTisactive, decodeMFTrecordtype, decodeVolumeInfo, decodeObjectID, ObjectID
 
 def set_default_options() -> ArgumentParser:
@@ -20,5 +20,5 @@ def set_default_options() -> ArgumentParser:
     parser.add_argument("--localtz", default=None)
     parser.add_argument("--bodystd", action="store_true", default=False)
     parser.add_argument("--bodyfull", action="store_true", default=False)
+    parser.add_argument("--json", action="store_true", default=False, help="Output in JSON format")
     return parser
-

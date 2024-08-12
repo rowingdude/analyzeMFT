@@ -12,7 +12,9 @@
 # - Seperating out functionality into specific files
 # - Adding json export 
 
+import json
 from typing import Dict, Any, List
+from .mftutils import decodeMFTmagic, decodeMFTisactive, decodeMFTrecordtype
 
 def mft_to_csv(record: Dict[str, Any], ret_header: bool) -> List[str]:
     if ret_header:
@@ -217,3 +219,12 @@ def mft_to_l2t(record: Dict[str, Any]) -> str:
                   'version', 'NoFNRecord', record['seq'], '-', 'format', 'extra'))
 
     return csv_string
+
+def mft_to_json(record: Dict[str, Any]) -> str:
+    
+    for key, value in record.items():
+        if isinstance(value, dict):
+            for sub_key, sub_value in value.items():
+                if hasattr(sub_value, 'dtstr'):
+                    value[sub_key] = sub_value.dtstr
+    return json.dumps(record, indent=2)

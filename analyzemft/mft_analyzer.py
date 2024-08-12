@@ -12,7 +12,6 @@ from .mftutils import WindowsTime
 class MFTAnalyzer:
     def __init__(self, options: Any):
         self.options = options
-        self.WindowsTime = WindowsTime()
         self.mft: Dict[int, Dict[str, Any]] = {}
         self.folders: Dict[str, str] = {}
         self.num_records: int = 0
@@ -34,6 +33,20 @@ class MFTAnalyzer:
             0xF0:  self.handle_property_set,
             0x100: self.handle_logged_utility_stream,
         }
+    
+    def decode_unicode(self, s: bytes, length: int) -> str:
+        # More effective handling of unicode 
+        try:
+            # Try UTF-16-LE first (standard for NTFS)
+            return s[:length*2].decode('utf-16-le')
+        except UnicodeDecodeError:
+            try:
+                # If UTF-16-LE fails, try UTF-8
+                return s[:length].decode('utf-8')
+        
+            except UnicodeDecodeError:
+                # If both fail, return a hex representation
+                return ' '.join([f'0x{b:02x}' for b in s[:length]])
 
     def process_mft_file(self, file_mft):
         self.num_records = 0

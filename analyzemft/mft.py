@@ -14,7 +14,7 @@ from typing import Dict, Any, List, Union
 from argparse import ArgumentParser
 from . import mftutils
 
-unicodeHack = True                           # This one is for me
+UNICODE_HACK = True
 
 def set_default_options() -> ArgumentParser:
     parser = ArgumentParser()
@@ -509,7 +509,7 @@ def decodeFNAttribute(s, localtz, record):
     # I just ran across an example of "any sequence of ..." - filenames with backspaces and newlines
     # in them. Thus, the "isalpha" check. I really need to figure out how to handle Unicode better.
 
-    if (unicodeHack):
+    if (UNICODE_HACK):
         d['name'] = ''
         for i in range(66, 66 + d['nlen']*2):
             if s[i] != '\x00':                         # Just skip over nulls
@@ -520,7 +520,7 @@ def decodeFNAttribute(s, localtz, record):
                     hexFlag = True
 
     # This statement produces a valid unicode string, I just cannot get it to print correctly
-    # so I'm temporarily hacking it with the if (unicodeHack) above.
+    # so I'm temporarily hacking it with the if (UNICODE_HACK) above.
     else:
         d['name'] = s[66:66+d['nlen']*2]
 
@@ -554,7 +554,7 @@ def decodeAttributeList(s, record):
     d['file_ref'] = struct.unpack("<Lxx",s[16:22])[0]       # 6
     d['seq'] = struct.unpack("<H",s[22:24])[0]              # 2
     d['id'] = struct.unpack("<H",s[24:26])[0]               # 4
-    if (unicodeHack):
+    if (UNICODE_HACK):
         d['name'] = ''
         for i in range(26, 26 + d['nlen']*2):
             if s[i] != '\x00':                         # Just skip over nulls

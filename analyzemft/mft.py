@@ -16,6 +16,25 @@ from . import mftutils
 
 UNICODE_HACK = True
 
+attribute_handlers = {
+    0x10:  handle_standard_information,
+    0x20:  handle_attribute_list,
+    0x30:  handle_file_name,
+    0x40:  handle_object_id,
+    0x50:  handle_security_descriptor,
+    0x60:  handle_volume_name,
+    0x70:  handle_volume_information,
+    0x80:  handle_data,
+    0x90:  handle_index_root,
+    0xA0:  handle_index_allocation,
+    0xB0:  handle_bitmap,
+    0xC0:  handle_reparse_point,
+    0xD0:  handle_ea_information,
+    0xE0:  handle_ea,
+    0xF0:  handle_property_set,
+    0x100: handle_logged_utility_stream,
+}
+
 def set_default_options() -> ArgumentParser:
     parser = ArgumentParser()
     parser.add_argument("--debug"   , action="store_true", default=False)

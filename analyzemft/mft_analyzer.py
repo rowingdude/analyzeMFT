@@ -145,7 +145,7 @@ class MFTAnalyzer:
 
         return self.mft[seqnum]['filename']
     
-    def decodeMFTHeader(record: Dict[str, Any], raw_record: bytes) -> None:
+    def decodeMFTHeader(self, record: Dict[str, Any], raw_record: bytes) -> None:
         record['magic'] = struct.unpack("<I", raw_record[:4])[0]
         record['upd_off'] = struct.unpack("<H", raw_record[4:6])[0]
         record['upd_cnt'] = struct.unpack("<H", raw_record[6:8])[0]
@@ -165,7 +165,7 @@ class MFTAnalyzer:
             record['base_ref'] = -(~record['base_ref'] & 0xFFFFFFFFFFFFFFFF) - 1   
 
         
-    def decodeATRHeader(s):
+    def decodeATRHeader(self, s: bytes) -> Dict[str, Any]:
 
         d = {}
 
@@ -219,11 +219,10 @@ class MFTAnalyzer:
                 print("Non-resident Attribute List?")
             record['al'] = None
 
-
-    def handle_file_name(self, ATRrecord, raw_record, record, options):
+    def handle_file_name(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         if self.options.debug:
             print("File name record")
-        FNrecord = decodeFNAttribute(raw_record[ATRrecord['soff']:], options.localtz, record)
+        FNrecord = self.decodeFNAttribute(raw_record[ATRrecord['soff']:], record)
         record[('fn', record['fncnt'])] = FNrecord
         if self.options.debug:
             print(f"Name: {FNrecord['name']} ({record['fncnt']})")
@@ -232,106 +231,110 @@ class MFTAnalyzer:
             if self.options.debug:
                 print(f"\tCRTime: {FNrecord['crtime'].dtstr} MTime: {FNrecord['mtime'].dtstr} ATime: {FNrecord['atime'].dtstr} EntryTime: {FNrecord['ctime'].dtstr}")
 
-    def handle_object_id(self, ATRrecord, raw_record, record, options):
-        ObjectIDRecord = decodeObjectID(raw_record[ATRrecord['soff']:])
+    def handle_object_id(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
+        ObjectIDRecord = self.decodeObjectID(raw_record[ATRrecord['soff']:])
         record['objid'] = ObjectIDRecord
         if self.options.debug:
             print("Object ID")
 
-    def handle_security_descriptor(self, ATRrecord, raw_record, record, options):
+    def handle_security_descriptor(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['sd'] = True
         if self.options.debug:
             print("Security descriptor")
 
-    def handle_volume_name(self, ATRrecord, raw_record, record, options):
+    def handle_volume_name(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['volname'] = True
         if self.options.debug:
             print("Volume name")
 
-    def handle_volume_information(self, ATRrecord, raw_record, record, options):
+    def handle_volume_information(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         if self.options.debug:
             print("Volume info attribute")
-        VolumeInfoRecord = decodeVolumeInfo(raw_record[ATRrecord['soff']:], options)
+        VolumeInfoRecord = self.decodeVolumeInfo(raw_record[ATRrecord['soff']:])
         record['volinfo'] = VolumeInfoRecord
 
-    def handle_data(self, ATRrecord, raw_record, record, options):
+    def handle_data(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['data'] = True
         if self.options.debug:
             print("Data attribute")
 
-    def handle_index_root(self, ATRrecord, raw_record, record, options):
+    def handle_index_root(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['indexroot'] = True
         if self.options.debug:
             print("Index root")
 
-    def handle_index_allocation(self, ATRrecord, raw_record, record, options):
+    def handle_index_allocation(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['indexallocation'] = True
         if self.options.debug:
             print("Index allocation")
 
-    def handle_bitmap(self, ATRrecord, raw_record, record, options):
+    def handle_bitmap(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['bitmap'] = True
         if self.options.debug:
             print("Bitmap")
 
-    def handle_reparse_point(self, ATRrecord, raw_record, record, options):
+    def handle_reparse_point(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['reparsepoint'] = True
         if self.options.debug:
             print("Reparse point")
 
-    def handle_ea_information(self, ATRrecord, raw_record, record, options):
+    def handle_ea_information(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['eainfo'] = True
         if self.options.debug:
             print("EA Information")
 
-    def handle_ea(self, ATRrecord, raw_record, record, options):
+    def handle_ea(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['ea'] = True
         if self.options.debug:
             print("EA")
 
-    def handle_property_set(self, ATRrecord, raw_record, record, options):
+    def handle_property_set(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['propertyset'] = True
         if self.options.debug:
             print("Property set")
 
-    def handle_logged_utility_stream(self, ATRrecord, raw_record, record, options):
+    def handle_logged_utility_stream(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['loggedutility'] = True
         if self.options.debug:
             print("Logged utility stream")
 
-    def handle_unknown_attribute(self, ATRrecord, raw_record, record, options):
+    def handle_unknown_attribute(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         if self.options.debug:
             print(f"Found an unknown attribute type: {ATRrecord['type']:x}")
 
-    def decodeSIAttribute(s, localtz):
-
-        d = {}
-        d['crtime']   = WindowsTime(struct.unpack("<L",s[:4])[0],struct.unpack("<L",s[4:8])[0],localtz)
-        d['mtime']    = WindowsTime(struct.unpack("<L",s[8:12])[0],struct.unpack("<L",s[12:16])[0],localtz)
-        d['ctime']    = WindowsTime(struct.unpack("<L",s[16:20])[0],struct.unpack("<L",s[20:24])[0],localtz)
-        d['atime']    = WindowsTime(struct.unpack("<L",s[24:28])[0],struct.unpack("<L",s[28:32])[0],localtz)
-        d['dos']      = struct.unpack("<I",s[32:36])[0]          
-        d['maxver']   = struct.unpack("<I",s[36:40])[0]       
-        d['ver']      = struct.unpack("<I",s[40:44])[0]          
-        d['class_id'] = struct.unpack("<I",s[44:48])[0]     
-        d['own_id']   = struct.unpack("<I",s[48:52])[0]       
-        d['sec_id']   = struct.unpack("<I",s[52:56])[0]       
-        d['quota']    = struct.unpack("<d",s[56:64])[0]        
-        d['usn']      = struct.unpack("<d",s[64:72])[0]          
-
-        return d
+    def add_note(self, record: Dict[str, Any], note: str) -> None:
+        if record['notes'] == '':
+            record['notes'] = note
+        else:
+            record['notes'] += f" | {note} |"   
     
+    def decodeSIAttribute(self, s: bytes) -> Dict[str, Any]:
+        d = {}
+        d['crtime'] = WindowsTime(struct.unpack("<L", s[:4])[0], struct.unpack("<L", s[4:8])[0], self.options.localtz)
+        d['mtime'] = WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], self.options.localtz)
+        d['ctime'] = WindowsTime(struct.unpack("<L", s[16:20])[0], struct.unpack("<L", s[20:24])[0], self.options.localtz)
+        d['atime'] = WindowsTime(struct.unpack("<L", s[24:28])[0], struct.unpack("<L", s[28:32])[0], self.options.localtz)
+        d['dos'] = struct.unpack("<I", s[32:36])[0]
+        d['maxver'] = struct.unpack("<I", s[36:40])[0]
+        d['ver'] = struct.unpack("<I", s[40:44])[0]
+        d['class_id'] = struct.unpack("<I", s[44:48])[0]
+        d['own_id'] = struct.unpack("<I", s[48:52])[0]
+        d['sec_id'] = struct.unpack("<I", s[52:56])[0]
+        d['quota'] = struct.unpack("<d", s[56:64])[0]
+        d['usn'] = struct.unpack("<d", s[64:72])[0]
+        return d
+
     def decodeFNAttribute(self, s: bytes, record: Dict[str, Any]) -> Dict[str, Any]:
         d = {}
-        d['par_ref'] = struct.unpack("<Lxx", s[:6])[0]     
-        d['par_seq'] = struct.unpack("<H", s[6:8])[0]       
+        d['par_ref'] = struct.unpack("<Lxx", s[:6])[0]
+        d['par_seq'] = struct.unpack("<H", s[6:8])[0]
         d['crtime'] = WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], self.options.localtz)
         d['mtime'] = WindowsTime(struct.unpack("<L", s[16:20])[0], struct.unpack("<L", s[20:24])[0], self.options.localtz)
         d['ctime'] = WindowsTime(struct.unpack("<L", s[24:28])[0], struct.unpack("<L", s[28:32])[0], self.options.localtz)
         d['atime'] = WindowsTime(struct.unpack("<L", s[32:36])[0], struct.unpack("<L", s[36:40])[0], self.options.localtz)
         d['alloc_fsize'] = struct.unpack("<q", s[40:48])[0]
         d['real_fsize'] = struct.unpack("<q", s[48:56])[0]
-        d['flags'] = struct.unpack("<d", s[56:64])[0]     
+        d['flags'] = struct.unpack("<d", s[56:64])[0]
         d['nlen'] = struct.unpack("B", s[64])[0]
         d['nspace'] = struct.unpack("B", s[65])[0]
 
@@ -344,14 +347,14 @@ class MFTAnalyzer:
 
     def decodeAttributeList(self, s: bytes, record: Dict[str, Any]) -> Dict[str, Any]:
         d = {}
-        d['type'] = struct.unpack("<I", s[:4])[0]                
-        d['len'] = struct.unpack("<H", s[4:6])[0]                
-        d['nlen'] = struct.unpack("B", s[6])[0]                  
-        d['f1'] = struct.unpack("B", s[7])[0]                    
-        d['start_vcn'] = struct.unpack("<d", s[8:16])[0]         
-        d['file_ref'] = struct.unpack("<Lxx", s[16:22])[0]       
-        d['seq'] = struct.unpack("<H", s[22:24])[0]              
-        d['id'] = struct.unpack("<H", s[24:26])[0]               
+        d['type'] = struct.unpack("<I", s[:4])[0]
+        d['len'] = struct.unpack("<H", s[4:6])[0]
+        d['nlen'] = struct.unpack("B", s[6])[0]
+        d['f1'] = struct.unpack("B", s[7])[0]
+        d['start_vcn'] = struct.unpack("<d", s[8:16])[0]
+        d['file_ref'] = struct.unpack("<Lxx", s[16:22])[0]
+        d['seq'] = struct.unpack("<H", s[22:24])[0]
+        d['id'] = struct.unpack("<H", s[24:26])[0]
 
         d['name'] = self.decode_unicode(s[26:], d['nlen'])
 

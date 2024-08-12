@@ -84,6 +84,7 @@ class MFTAnalyzer:
                 print("BAAD MFT Record")
             record['baad'] = True
             return record
+        
 
         if record['magic'] != 0x454c4946:
             if self.options.debug:

@@ -314,9 +314,6 @@ def mft_to_body(record, full, std):
 
     return (rec_bodyfile)
 
-# l2t CSV output support
-# date,time,timezone,MACB,source,sourcetype,type,user,host,short,desc,version,filename,inode,notes,format,extra
-# http://code.google.com/p/log2timeline/wiki/l2t_csv
 
 def mft_to_l2t(record):
     ' Return a MFT record in l2t CSV output format'
@@ -407,15 +404,6 @@ def decodeMFTmagic(record: Dict[str, Any]) -> str:
     }
     return magic_values.get(record['magic'], 'Unknown')
 
-# decodeMFTisactive and decodeMFTrecordtype both look at the flags field in the MFT header.
-# The first bit indicates if the record is active or inactive. The second bit indicates if it
-# is a file or a folder.
-#
-# I had this coded incorrectly initially. Spencer Lynch identified and fixed the code. Many thanks!
-#
-# 02-August-2024 - These are now updated to current Python syntax
-#
-
 def decodeMFTisactive(record: Dict[str, Any]) -> str:
     return 'Active' if record['flags'] & 0x0001 else 'Inactive'
 
@@ -493,22 +481,6 @@ def decodeFNAttribute(s, localtz, record):
     d['nlen'] = struct.unpack("B",s[64])[0]
     d['nspace'] = struct.unpack("B",s[65])[0]
 
-    # The $MFT string is stored as \x24\x00\x4D\x00\x46\x00\x54. Ie, the first character is a single
-    # byte and the remaining characters are two bytes with the first byte a null.
-    # Note: Actually, it can be stored in several ways and the nspace field tells me which way.
-    #
-    # I found the following:
-    #
-    # NTFS allows any sequence of 16-bit values for name encoding (file names, stream names, index names,
-    # etc.). This means UTF-16 codepoints are supported, but the file system does not check whether a
-    # sequence is valid UTF-16 (it allows any sequence of short values, not restricted to those in the
-    # Unicode standard).
-    #
-    # If true, lovely. But that would explain what I am seeing.
-    #
-    # I just ran across an example of "any sequence of ..." - filenames with backspaces and newlines
-    # in them. Thus, the "isalpha" check. I really need to figure out how to handle Unicode better.
-
     if UNICODE_HACK:
         d['name'] = ''
         for i in range(66, 66 + d['nlen']*2):
@@ -519,22 +491,8 @@ def decodeFNAttribute(s, localtz, record):
                     d['name'] = "%s0x%02s" % (d['name'], s[i].encode("hex"))
                     hexFlag = True
 
-    # This statement produces a valid unicode string, I just cannot get it to print correctly
-    # so I'm temporarily hacking it with the if (UNICODE_HACK) above.
     else:
         d['name'] = s[66:66+d['nlen']*2]
-
-# This didn't work
-#    d['name'] = struct.pack("\u
-#    for i in range(0, d['nlen']*2, 2):
-#        d['name']=d['name'] + struct.unpack("<H",s[66+i:66+i+1])
-
-# What follows is ugly. I'm trying to deal with the filename in Unicode and not doing well.
-# This solution works, though it is printing nulls between the characters. It'll do for now.
-#    d['name'] = struct.unpack("<%dH" % (int(d['nlen'])*2),s[66:66+(d['nlen']*2)])
-#    d['name'] = s[66:66+(d['nlen']*2)]
-#    d['decname'] = unicodedata.normalize('NFKD', d['name']).encode('ASCII','ignore')
-#    d['decname'] = unicode(d['name'],'iso-8859-1','ignore')
 
     if hexFlag:
         add_note(record, 'Filename - chars converted to hex')
@@ -604,3 +562,107 @@ def ObjectID(s: bytes) -> str:
     if s == b'\x00' * 16:
         return 'Undefined'
     return f"{s[:4].hex()}-{s[4:6].hex()}-{s[6:8].hex()}-{s[8:10].hex()}-{s[10:16].hex()}"
+
+def handle_standard_information(ATRrecord, raw_record, record, options):
+    if options.debug:
+        print(f"Standard Information:\n++Type: {hex(ATRrecord['type'])} Length: {ATRrecord['len']} Resident: {ATRrecord['res']} Name Len: {ATRrecord['nlen']} Name Offset: {ATRrecord['name_off']}")
+    SIrecord = decodeSIAttribute(raw_record[ATRrecord['soff']:], options.localtz)
+    record['si'] = SIrecord
+    if options.debug:
+        print(f"++CRTime: {SIrecord['crtime'].dtstr}\n++MTime: {SIrecord['mtime'].dtstr}\n++ATime: {SIrecord['atime'].dtstr}\n++EntryTime: {SIrecord['ctime'].dtstr}")
+
+def handle_attribute_list(ATRrecord, raw_record, record, options):
+    if options.debug:
+        print("Attribute list")
+    if ATRrecord['res'] == 0:
+        ALrecord = decodeAttributeList(raw_record[ATRrecord['soff']:], record)
+        record['al'] = ALrecord
+        if options.debug:
+            print(f"Name: {ALrecord['name']}")
+    else:
+        if options.debug:
+            print("Non-resident Attribute List?")
+        record['al'] = None
+
+def handle_file_name(ATRrecord, raw_record, record, options):
+    if options.debug:
+        print("File name record")
+    FNrecord = decodeFNAttribute(raw_record[ATRrecord['soff']:], options.localtz, record)
+    record[('fn', record['fncnt'])] = FNrecord
+    if options.debug:
+        print(f"Name: {FNrecord['name']} ({record['fncnt']})")
+    record['fncnt'] += 1
+    if FNrecord['crtime'] != 0:
+        if options.debug:
+            print(f"\tCRTime: {FNrecord['crtime'].dtstr} MTime: {FNrecord['mtime'].dtstr} ATime: {FNrecord['atime'].dtstr} EntryTime: {FNrecord['ctime'].dtstr}")
+
+def handle_object_id(ATRrecord, raw_record, record, options):
+    ObjectIDRecord = decodeObjectID(raw_record[ATRrecord['soff']:])
+    record['objid'] = ObjectIDRecord
+    if options.debug:
+        print("Object ID")
+
+def handle_security_descriptor(ATRrecord, raw_record, record, options):
+    record['sd'] = True
+    if options.debug:
+        print("Security descriptor")
+
+def handle_volume_name(ATRrecord, raw_record, record, options):
+    record['volname'] = True
+    if options.debug:
+        print("Volume name")
+
+def handle_volume_information(ATRrecord, raw_record, record, options):
+    if options.debug:
+        print("Volume info attribute")
+    VolumeInfoRecord = decodeVolumeInfo(raw_record[ATRrecord['soff']:], options)
+    record['volinfo'] = VolumeInfoRecord
+
+def handle_data(ATRrecord, raw_record, record, options):
+    record['data'] = True
+    if options.debug:
+        print("Data attribute")
+
+def handle_index_root(ATRrecord, raw_record, record, options):
+    record['indexroot'] = True
+    if options.debug:
+        print("Index root")
+
+def handle_index_allocation(ATRrecord, raw_record, record, options):
+    record['indexallocation'] = True
+    if options.debug:
+        print("Index allocation")
+
+def handle_bitmap(ATRrecord, raw_record, record, options):
+    record['bitmap'] = True
+    if options.debug:
+        print("Bitmap")
+
+def handle_reparse_point(ATRrecord, raw_record, record, options):
+    record['reparsepoint'] = True
+    if options.debug:
+        print("Reparse point")
+
+def handle_ea_information(ATRrecord, raw_record, record, options):
+    record['eainfo'] = True
+    if options.debug:
+        print("EA Information")
+
+def handle_ea(ATRrecord, raw_record, record, options):
+    record['ea'] = True
+    if options.debug:
+        print("EA")
+
+def handle_property_set(ATRrecord, raw_record, record, options):
+    record['propertyset'] = True
+    if options.debug:
+        print("Property set")
+
+def handle_logged_utility_stream(ATRrecord, raw_record, record, options):
+    record['loggedutility'] = True
+    if options.debug:
+        print("Logged utility stream")
+
+def handle_unknown_attribute(ATRrecord, raw_record, record, options):
+    if options.debug:
+        print(f"Found an unknown attribute type: {ATRrecord['type']:x}")

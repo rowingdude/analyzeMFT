@@ -10,8 +10,10 @@
 # - Correctly calculate the Unix timestamp from Windows filetime
 
 from datetime import datetime, timezone
-from typing import Union,Dict,Any
+from typing import Union, Dict, Any
 import struct
+import logging
+from enum import Enum
 
 class WindowsTime:
     def __init__(self, low: int, high: int, localtz: bool):
@@ -25,41 +27,37 @@ class WindowsTime:
             self.dtstr = "Not defined"
             return
 
-        self.unixtime = self.get_unix_time()
-
         try:
-            if localtz:
-                self.dt = datetime.fromtimestamp(self.unixtime)
-            else:
-                # Use timezone-aware object for UTC
-                self.dt = datetime.fromtimestamp(self.unixtime, tz=timezone.utc)
-            
+            self.unixtime = self.get_unix_time()
+            self.dt = datetime.fromtimestamp(self.unixtime, tz=timezone.utc if not localtz else None)
             self.dtstr = self.dt.isoformat(' ')
-        except:
+
+        except (OverflowError, OSError) as e:
+            logging.error(f"Error converting timestamp: {e}")
             self.dtstr = "Invalid timestamp"
             self.unixtime = 0.0
 
     def get_unix_time(self) -> float:
         wintime = (self.high << 32) | self.low
-        unix_time = wintime / 10000000 - 11644473600
-        return unix_time
+        return wintime / 10000000 - 11644473600
 
     def __str__(self):
         return self.dtstr
 
+class MagicValues(Enum):
+    GOOD = 0x454c4946
+    BAD = 0x44414142
+    ZERO = 0x00000000
+
 def decodeMFTmagic(record: Dict[str, Any]) -> str:
-    magic_values = {
-        0x454c4946: "Good",
-        0x44414142: 'Bad',
-        0x00000000: 'Zero'
-    }
-    return magic_values.get(record['magic'], 'Unknown')
+    magic = record.get('magic', 0)
+    return MagicValues(magic).name if magic in MagicValues._value2member_map_ else 'Unknown'
 
 def decodeMFTisactive(record: Dict[str, Any]) -> str:
-    return 'Active' if record['flags'] & 0x0001 else 'Inactive'
+    return 'Active' if record.get('flags', 0) & 0x0001 else 'Inactive'
 
 def decodeMFTrecordtype(record: Dict[str, Any]) -> str:
-    flags = int(record['flags'])
+    flags = int(record.get('flags', 0))
     record_type = 'Folder' if flags & 0x0002 else 'File'
     if flags & 0x0004:
         record_type += ' + Unknown1'

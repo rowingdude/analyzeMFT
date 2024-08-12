@@ -320,67 +320,42 @@ class MFTAnalyzer:
         d['usn']      = struct.unpack("<d",s[64:72])[0]          
 
         return d
-
-    def decodeFNAttribute(s, localtz, record):
-
-        hexFlag = False
+    
+    def decodeFNAttribute(self, s: bytes, record: Dict[str, Any]) -> Dict[str, Any]:
         d = {}
-        d['par_ref']     = struct.unpack("<Lxx", s[:6])[0]     
-        d['par_seq']     = struct.unpack("<H",s[6:8])[0]       
-        d['crtime']      = WindowsTime(struct.unpack("<L",s[8:12])[0],struct.unpack("<L",s[12:16])[0],localtz)
-        d['mtime']       = WindowsTime(struct.unpack("<L",s[16:20])[0],struct.unpack("<L",s[20:24])[0],localtz)
-        d['ctime']       = WindowsTime(struct.unpack("<L",s[24:28])[0],struct.unpack("<L",s[28:32])[0],localtz)
-        d['atime']       = WindowsTime(struct.unpack("<L",s[32:36])[0],struct.unpack("<L",s[36:40])[0],localtz)
-        d['alloc_fsize'] = struct.unpack("<q",s[40:48])[0]
-        d['real_fsize']  = struct.unpack("<q",s[48:56])[0]
-        d['flags']       = struct.unpack("<d",s[56:64])[0]     
-        d['nlen']        = struct.unpack("B",s[64])[0]
-        d['nspace']      = struct.unpack("B",s[65])[0]
+        d['par_ref'] = struct.unpack("<Lxx", s[:6])[0]     
+        d['par_seq'] = struct.unpack("<H", s[6:8])[0]       
+        d['crtime'] = WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], self.options.localtz)
+        d['mtime'] = WindowsTime(struct.unpack("<L", s[16:20])[0], struct.unpack("<L", s[20:24])[0], self.options.localtz)
+        d['ctime'] = WindowsTime(struct.unpack("<L", s[24:28])[0], struct.unpack("<L", s[28:32])[0], self.options.localtz)
+        d['atime'] = WindowsTime(struct.unpack("<L", s[32:36])[0], struct.unpack("<L", s[36:40])[0], self.options.localtz)
+        d['alloc_fsize'] = struct.unpack("<q", s[40:48])[0]
+        d['real_fsize'] = struct.unpack("<q", s[48:56])[0]
+        d['flags'] = struct.unpack("<d", s[56:64])[0]     
+        d['nlen'] = struct.unpack("B", s[64])[0]
+        d['nspace'] = struct.unpack("B", s[65])[0]
 
-        if UNICODE_HACK:
-            d['name'] = ''
-            for i in range(66, 66 + d['nlen']*2):
-                if s[i] != '\x00':                         
-                    if s[i] > '\x1F' and s[i] < '\x80':          
-                        d['name'] = d['name'] + s[i]
-                    else:
-                        d['name'] = "%s0x%02s" % (d['name'], s[i].encode("hex"))
-                        hexFlag = True
+        d['name'] = self.decode_unicode(s[66:], d['nlen'])
 
-        else:
-            d['name'] = s[66:66+d['nlen']*2]
-
-        if hexFlag:
-            add_note(record, 'Filename - chars converted to hex')
+        if any(ord(c) > 127 for c in d['name']):
+            self.add_note(record, 'Filename contains non-ASCII characters')
 
         return d
 
-    def decodeAttributeList(s, record):
-
-        hexFlag = False
-
+    def decodeAttributeList(self, s: bytes, record: Dict[str, Any]) -> Dict[str, Any]:
         d = {}
-        d['type']      = struct.unpack("<I",s[:4])[0]                
-        d['len']       = struct.unpack("<H",s[4:6])[0]                
-        d['nlen']      = struct.unpack("B",s[6])[0]                  
-        d['f1']        = struct.unpack("B",s[7])[0]                    
-        d['start_vcn'] = struct.unpack("<d",s[8:16])[0]         
-        d['file_ref']  = struct.unpack("<Lxx",s[16:22])[0]       
-        d['seq']       = struct.unpack("<H",s[22:24])[0]              
-        d['id']        = struct.unpack("<H",s[24:26])[0]               
-        if (UNICODE_HACK):
-            d['name'] = ''
-            for i in range(26, 26 + d['nlen']*2):
-                if s[i] != '\x00':                         
-                    if s[i] > '\x1F' and s[i] < '\x80':          
-                        d['name'] = d['name'] + s[i]
-                    else:
-                        d['name'] = "%s0x%02s" % (d['name'], s[i].encode("hex"))
-                        hexFlag = True
-        else:
-            d['name'] = s[26:26+d['nlen']*2]
+        d['type'] = struct.unpack("<I", s[:4])[0]                
+        d['len'] = struct.unpack("<H", s[4:6])[0]                
+        d['nlen'] = struct.unpack("B", s[6])[0]                  
+        d['f1'] = struct.unpack("B", s[7])[0]                    
+        d['start_vcn'] = struct.unpack("<d", s[8:16])[0]         
+        d['file_ref'] = struct.unpack("<Lxx", s[16:22])[0]       
+        d['seq'] = struct.unpack("<H", s[22:24])[0]              
+        d['id'] = struct.unpack("<H", s[24:26])[0]               
 
-        if hexFlag:
-            add_note(record, 'Filename - chars converted to hex')
+        d['name'] = self.decode_unicode(s[26:], d['nlen'])
+
+        if any(ord(c) > 127 for c in d['name']):
+            self.add_note(record, 'Attribute name contains non-ASCII characters')
 
         return d

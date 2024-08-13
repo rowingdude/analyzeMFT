@@ -4,9 +4,6 @@
 #
 # Author: Benjamin Cance (bjc@tdx.li)
 # Copyright Benjamin Cance 2024
-#
-# 2-Aug-24 
-# - Updating to current PEP
 
 
 from . import mft_utils

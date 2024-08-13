@@ -4,16 +4,6 @@
 #
 # Author: Benjamin Cance (bjc@tdx.li)
 # Copyright Benjamin Cance 2024
-#
-# 2-Aug-24 
-# - Updating to current PEP
-#
-# 12-Aug-24
-# - Seperating out functionality into specific files
-# - Adding json export 
-#
-# 13-Aug-24
-# - Broke the mft_formatters script down into a new class heirarchy.
 
 import json
 import logging

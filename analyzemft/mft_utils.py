@@ -4,10 +4,7 @@
 #
 # Author: Benjamin Cance (bjc@tdx.li)
 # Copyright Benjamin Cance 2024
-#
-# 2-Aug-24 
-# - Updating to current PEP
-# - Correctly calculate the Unix timestamp from Windows filetime
+
 
 from datetime import datetime, timezone
 from typing import Union, Dict, Any

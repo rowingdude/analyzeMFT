@@ -4,12 +4,6 @@
 #
 # Author: Benjamin Cance (bjc@tdx.li)
 # Copyright Benjamin Cance 2024
-#
-# 2-Aug-24 
-# - Updating to current PEP
-#
-# 13-Aug-24
-# - Broke the mft_formatters script down and updated this one to reflect the new class heirarchy.
 
 VERSION='2.1.1'
 

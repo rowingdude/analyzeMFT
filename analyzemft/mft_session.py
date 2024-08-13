@@ -7,11 +7,13 @@
 #
 # 2-Aug-24 
 # - Updating to current PEP
+#
+# 13-Aug-24
+# - Broke the mft_formatters script down and updated this one to reflect the new class heirarchy.
 
 VERSION='2.1.1'
 
-import sys
-import csv
+import json
 import logging
 from pathlib import Path
 from typing import TextIO
@@ -35,16 +37,14 @@ class MftSession:
     def open_files(self):
         try:
             self.file_mft = open(self.options.filename, 'rb')
-            if not self.file_mft:
-                parser.error("The --filename argument is required")
         except IOError as e:
             logging.error(f"Unable to open file: {self.options.filename}. Error: {e}")
             sys.exit(1)
 
         if self.options.output:
             try:
-                with open(self.options.output, 'w', newline='') as output_file:
-                    self.file_csv = csv.writer(output_file, dialect=csv.excel, quoting=csv.QUOTE_ALL)
+                output_file = open(self.options.output, 'w', newline='')
+                self.file_csv = csv.writer(output_file, dialect=csv.excel, quoting=csv.QUOTE_ALL)
             except IOError as e:
                 logging.error(f"Unable to open file: {self.options.output}. Error: {e}")
                 sys.exit(1)

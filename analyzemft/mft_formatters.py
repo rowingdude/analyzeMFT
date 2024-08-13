@@ -17,14 +17,25 @@
 
 import json
 import logging
-
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from .mft_utils import decodeMFTmagic, decodeMFTisactive, decodeMFTrecordtype
 
-class MFTParser:
+class MFTFormatter:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
+
+    def format(self, record: Dict[str, Any], format_type: str, **kwargs) -> str:
+        if format_type == 'csv':
+            return self.to_csv(record, kwargs.get('ret_header', False))
+        elif format_type == 'body':
+            return self.to_body(record, kwargs.get('full', False), kwargs.get('std', False))
+        elif format_type == 'l2t':
+            return self.to_l2t(record)
+        elif format_type == 'json':
+            return self.to_json(record)
+        else:
+            raise ValueError(f"Unsupported format type: {format_type}")
 
     def to_csv(self, record: Dict[str, Any], ret_header: bool) -> List[str]:
         if ret_header:
@@ -234,3 +245,19 @@ class MFTParser:
             else:
                 sanitized[key] = value
         return sanitized
+
+def mft_to_csv(record: Dict[str, Any], ret_header: bool) -> List[str]:
+    formatter = MFTFormatter()
+    return formatter.format(record, 'csv', ret_header=ret_header)
+
+def mft_to_body(record: Dict[str, Any], full: bool, std: bool) -> str:
+    formatter = MFTFormatter()
+    return formatter.format(record, 'body', full=full, std=std)
+
+def mft_to_l2t(record: Dict[str, Any]) -> str:
+    formatter = MFTFormatter()
+    return formatter.format(record, 'l2t')
+
+def mft_to_json(record: Dict[str, Any]) -> str:
+    formatter = MFTFormatter()
+    return formatter.format(record, 'json')

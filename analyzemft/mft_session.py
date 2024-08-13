@@ -18,7 +18,8 @@ import logging
 from pathlib import Path
 from typing import TextIO
 from .mft_analyzer import MFTAnalyzer
-from .mft_formatters import mft_to_csv, mft_to_body, mft_to_l2t
+from .mft_formatters import mft_to_csv, mft_to_body, mft_to_l2t, mft_to_json
+
 
 class MftSession:
     def __init__(self):
@@ -77,6 +78,8 @@ class MftSession:
                 self.file_csv_time.write(mft_to_l2t(record))
             if self.file_body:
                 self.file_body.write(mft_to_body(record, self.options.bodyfull, self.options.bodystd))
+            if self.options.json:
+                print(mft_to_json(record)) 
 
     def close_files(self):
         for file in [self.file_mft, self.file_body, self.file_csv_time]:

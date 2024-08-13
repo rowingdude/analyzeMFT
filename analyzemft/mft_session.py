@@ -5,27 +5,23 @@
 # Author: Benjamin Cance (bjc@tdx.li)
 # Copyright Benjamin Cance 2024
 
-VERSION='2.1.1'
-
-import json
 import logging
 from pathlib import Path
-from typing import TextIO
+from typing import Dict, Any
 from .mft_analyzer import MFTAnalyzer
 from .mft_formatters import mft_to_csv, mft_to_body, mft_to_l2t, mft_to_json
 
-
 class MftSession:
-    def __init__(self):
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
         self.mft = {}
         self.folders = {}
-        self.analyzer = None
-        self.options = None
-        self.file_mft: TextIO = None
+        self.file_mft = None
         self.file_csv = None
-        self.file_body: TextIO = None
-        self.file_csv_time: TextIO = None
-        self.setup_logging()
+        self.file_body = None
+        self.file_json = None
+        self.analyzer = None
+
 
     def setup_logging(self):
         logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

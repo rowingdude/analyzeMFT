@@ -10,8 +10,8 @@ from typing import Dict, Any, BinaryIO
 from .mft_utils import WindowsTime, decodeMFTmagic, decodeMFTisactive, decodeMFTrecordtype, decodeVolumeInfo, decodeObjectID
 
 class MFTAnalyzer:
-    def __init__(self, options: Any):
-        self.options = options
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
         self.mft: Dict[int, Dict[str, Any]] = {}
         self.folders: Dict[str, str] = {}
         self.num_records: int = 0
@@ -19,8 +19,9 @@ class MFTAnalyzer:
         self.setup_logging()
 
     def setup_logging(self):
-        level = logging.DEBUG if self.options.debug else logging.INFO
+        level = logging.DEBUG if self.config['debug'] else logging.INFO
         logging.basicConfig(level=level, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
     def process_mft_file(self, file_mft: BinaryIO):
         self.num_records = 0

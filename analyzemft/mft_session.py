@@ -19,6 +19,7 @@ class MftSession:
     def __init__(self):
         self.mft = {}
         self.folders = {}
+        self.analyzer = None
         self.options = None
         self.file_mft: TextIO = None
         self.file_csv = None
@@ -59,10 +60,10 @@ class MftSession:
                 sys.exit(1)
 
     def process_mft_file(self):
-        analyzer = MFTAnalyzer(self.options)
-        analyzer.process_mft_file(self.file_mft)
-        self.mft = analyzer.mft
-        self.folders = analyzer.folders
+        self.analyzer = MFTAnalyzer(self.options)
+        self.analyzer.process_mft_file(self.file_mft)
+        self.mft = self.analyzer.mft
+        self.folders = self.analyzer.folders
 
     def print_records(self):
         for i, record in self.mft.items():

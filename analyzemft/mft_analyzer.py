@@ -6,8 +6,8 @@
 
 import struct
 import logging
-from typing import Dict, Any, Callable
-from .mft_utils import WindowsTime
+from typing import Dict, Any, BinaryIO
+from .mft_utils import WindowsTime, decodeMFTmagic, decodeMFTisactive, decodeMFTrecordtype, decodeVolumeInfo, decodeObjectID
 
 class MFTAnalyzer:
     def __init__(self, options: Any):
@@ -15,44 +15,14 @@ class MFTAnalyzer:
         self.mft: Dict[int, Dict[str, Any]] = {}
         self.folders: Dict[str, str] = {}
         self.num_records: int = 0
-        self.attribute_handlers: Dict[int, Callable] = {
-            0x10:  self.handle_standard_information,
-            0x20:  self.handle_attribute_list,
-            0x30:  self.handle_file_name,
-            0x40:  self.handle_object_id,
-            0x50:  self.handle_security_descriptor,
-            0x60:  self.handle_volume_name,
-            0x70:  self.handle_volume_information,
-            0x80:  self.handle_data,
-            0x90:  self.handle_index_root,
-            0xA0:  self.handle_index_allocation,
-            0xB0:  self.handle_bitmap,
-            0xC0:  self.handle_reparse_point,
-            0xD0:  self.handle_ea_information,
-            0xE0:  self.handle_ea,
-            0xF0:  self.handle_property_set,
-            0x100: self.handle_logged_utility_stream,
-        }
+        self.logger = logging.getLogger(__name__)
         self.setup_logging()
+
     def setup_logging(self):
         level = logging.DEBUG if self.options.debug else logging.INFO
         logging.basicConfig(level=level, format='%(asctime)s - %(levelname)s - %(message)s')
 
-    def decode_unicode(self, s: bytes, length: int) -> str:
-        # More effective handling of unicode 
-        try:
-            # Try UTF-16-LE first (standard for NTFS)
-            return s[:length*2].decode('utf-16-le')
-        except UnicodeDecodeError:
-            try:
-                # If UTF-16-LE fails, try UTF-8
-                return s[:length].decode('utf-8')
-        
-            except UnicodeDecodeError:
-                logging.warning(f"Failed to decode: {s[:length].hex()}")
-                return ' '.join([f'0x{b:02x}' for b in s[:length]])
-
-    def process_mft_file(self, file_mft):
+    def process_mft_file(self, file_mft: BinaryIO):
         self.num_records = 0
         while True:
             raw_record = file_mft.read(1024)
@@ -63,95 +33,94 @@ class MFTAnalyzer:
                 self.mft[self.num_records] = record
                 self.num_records += 1
                 if self.num_records % 1000 == 0:
-                    logging.info(f"Processed {self.num_records} records")
+                    self.logger.info(f"Processed {self.num_records} records")
             except Exception as e:
-                logging.error(f"Error processing record {self.num_records}: {e}")
+                self.logger.error(f"Error processing record {self.num_records}: {e}")
 
         self.gen_filepaths()
 
     def parse_record(self, raw_record: bytes) -> Dict[str, Any]:
-        record: Dict[str, Any] = {'filename': '', 'notes': '', 'fncnt': 0}
-
-        self.decodeMFTHeader(record, raw_record)
-
-        record_number = record['recordnum']
-
-        if self.options.debug:
-            print(f"-->Record number: {record_number}\n\tMagic: {record['magic']} Attribute offset: {record['attr_off']} Flags: {hex(int(record['flags']))} Size:{record['size']}")
+        record = {'filename': '', 'notes': '', 'fncnt': 0}
+        self.decode_mft_header(record, raw_record)
 
         if record['magic'] == 0x44414142:
-            if self.options.debug:
-                print("BAAD MFT Record")
+            self.logger.debug("BAAD MFT Record")
             record['baad'] = True
             return record
-        
 
         if record['magic'] != 0x454c4946:
-            if self.options.debug:
-                print("Corrupt MFT Record")
+            self.logger.debug("Corrupt MFT Record")
             record['corrupt'] = True
             return record
 
-        read_ptr = record['attr_off']
-
-        while read_ptr < 1024:
-            ATRrecord = self.decodeATRHeader(raw_record[read_ptr:])
-            if ATRrecord['type'] == 0xffffffff:  
-                break
-
-            if self.options.debug:
-                print(f"Attribute type: {ATRrecord['type']:x} Length: {ATRrecord['len']} Res: {ATRrecord['res']:x}")
-
-            handler = self.attribute_handlers.get(ATRrecord['type'], self.handle_unknown_attribute)
-            handler(self, ATRrecord, raw_record[read_ptr:], record)
-
-            if ATRrecord['len'] > 0:
-                read_ptr += ATRrecord['len']
-            else:
-                if self.options.debug:
-                    print("ATRrecord->len <= 0, exiting loop")
-                break
-
+        self.parse_attributes(record, raw_record)
         return record
 
-    def gen_filepaths(self):
-        for i in self.mft:
-            if self.mft[i]['filename'] == '':
-                if self.mft[i]['fncnt'] > 0:
-                    self.get_folder_path(i)
-                    if self.options.debug:
-                        print(f"Filename (with path): {self.mft[i]['filename']}")
-                else:
-                    self.mft[i]['filename'] = 'NoFNRecord'
+    def decode_mft_header(self, record: Dict[str, Any], raw_record: bytes):
+        header_format = "<IHHQHHHHIIQHH"
+        header_size = struct.calcsize(header_format)
+        header_fields = struct.unpack(header_format, raw_record[:header_size])
+        
+        field_names = ['magic', 'upd_off', 'upd_cnt', 'lsn', 'seq', 'link', 'attr_off', 'flags', 'size', 'alloc_sizef', 'base_ref', 'next_attrid', 'f1']
+        record.update(dict(zip(field_names, header_fields)))
+        
+        record['recordnum'] = struct.unpack("<I", raw_record[44:48])[0]
 
-    def get_folder_path(self, seqnum: int) -> str:
-        if self.options.debug:
-            print(f"Building Folder For Record Number ({seqnum})")
+        if record['base_ref'] & 0x8000000000000000:
+            record['base_ref'] = -(~record['base_ref'] & 0xFFFFFFFFFFFFFFFF) - 1
 
-        if seqnum not in self.mft:
-            return 'Orphan'
+    def parse_attributes(self, record: Dict[str, Any], raw_record: bytes):
+        read_ptr = record['attr_off']
+        while read_ptr < 1024:
+            attr_record = self.decode_attribute_header(raw_record[read_ptr:])
+            if attr_record['type'] == 0xffffffff:
+                break
 
-        if self.mft[seqnum]['filename'] != '':
-            return self.mft[seqnum]['filename']
+            self.process_attribute(attr_record, raw_record[read_ptr:], record)
 
-        try:
-            if self.mft[seqnum]['fn', 0]['par_ref'] == 5:
-                self.mft[seqnum]['filename'] = '/' + self.mft[seqnum]['fn', self.mft[seqnum]['fncnt']-1]['name']
-                return self.mft[seqnum]['filename']
-        except:
-            self.mft[seqnum]['filename'] = 'NoFNRecord'
-            return self.mft[seqnum]['filename']
+            if attr_record['len'] > 0:
+                read_ptr += attr_record['len']
+            else:
+                self.logger.debug("attr_record->len <= 0, exiting loop")
+                break
 
-        if self.mft[seqnum]['fn', 0]['par_ref'] == seqnum:
-            if self.options.debug:
-                print(f"Error, self-referential, while trying to determine path for seqnum {seqnum}")
-            self.mft[seqnum]['filename'] = 'ORPHAN/' + self.mft[seqnum]['fn', self.mft[seqnum]['fncnt']-1]['name']
-            return self.mft[seqnum]['filename']
+    def decode_attribute_header(self, s: bytes) -> Dict[str, Any]:
+        d = {}
+        d['type'] = struct.unpack("<L", s[:4])[0]
+        if d['type'] == 0xffffffff:
+            return d
+        
+        attr_format = "<LBBHHHHLLQHHLLQQQQ"
+        attr_size = struct.calcsize(attr_format)
+        attr_fields = struct.unpack(attr_format, s[:attr_size])
+        
+        field_names = ['len', 'res', 'nlen', 'name_off', 'flags', 'id', 'ssize', 'soff', 'idxflag', 'start_vcn', 'last_vcn', 'run_off', 'compusize', 'f1', 'alen', 'ssize', 'initsize']
+        d.update(dict(zip(field_names, attr_fields[1:])))  # Skip 'type' as it's already set
 
-        parentpath = self.get_folder_path(self.mft[seqnum]['fn', 0]['par_ref'])
-        self.mft[seqnum]['filename'] = parentpath + '/' + self.mft[seqnum]['fn', self.mft[seqnum]['fncnt']-1]['name']
+        return d
 
-        return self.mft[seqnum]['filename']
+    def process_attribute(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
+        attribute_handlers = {
+            0x10: self.handle_standard_information,
+            0x20: self.handle_attribute_list,
+            0x30: self.handle_file_name,
+            0x40: self.handle_object_id,
+            0x50: self.handle_security_descriptor,
+            0x60: self.handle_volume_name,
+            0x70: self.handle_volume_information,
+            0x80: self.handle_data,
+            0x90: self.handle_index_root,
+            0xA0: self.handle_index_allocation,
+            0xB0: self.handle_bitmap,
+            0xC0: self.handle_reparse_point,
+            0xD0: self.handle_ea_information,
+            0xE0: self.handle_ea,
+            0xF0: self.handle_property_set,
+            0x100: self.handle_logged_utility_stream,
+        }
+
+        handler = attribute_handlers.get(attr_record['type'], self.handle_unknown_attribute)
+        handler(attr_record, raw_record, record)
     
     def decodeMFTHeader(self, record: Dict[str, Any], raw_record: bytes) -> None:
         record['magic'] = struct.unpack("<I", raw_record[:4])[0]
@@ -310,11 +279,6 @@ class MFTAnalyzer:
         if self.options.debug:
             print(f"Found an unknown attribute type: {ATRrecord['type']:x}")
 
-    def add_note(self, record: Dict[str, Any], note: str) -> None:
-        if record['notes'] == '':
-            record['notes'] = note
-        else:
-            record['notes'] += f" | {note} |"   
     
     def decodeSIAttribute(self, s: bytes) -> Dict[str, Any]:
         d = {}
@@ -370,3 +334,47 @@ class MFTAnalyzer:
             self.add_note(record, 'Attribute name contains non-ASCII characters')
 
         return d
+
+    def gen_filepaths(self):
+        for i in self.mft:
+            if self.mft[i]['filename'] == '':
+                if self.mft[i]['fncnt'] > 0:
+                    self.get_folder_path(i)
+                    self.logger.debug(f"Filename (with path): {self.mft[i]['filename']}")
+                else:
+                    self.mft[i]['filename'] = 'NoFNRecord'
+
+    def get_folder_path(self, seqnum: int) -> str:
+        if self.options.debug:
+            print(f"Building Folder For Record Number ({seqnum})")
+
+        if seqnum not in self.mft:
+            return 'Orphan'
+
+        if self.mft[seqnum]['filename'] != '':
+            return self.mft[seqnum]['filename']
+
+        try:
+            if self.mft[seqnum]['fn', 0]['par_ref'] == 5:
+                self.mft[seqnum]['filename'] = '/' + self.mft[seqnum]['fn', self.mft[seqnum]['fncnt']-1]['name']
+                return self.mft[seqnum]['filename']
+        except:
+            self.mft[seqnum]['filename'] = 'NoFNRecord'
+            return self.mft[seqnum]['filename']
+
+        if self.mft[seqnum]['fn', 0]['par_ref'] == seqnum:
+            if self.options.debug:
+                print(f"Error, self-referential, while trying to determine path for seqnum {seqnum}")
+            self.mft[seqnum]['filename'] = 'ORPHAN/' + self.mft[seqnum]['fn', self.mft[seqnum]['fncnt']-1]['name']
+            return self.mft[seqnum]['filename']
+
+        parentpath = self.get_folder_path(self.mft[seqnum]['fn', 0]['par_ref'])
+        self.mft[seqnum]['filename'] = parentpath + '/' + self.mft[seqnum]['fn', self.mft[seqnum]['fncnt']-1]['name']
+
+        return self.mft[seqnum]['filename']
+
+    def add_note(self, record: Dict[str, Any], note: str):
+        if record['notes'] == '':
+            record['notes'] = note
+        else:
+            record['notes'] += f" | {note} |"

@@ -7,15 +7,32 @@
 
 import sys
 import logging
-from analyzemft import mftsession
+from analyzemft import mft_session
+from analyzemft.mft import set_default_options
 
 def main():
+    # Set up logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     
     try:
-        session = mftsession.MftSession()
-        session.mft_options()
-        session.run()
+        # Get the command line options
+        parser = set_default_options()
+        options = parser.parse_args()
+        
+        # Create and initialize the MftSession
+        session = mft_session.MftSession()
+        session.options = options
+
+        # Set up debug logging if requested
+        if options.debug:
+            logging.getLogger().setLevel(logging.DEBUG)
+
+        # Run the MFT analysis
+        session.open_files()
+        session.process_mft_file()
+        session.print_records()
+        session.close_files()
+
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         sys.exit(1)

@@ -35,14 +35,16 @@ class MftSession:
     def open_files(self):
         try:
             self.file_mft = open(self.options.filename, 'rb')
+            if not self.file_mft:
+                parser.error("The --filename argument is required")
         except IOError as e:
             logging.error(f"Unable to open file: {self.options.filename}. Error: {e}")
             sys.exit(1)
 
         if self.options.output:
             try:
-                output_file = open(self.options.output, 'w', newline='')
-                self.file_csv = csv.writer(output_file, dialect=csv.excel, quoting=csv.QUOTE_ALL)
+                with open(self.options.output, 'w', newline='') as output_file:
+                    self.file_csv = csv.writer(output_file, dialect=csv.excel, quoting=csv.QUOTE_ALL)
             except IOError as e:
                 logging.error(f"Unable to open file: {self.options.output}. Error: {e}")
                 sys.exit(1)

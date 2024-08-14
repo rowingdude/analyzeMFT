@@ -5,8 +5,9 @@
 # Copyright Benjamin Cance 2024
 import logging
 import struct
-from typing import Dict, Any, BinaryIO
-from .mft_utils import WindowsTime, decodeMFTmagic, decodeMFTisactive, decodeMFTrecordtype, decodeVolumeInfo, decodeObjectID
+from typing import Dict, Any, BinaryIO, Optional
+from .mft_utils import WindowsTime, ObjectID, decodeMFTmagic, decodeMFTisactive, decodeMFTrecordtype, decodeVolumeInfo, decodeObjectID
+from .error_handler import error_handler, ParsingError
 
 class MFTAnalyzer:
     def __init__(self, config: Dict[str, Any]):
@@ -17,79 +18,119 @@ class MFTAnalyzer:
         self.logger = logging.getLogger(__name__)
         self.debug = config.get('debug', False)
 
-    def process_mft_file(self, file_mft: BinaryIO):
+    @error_handler
+    def process_mft_file(self, file_mft: BinaryIO) -> None:
         self.num_records = 0
         while True:
-            raw_record = file_mft.read(1024)
-            if not raw_record:
-                break
             try:
+                raw_record = file_mft.read(1024)
+                if not raw_record:
+                    break
+                if len(raw_record) < 42: 
+                    self.logger.warning(f"Incomplete record {self.num_records}: only {len(raw_record)} bytes")
+                    self.num_records += 1
+                    continue
+
                 record = self.parse_record(raw_record)
                 self.mft[self.num_records] = record
                 self.num_records += 1
                 if self.num_records % 1000 == 0:
                     self.logger.info(f"Processed {self.num_records} records")
+
             except Exception as e:
                 self.logger.error(f"Error processing record {self.num_records}: {e}")
+                self.num_records += 1
 
-        self.gen_filepaths()
-
+    @error_handler
     def parse_record(self, raw_record: bytes) -> Dict[str, Any]:
         record = {'filename': '', 'notes': '', 'fncnt': 0}
-        self.decode_mft_header(record, raw_record)
+        try:
+            if len(raw_record) < 42:
+                raise ValueError(f"Record too short: {len(raw_record)} bytes")
 
-        if record['magic'] == 0x44414142:
-            if self.debug:
-                self.logger.debug("BAAD MFT Record")
-            record['baad'] = True
-            return record
+            self.decode_mft_header(record, raw_record)
 
-        if record['magic'] != 0x454c4946:
-            if self.debug:
-                self.logger.debug("Corrupt MFT Record")
+            if record['magic'] == 0x44414142:
+                if self.debug:
+                    self.logger.debug("BAAD MFT Record")
+                record['baad'] = True
+                return record
+
+            if record['magic'] != 0x454c4946:
+                if self.debug:
+                    self.logger.debug("Corrupt MFT Record")
+                record['corrupt'] = True
+                return record
+
+            self.parse_attributes(record, raw_record)
+
+        except struct.error as e:
+            self.logger.warning(f"Struct unpack error in record {self.num_records}: {e}")
             record['corrupt'] = True
-            return record
+        except Exception as e:
+            self.logger.error(f"Error parsing record {self.num_records}: {e}")
+            record['corrupt'] = True
 
-        self.parse_attributes(record, raw_record)
         return record
 
-    def decode_mft_header(self, record: Dict[str, Any], raw_record: bytes):
+    @error_handler
+    def decode_mft_header(self, record: Dict[str, Any], raw_record: bytes) -> None:
         header_format = "<IHHQHHHHIIQHH"
         header_size = struct.calcsize(header_format)
+        
+        if len(raw_record) < header_size:
+            raise ParsingError(f"MFT header too short: expected {header_size}, got {len(raw_record)}")
+        
         header_fields = struct.unpack(header_format, raw_record[:header_size])
         
         field_names = ['magic', 'upd_off', 'upd_cnt', 'lsn', 'seq', 'link', 'attr_off', 'flags', 'size', 'alloc_sizef', 'base_ref', 'next_attrid', 'f1']
         record.update(dict(zip(field_names, header_fields)))
         
-        record['recordnum'] = struct.unpack("<I", raw_record[44:48])[0]
+        if len(raw_record) >= 48:
+            record['recordnum'] = struct.unpack("<I", raw_record[44:48])[0]
+        else:
+            self.logger.warning(f"Record too short to read recordnum: {len(raw_record)} bytes")
+            record['recordnum'] = None
 
         if record['base_ref'] & 0x8000000000000000:
             record['base_ref'] = -(~record['base_ref'] & 0xFFFFFFFFFFFFFFFF) - 1
 
-
-    def parse_attributes(self, record: Dict[str, Any], raw_record: bytes):
+    @error_handler
+    def parse_attributes(self, record: Dict[str, Any], raw_record: bytes) -> None:
         read_ptr = record['attr_off']
         while read_ptr < 1024:
-            attr_record = self.decode_attribute_header(raw_record[read_ptr:])
-            if attr_record['type'] == 0xffffffff:
+            try:
+                attr_record = self.decode_attribute_header(raw_record[read_ptr:])
+                if attr_record['type'] == 0xffffffff:
+                    break
+
+                self.process_attribute(attr_record, raw_record[read_ptr:], record)
+
+                if attr_record['len'] > 0:
+                    read_ptr += attr_record['len']
+                else:
+                    self.logger.debug("attr_record->len <= 0, exiting loop")
+                    break
+            except Exception as e:
+                self.logger.error(f"Error parsing attribute at offset {read_ptr}: {e}")
                 break
 
-            self.process_attribute(attr_record, raw_record[read_ptr:], record)
-
-            if attr_record['len'] > 0:
-                read_ptr += attr_record['len']
-            else:
-                self.logger.debug("attr_record->len <= 0, exiting loop")
-                break
-
+    @error_handler
     def decode_attribute_header(self, s: bytes) -> Dict[str, Any]:
         d = {}
+        if len(s) < 4:
+            raise ParsingError(f"Attribute header too short: {len(s)} bytes")
+        
         d['type'] = struct.unpack("<L", s[:4])[0]
         if d['type'] == 0xffffffff:
             return d
         
         attr_format = "<LBBHHHHLLQHHLLQQQQ"
         attr_size = struct.calcsize(attr_format)
+        
+        if len(s) < attr_size:
+            raise ParsingError(f"Attribute data too short: expected {attr_size}, got {len(s)}")
+        
         attr_fields = struct.unpack(attr_format, s[:attr_size])
         
         field_names = ['len', 'res', 'nlen', 'name_off', 'flags', 'id', 'ssize', 'soff', 'idxflag', 'start_vcn', 'last_vcn', 'run_off', 'compusize', 'f1', 'alen', 'ssize', 'initsize']
@@ -97,7 +138,8 @@ class MFTAnalyzer:
 
         return d
 
-    def process_attribute(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
+    @error_handler
+    def process_attribute(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         attribute_handlers = {
             0x10: self.handle_standard_information,
             0x20: self.handle_attribute_list,
@@ -118,238 +160,324 @@ class MFTAnalyzer:
         }
 
         attr_type = attr_record['type']
-        handler = attribute_handlers.get(attr_type)
+        handler = attribute_handlers.get(attr_type, self.handle_unknown_attribute)
 
-        if handler:
+        try:
             handler(attr_record, raw_record, record)
-        else:
-            self.handle_unknown_attribute(attr_record, raw_record, record)
+        except Exception as e:
+            self.logger.error(f"Error processing attribute type 0x{attr_type:X}: {e}")
+            record.setdefault('attribute_errors', []).append(f"Error processing attribute type 0x{attr_type:X}: {e}")
+
 
     def handle_unknown_attribute(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
         attr_type = attr_record['type']
-        self.logger.warning(f"Unknown attribute type: 0x{attr_type:X} in record {record.get('recordnum', 'Unknown')}")
-        self.logger.debug(f"Attribute record: {attr_record}")
-        self.logger.debug(f"Raw record (first 64 bytes): {raw_record[:64].hex()}")
+        self.logger.debug(f"Unknown attribute type: 0x{attr_type:X} in record {record.get('recordnum', 'Unknown')}")
         
-        # You might want to add this unknown attribute to the record for further analysis
         if 'unknown_attributes' not in record:
             record['unknown_attributes'] = []
-        record['unknown_attributes'].append(attr_type)
-    
-    def decodeMFTHeader(self, record: Dict[str, Any], raw_record: bytes) -> None:
-        record['magic'] = struct.unpack("<I", raw_record[:4])[0]
-        record['upd_off'] = struct.unpack("<H", raw_record[4:6])[0]
-        record['upd_cnt'] = struct.unpack("<H", raw_record[6:8])[0]
-        record['lsn'] = struct.unpack("<q", raw_record[8:16])[0] 
-        record['seq'] = struct.unpack("<H", raw_record[16:18])[0]
-        record['link'] = struct.unpack("<H", raw_record[18:20])[0]
-        record['attr_off'] = struct.unpack("<H", raw_record[20:22])[0]
-        record['flags'] = struct.unpack("<H", raw_record[22:24])[0]
-        record['size'] = struct.unpack("<I", raw_record[24:28])[0]
-        record['alloc_sizef'] = struct.unpack("<I", raw_record[28:32])[0]
-        record['base_ref'] = struct.unpack("<q", raw_record[32:40])[0] 
-        record['next_attrid'] = struct.unpack("<H", raw_record[40:42])[0]
-        record['f1'] = raw_record[42:44]  
-        record['recordnum'] = struct.unpack("<I", raw_record[44:48])[0]
+        record['unknown_attributes'].append({
+            'type': attr_type,
+            'length': attr_record.get('len', 0),
+            'resident': attr_record.get('res', False),
+            'name_length': attr_record.get('nlen', 0),
+            'name_offset': attr_record.get('name_off', 0),
+            'data': raw_record[:min(128, len(raw_record))].hex()
+        })
 
-        if record['base_ref'] & 0x8000000000000000:
-            record['base_ref'] = -(~record['base_ref'] & 0xFFFFFFFFFFFFFFFF) - 1   
-
-        
-    def decodeATRHeader(self, s: bytes) -> Dict[str, Any]:
-
-        d = {}
-
-        d['type'] = struct.unpack("<L",s[:4])[0]
-
-        if d['type'] == 0xffffffff:
-            return d
-        
-        d['len']      = struct.unpack("<L",s[4:8])[0]
-        d['res']      = struct.unpack( "B",s[8])[0]
-        d['nlen']     = struct.unpack( "B",s[9])[0]
-        d['name_off'] = struct.unpack("<H",s[10:12])[0]
-        d['flags']    = struct.unpack("<H",s[12:14])[0]
-        d['id']       = struct.unpack("<H",s[14:16])[0]
-
-        if d['res'] == 0:
-            d['ssize']   = struct.unpack("<L",s[16:20])[0]
-            d['soff']    = struct.unpack("<H",s[20:22])[0]
-            d['idxflag'] = struct.unpack("<H",s[22:24])[0]
-
-        else:
-            d['start_vcn'] = struct.unpack("<d",s[16:24])[0]
-            d['last_vcn']  = struct.unpack("<d",s[24:32])[0]
-            d['run_off']   = struct.unpack("<H",s[32:34])[0]
-            d['compusize'] = struct.unpack("<H",s[34:36])[0]
-            d['f1']        = struct.unpack("<I",s[36:40])[0]
-            d['alen']      = struct.unpack("<d",s[40:48])[0]
-            d['ssize']     = struct.unpack("<d",s[48:56])[0]
-            d['initsize']  = struct.unpack("<d",s[56:64])[0]
-
-        return d
-    
-    def handle_standard_information(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
-        if self.config.get('debug', False):
-            print(f"Standard Information:\n++Type: {hex(ATRrecord['type'])} Length: {ATRrecord['len']} Resident: {ATRrecord['res']} Name Len: {ATRrecord['nlen']} Name Offset: {ATRrecord['name_off']}")
-        SIrecord = self.decodeSIAttribute(raw_record[ATRrecord['soff']:])
-        record['si'] = SIrecord
-        if self.config.get('debug', False):
-            print(f"++CRTime: {SIrecord['crtime'].dtstr}\n++MTime: {SIrecord['mtime'].dtstr}\n++ATime: {SIrecord['atime'].dtstr}\n++EntryTime: {SIrecord['ctime'].dtstr}")
-
-    def handle_attribute_list(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
-        if self.config.get('debug', False):
-            print("Attribute list")
-        if ATRrecord['res'] == 0:
-            ALrecord = self.decodeAttributeList(raw_record[ATRrecord['soff']:], record)
-            record['al'] = ALrecord
+    def handle_standard_information(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
+        try:
+            si_record = self.decodeSIAttribute(raw_record[attr_record['soff']:])
+            record['si'] = si_record
             if self.config.get('debug', False):
-                print(f"Name: {ALrecord['name']}")
-        else:
+                self.logger.debug(f"Standard Information: {si_record}")
+        except Exception as e:
+            self.logger.error(f"Error decoding Standard Information attribute: {e}")
+            record.setdefault('attribute_errors', []).append(f"Error decoding Standard Information attribute: {e}")
+
+    @error_handler
+    def handle_attribute_list(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
+        try:
+            if attr_record['res'] == 0:
+                al_record = self.decodeAttributeList(raw_record[attr_record['soff']:], record)
+                record['al'] = al_record
+                if self.debug:
+                    self.logger.debug(f"Attribute List: {al_record}")
+            else:
+                self.logger.info("Non-resident Attribute List encountered")
+                record['al'] = self.decodeNonResidentAttributeList(attr_record, raw_record)
+        except Exception as e:
+            self.logger.error(f"Error decoding Attribute List: {e}")
+            record.setdefault('attribute_errors', []).append(f"Error decoding Attribute List: {e}")
+
+
+    @error_handler
+    def decodeNonResidentAttributeList(self, attr_record: Dict[str, Any], raw_record: bytes) -> Dict[str, Any]:
+        return {
+            "type": "non-resident",
+            "start_vcn": attr_record.get('start_vcn'),
+            "last_vcn": attr_record.get('last_vcn'),
+        }
+
+    def handle_file_name(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
+        try:
+            fn_record = self.decodeFNAttribute(raw_record[attr_record['soff']:], record)
+            record[('fn', record['fncnt'])] = fn_record
             if self.config.get('debug', False):
-                print("Non-resident Attribute List?")
-            record['al'] = None
+                self.logger.debug(f"File Name ({record['fncnt']}): {fn_record['name']}")
+            record['fncnt'] += 1
+        except Exception as e:
+            self.logger.error(f"Error decoding File Name attribute: {e}")
+            record.setdefault('attribute_errors', []).append(f"Error decoding File Name attribute: {e}")
 
-    def handle_file_name(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
-        if self.config.get('debug', False):
-            print("File name record")
-        FNrecord = self.decodeFNAttribute(raw_record[ATRrecord['soff']:], record)
-        record[('fn', record['fncnt'])] = FNrecord
-        if self.config.get('debug', False):
-            print(f"Name: {FNrecord['name']} ({record['fncnt']})")
-        record['fncnt'] += 1
-        if FNrecord['crtime'] != 0:
+    def handle_object_id(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
+        try:
+            object_id_record = self.decodeObjectID(raw_record[attr_record['soff']:])
+            record['objid'] = object_id_record
             if self.config.get('debug', False):
-                print(f"\tCRTime: {FNrecord['crtime'].dtstr} MTime: {FNrecord['mtime'].dtstr} ATime: {FNrecord['atime'].dtstr} EntryTime: {FNrecord['ctime'].dtstr}")
+                self.logger.debug(f"Object ID: {object_id_record}")
+        except Exception as e:
+            self.logger.error(f"Error decoding Object ID attribute: {e}")
+            record.setdefault('attribute_errors', []).append(f"Error decoding Object ID attribute: {e}")
 
-    def handle_object_id(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
-        ObjectIDRecord = self.decodeObjectID(raw_record[ATRrecord['soff']:])
-        record['objid'] = ObjectIDRecord
-        if self.config.get('debug', False):
-            print("Object ID")
-
-    def handle_security_descriptor(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
+    def handle_security_descriptor(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
         record['sd'] = True
         if self.config.get('debug', False):
-            print("Security descriptor")
+            self.logger.debug("Security descriptor present")
 
-    def handle_volume_name(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
-        record['volname'] = True
-        if self.config.get('debug', False):
-            print("Volume name")
+    def handle_volume_name(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
+        try:
+            volume_name = raw_record[attr_record['soff']:attr_record['soff'] + attr_record['ssize']].decode('utf-16-le').rstrip('\x00')
+            record['volname'] = volume_name
+            if self.config.get('debug', False):
+                self.logger.debug(f"Volume name: {volume_name}")
+        except Exception as e:
+            self.logger.error(f"Error decoding Volume Name attribute: {e}")
+            record.setdefault('attribute_errors', []).append(f"Error decoding Volume Name attribute: {e}")
 
-    def handle_volume_information(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
-        if self.config.get('debug', False):
-            print("Volume info attribute")
-        VolumeInfoRecord = self.decodeVolumeInfo(raw_record[ATRrecord['soff']:])
-        record['volinfo'] = VolumeInfoRecord
+    def handle_volume_information(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
+        try:
+            volume_info_record = self.decodeVolumeInfo(raw_record[attr_record['soff']:])
+            record['volinfo'] = volume_info_record
+            if self.config.get('debug', False):
+                self.logger.debug(f"Volume info: {volume_info_record}")
+        except Exception as e:
+            self.logger.error(f"Error decoding Volume Information attribute: {e}")
+            record.setdefault('attribute_errors', []).append(f"Error decoding Volume Information attribute: {e}")
 
-    def handle_data(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
+    def handle_data(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
         record['data'] = True
+        record['data_size'] = attr_record['ssize'] if attr_record['res'] == 0 else attr_record['alen']
         if self.config.get('debug', False):
-            print("Data attribute")
+            self.logger.debug(f"Data attribute present, size: {record['data_size']}")
 
-    def handle_index_root(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
+    def handle_index_root(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
         record['indexroot'] = True
         if self.config.get('debug', False):
-            print("Index root")
+            self.logger.debug("Index root present")
 
-    def handle_index_allocation(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
+    def handle_index_allocation(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
         record['indexallocation'] = True
         if self.config.get('debug', False):
-            print("Index allocation")
+            self.logger.debug("Index allocation present")
 
-    def handle_bitmap(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
+    def handle_bitmap(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
         record['bitmap'] = True
         if self.config.get('debug', False):
-            print("Bitmap")
+            self.logger.debug("Bitmap present")
 
-    def handle_reparse_point(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
-        record['reparsepoint'] = True
-        if self.config.get('debug', False):
-            print("Reparse point")
+    def handle_reparse_point(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
+        try:
+            reparse_data = raw_record[attr_record['soff']:attr_record['soff'] + attr_record['ssize']]
+            reparse_info = {
+                'size': len(reparse_data),
+                'data': reparse_data.hex()
+            }
 
-    def handle_ea_information(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
+            if len(reparse_data) >= 4:
+                reparse_info['type'] = struct.unpack("<I", reparse_data[:4])[0]
+            
+            if len(reparse_data) >= 8:
+                reparse_info['flags'] = struct.unpack("<H", reparse_data[4:6])[0]
+                reparse_info['data_length'] = struct.unpack("<H", reparse_data[6:8])[0]
+            
+            if len(reparse_data) > 8:
+                reparse_info['data_buffer'] = reparse_data[8:].hex()
+
+            record['reparsepoint'] = reparse_info
+
+            if self.config.get('debug', False):
+                self.logger.debug(f"Reparse point present, size: {reparse_info['size']} bytes")
+                if 'type' in reparse_info:
+                    self.logger.debug(f"Reparse point type: 0x{reparse_info['type']:X}")
+
+        except Exception as e:
+            self.logger.error(f"Error decoding Reparse Point attribute: {e}")
+            record.setdefault('attribute_errors', []).append(f"Error decoding Reparse Point attribute: {e}")
+
+    def handle_ea_information(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
         record['eainfo'] = True
         if self.config.get('debug', False):
-            print("EA Information")
+            self.logger.debug("EA Information present")
 
-    def handle_ea(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
+    def handle_ea(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
         record['ea'] = True
         if self.config.get('debug', False):
-            print("EA")
+            self.logger.debug("EA present")
 
-    def handle_property_set(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
+    def handle_property_set(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
         record['propertyset'] = True
         if self.config.get('debug', False):
-            print("Property set")
+            self.logger.debug("Property set present")
 
-    def handle_logged_utility_stream(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
+    def handle_logged_utility_stream(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
         record['loggedutility'] = True
         if self.config.get('debug', False):
-            print("Logged utility stream")
+            self.logger.debug("Logged utility stream present")
 
-    def handle_unknown_attribute(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
+    def decodeSIAttribute(self, raw_data: bytes) -> Dict[str, Any]:
+        si = {}
+        data_len = len(raw_data)
+        localtz = self.config.get('localtz', False)
+
+        def unpack_time(offset):
+            try:
+                if data_len >= offset + 8:
+                    return WindowsTime(struct.unpack("<Q", raw_data[offset:offset+8])[0], localtz)
+                elif data_len >= offset + 4:
+                    low, high = struct.unpack("<LL", raw_data[offset:offset+8])
+                    return WindowsTime((high << 32) | low, localtz)
+                else:
+                    return WindowsTime(0, localtz)
+            except struct.error:
+                self.logger.warning(f"Error unpacking time at offset {offset}")
+                return WindowsTime(0, localtz)
+
+        si['crtime'] = unpack_time(0)
+        si['mtime']  = unpack_time(8)
+        si['ctime']  = unpack_time(16)
+        si['atime']  = unpack_time(24)
+
+        if data_len >= 36:
+            si['dos'] = struct.unpack("<I", raw_data[32:36])[0]
+        if data_len >= 40:
+            si['maxver'] = struct.unpack("<I", raw_data[36:40])[0]
+        if data_len >= 44:
+            si['ver'] = struct.unpack("<I", raw_data[40:44])[0]
+        if data_len >= 48:
+            si['class_id'] = struct.unpack("<I", raw_data[44:48])[0]
+        if data_len >= 52:
+            si['own_id'] = struct.unpack("<I", raw_data[48:52])[0]
+        if data_len >= 56:
+            si['sec_id'] = struct.unpack("<I", raw_data[52:56])[0]
+        if data_len >= 64:
+            si['quota'] = struct.unpack("<Q", raw_data[56:64])[0]
+        if data_len >= 72:
+            si['usn'] = struct.unpack("<Q", raw_data[64:72])[0]
+
         if self.config.get('debug', False):
-            print(f"Found an unknown attribute type: {ATRrecord['type']:x}")
+            self.logger.debug(f"SI Timestamps: crtime={si['crtime']}, mtime={si['mtime']}, ctime={si['ctime']}, atime={si['atime']}")
 
-    
-    def decodeSIAttribute(self, s: bytes) -> Dict[str, Any]:
-        d = {}
-        d['crtime'] = WindowsTime(struct.unpack("<L", s[:4])[0], struct.unpack("<L", s[4:8])[0], self.config.localtz)
-        d['mtime'] = WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], self.config.localtz)
-        d['ctime'] = WindowsTime(struct.unpack("<L", s[16:20])[0], struct.unpack("<L", s[20:24])[0], self.config.localtz)
-        d['atime'] = WindowsTime(struct.unpack("<L", s[24:28])[0], struct.unpack("<L", s[28:32])[0], self.config.localtz)
-        d['dos'] = struct.unpack("<I", s[32:36])[0]
-        d['maxver'] = struct.unpack("<I", s[36:40])[0]
-        d['ver'] = struct.unpack("<I", s[40:44])[0]
-        d['class_id'] = struct.unpack("<I", s[44:48])[0]
-        d['own_id'] = struct.unpack("<I", s[48:52])[0]
-        d['sec_id'] = struct.unpack("<I", s[52:56])[0]
-        d['quota'] = struct.unpack("<d", s[56:64])[0]
-        d['usn'] = struct.unpack("<d", s[64:72])[0]
-        return d
+        return si
 
-    def decodeFNAttribute(self, s: bytes, record: Dict[str, Any]) -> Dict[str, Any]:
-        d = {}
-        d['par_ref'] = struct.unpack("<Lxx", s[:6])[0]
-        d['par_seq'] = struct.unpack("<H", s[6:8])[0]
-        d['crtime'] = WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], self.config.localtz)
-        d['mtime'] = WindowsTime(struct.unpack("<L", s[16:20])[0], struct.unpack("<L", s[20:24])[0], self.config.localtz)
-        d['ctime'] = WindowsTime(struct.unpack("<L", s[24:28])[0], struct.unpack("<L", s[28:32])[0], self.config.localtz)
-        d['atime'] = WindowsTime(struct.unpack("<L", s[32:36])[0], struct.unpack("<L", s[36:40])[0], self.config.localtz)
-        d['alloc_fsize'] = struct.unpack("<q", s[40:48])[0]
-        d['real_fsize'] = struct.unpack("<q", s[48:56])[0]
-        d['flags'] = struct.unpack("<d", s[56:64])[0]
-        d['nlen'] = struct.unpack("B", s[64])[0]
-        d['nspace'] = struct.unpack("B", s[65])[0]
+    def decodeAttributeList(self, raw_data: bytes, record: Dict[str, Any]) -> Dict[str, Any]:
+        al = {}
+        data_len = len(raw_data)
+        
+        if data_len == 0:
+            return {"error": "Empty Attribute List data"}
 
-        d['name'] = self.decode_unicode(s[66:], d['nlen'])
+        if data_len < 4:
+            return {"error": f"Attribute List data too short: {data_len} bytes"}
 
-        if any(ord(c) > 127 for c in d['name']):
-            self.add_note(record, 'Filename contains non-ASCII characters')
+        al['type'] = struct.unpack("<I", raw_data[:4])[0]
+        
+        if data_len >= 6:
+            al['len'] = struct.unpack("<H", raw_data[4:6])[0]
+        if data_len >= 7:
+            al['nlen'] = struct.unpack("B", raw_data[6:7])[0]
+        if data_len >= 8:
+            al['f1'] = struct.unpack("B", raw_data[7:8])[0]
+        if data_len >= 16:
+            al['start_vcn'] = struct.unpack("<Q", raw_data[8:16])[0]
+        if data_len >= 24:
+            al['file_ref'] = struct.unpack("<Q", raw_data[16:24])[0]
+        if data_len >= 26:
+            al['seq'] = struct.unpack("<H", raw_data[24:26])[0]
+        if data_len >= 28:
+            al['id'] = struct.unpack("<H", raw_data[26:28])[0]
+        
+        if data_len >= 28 and 'nlen' in al:
+            name_end = min(28 + al['nlen'] * 2, data_len)
+            al['name'] = raw_data[28:name_end].decode('utf-16-le', errors='replace')
+        
+        return al
 
-        return d
+    def decodeFNAttribute(self, raw_data: bytes, record: Dict[str, Any]) -> Dict[str, Any]:
+        fn = {}
+        data_len = len(raw_data)
+        localtz = self.config.get('localtz', False)
 
-    def decodeAttributeList(self, s: bytes, record: Dict[str, Any]) -> Dict[str, Any]:
-        d = {}
-        d['type'] = struct.unpack("<I", s[:4])[0]
-        d['len'] = struct.unpack("<H", s[4:6])[0]
-        d['nlen'] = struct.unpack("B", s[6])[0]
-        d['f1'] = struct.unpack("B", s[7])[0]
-        d['start_vcn'] = struct.unpack("<d", s[8:16])[0]
-        d['file_ref'] = struct.unpack("<Lxx", s[16:22])[0]
-        d['seq'] = struct.unpack("<H", s[22:24])[0]
-        d['id'] = struct.unpack("<H", s[24:26])[0]
+        def unpack_time(offset):
+            try:
+                if data_len >= offset + 8:
+                    return WindowsTime(struct.unpack("<Q", raw_data[offset:offset+8])[0], localtz)
+                elif data_len >= offset + 4:
+                    low, high = struct.unpack("<LL", raw_data[offset:offset+8])
+                    return WindowsTime((high << 32) | low, localtz)
+                else:
+                    return WindowsTime(0, localtz)
+            except struct.error:
+                self.logger.warning(f"Error unpacking time at offset {offset}")
+                return WindowsTime(0, localtz)
 
-        d['name'] = self.decode_unicode(s[26:], d['nlen'])
+            if data_len >= 8:
+                fn['par_ref'] = struct.unpack("<Q", raw_data[0:8])[0]
+            else:
+                fn['par_ref'] = 0
 
-        if any(ord(c) > 127 for c in d['name']):
-            self.add_note(record, 'Attribute name contains non-ASCII characters')
+        fn['crtime'] = unpack_time(8)
+        fn['mtime']  = unpack_time(16)
+        fn['ctime']  = unpack_time(24)
+        fn['atime']  = unpack_time(32)
 
-        return d
+        if data_len >= 48:
+            fn['alloc_fsize'] = struct.unpack("<Q", raw_data[40:48])[0]
+        if data_len >= 56:
+            fn['real_fsize'] = struct.unpack("<Q", raw_data[48:56])[0]
+        if data_len >= 60:
+            fn['flags'] = struct.unpack("<I", raw_data[56:60])[0]
+        if data_len >= 64:
+            fn['reparse'] = struct.unpack("<I", raw_data[60:64])[0]
+        if data_len >= 65:
+            fn['nlen'] = struct.unpack("B", raw_data[64:65])[0]
+        if data_len >= 66:
+            fn['nspace'] = struct.unpack("B", raw_data[65:66])[0]
 
-    def gen_filepaths(self):
+        name_end = min(66 + fn.get('nlen', 0) * 2, data_len)
+        fn['name'] = raw_data[66:name_end].decode('utf-16-le', errors='replace')
+
+        if self.config.get('debug', False):
+            self.logger.debug(f"FN Timestamps: crtime={fn['crtime']}, mtime={fn['mtime']}, ctime={fn['ctime']}, atime={fn['atime']}")
+
+        return fn
+    def decodeObjectID(self, raw_data: bytes) -> Dict[str, Any]:
+        return {
+            'objid':      ObjectID(raw_data[ 0:16]),
+            'orig_volid': ObjectID(raw_data[16:32]),
+            'orig_objid': ObjectID(raw_data[32:48]),
+            'orig_domid': ObjectID(raw_data[48:64])
+        }
+
+    def decodeVolumeInfo(self, raw_data: bytes) -> Dict[str, Any]:
+        vi = {}
+        vi['f1']      = struct.unpack("<Q", raw_data[ 0: 8])[0]
+        vi['maj_ver'] = struct.unpack("B",  raw_data[ 8: 9])[0]
+        vi['min_ver'] = struct.unpack("B",  raw_data[ 9:10])[0]
+        vi['flags']   = struct.unpack("<H", raw_data[10:12])[0]
+        vi['f2']      = struct.unpack("<I", raw_data[12:16])[0]
+        return vi
+
+    def gen_filepaths(self) -> None:
         for i in self.mft:
             if self.mft[i]['filename'] == '':
                 if self.mft[i]['fncnt'] > 0:
@@ -358,9 +486,10 @@ class MFTAnalyzer:
                 else:
                     self.mft[i]['filename'] = 'NoFNRecord'
 
+    @error_handler
     def get_folder_path(self, seqnum: int) -> str:
-        if self.config.get('debug', False):
-            print(f"Building Folder For Record Number ({seqnum})")
+        if self.debug:
+            self.logger.debug(f"Building Folder For Record Number ({seqnum})")
 
         if seqnum not in self.mft:
             return 'Orphan'
@@ -372,20 +501,13 @@ class MFTAnalyzer:
             if self.mft[seqnum]['fn', 0]['par_ref'] == 5:
                 self.mft[seqnum]['filename'] = '/' + self.mft[seqnum]['fn', self.mft[seqnum]['fncnt']-1]['name']
                 return self.mft[seqnum]['filename']
-        except:
+        except KeyError:
             self.mft[seqnum]['filename'] = 'NoFNRecord'
             return self.mft[seqnum]['filename']
 
         if self.mft[seqnum]['fn', 0]['par_ref'] == seqnum:
-            if self.config.get('debug', False):
-                print(f"Error, self-referential, while trying to determine path for seqnum {seqnum}")
-            self.mft[seqnum]['filename'] = 'ORPHAN/' + self.mft[seqnum]['fn', self.mft[seqnum]['fncnt']-1]['name']
-            return self.mft[seqnum]['filename']
-
-        parentpath = self.get_folder_path(self.mft[seqnum]['fn', 0]['par_ref'])
-        self.mft[seqnum]['filename'] = parentpath + '/' + self.mft[seqnum]['fn', self.mft[seqnum]['fncnt']-1]['name']
-
-        return self.mft[seqnum]['filename']
+            if self.debug:
+                self.logger
 
     def add_note(self, record: Dict[str, Any], note: str):
         if record['notes'] == '':

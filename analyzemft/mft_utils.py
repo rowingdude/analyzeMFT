@@ -5,38 +5,43 @@
 # Author: Benjamin Cance (bjc@tdx.li)
 # Copyright Benjamin Cance 2024
 
-
-from datetime import datetime, timezone
+import logging
+from datetime import datetime, timezone, MINYEAR, MAXYEAR
 from typing import Union, Dict, Any
 import struct
-import logging
 from enum import Enum
 
 class WindowsTime:
-    def __init__(self, low: int, high: int, localtz: bool):
-        self.low = int(low)
-        self.high = int(high)
-        self.dt: Union[datetime, int] = 0
+    def __init__(self, timestamp: int, localtz: bool = False):
+        self.timestamp = int(timestamp)
+        self.localtz = localtz
         self.dtstr: str = ""
         self.unixtime: float = 0.0
+        self.logger = logging.getLogger(__name__)
 
-        if (low == 0) and (high == 0):
-            self.dtstr = "Not defined"
+        if self.timestamp == 0:
+            self.dtstr = "Not defined (Zero)"
             return
 
         try:
+            if not self.is_valid_timestamp():
+                raise ValueError(f"Timestamp out of valid range: {self.timestamp}")
+            
             self.unixtime = self.get_unix_time()
-            self.dt = datetime.fromtimestamp(self.unixtime, tz=timezone.utc if not localtz else None)
-            self.dtstr = self.dt.isoformat(' ')
+            dt = datetime.fromtimestamp(self.unixtime, tz=timezone.utc if not self.localtz else None)
+            if MINYEAR <= dt.year <= MAXYEAR:
+                self.dtstr = dt.isoformat(' ')
+            else:
+                self.dtstr = f"Out of range: {self.timestamp}"
+        except Exception as e:
+            self.logger.warning(f"Error converting timestamp {self.timestamp}: {str(e)}")
+            self.dtstr = f"Invalid: {self.timestamp} ({str(e)})"
 
-        except (OverflowError, OSError) as e:
-            logging.error(f"Error converting timestamp: {e}")
-            self.dtstr = "Invalid timestamp"
-            self.unixtime = 0.0
+    def is_valid_timestamp(self) -> bool:
+        return 0 <= self.timestamp <= (2**63 - 1)
 
     def get_unix_time(self) -> float:
-        wintime = (self.high << 32) | self.low
-        return wintime / 10000000 - 11644473600
+        return (self.timestamp / 10000000) - 11644473600
 
     def __str__(self):
         return self.dtstr
@@ -62,37 +67,31 @@ def decodeMFTrecordtype(record: Dict[str, Any]) -> str:
         record_type += ' + Unknown2'
     return record_type
 
-def decodeVolumeInfo(s,options):
-
+def decodeVolumeInfo(s: bytes, logger: logging.Logger) -> Dict[str, Any]:
     d = {}
-    d['f1'] = struct.unpack("<d",s[:8])[0]                  # 8
-    d['maj_ver'] = struct.unpack("B",s[8])[0]               # 1
-    d['min_ver'] = struct.unpack("B",s[9])[0]               # 1
-    d['flags'] = struct.unpack("<H",s[10:12])[0]            # 2
-    d['f2'] = struct.unpack("<I",s[12:16])[0]               # 4
-
-    if options.debug:
-        print(f"+Volume Info")
-        print(f"++F1%d" % d['f1'])
-        print(f"++Major Version: %d" % d['maj_ver'])
-        print(f"++Minor Version: %d" % d['min_ver'])
-        print(f"++Flags: %d" % d['flags'])
-        print(f"++F2: %d" % d['f2'])
-
+    try:
+        d['f1'] = struct.unpack("<d", s[:8])[0]
+        d['maj_ver'] = struct.unpack("B", s[8:9])[0]
+        d['min_ver'] = struct.unpack("B", s[9:10])[0]
+        d['flags'] = struct.unpack("<H", s[10:12])[0]
+        d['f2'] = struct.unpack("<I", s[12:16])[0]
+        
+        logger.debug(f"+Volume Info: F1={d['f1']}, Major Version={d['maj_ver']}, "
+                     f"Minor Version={d['min_ver']}, Flags={d['flags']}, F2={d['f2']}")
+    except struct.error as e:
+        logger.error(f"Error decoding Volume Info: {str(e)}")
+        d = {'error': str(e)}
     return d
 
-def decodeObjectID(s):
-
-    d = {}
-    d['objid'] = ObjectID(s[0:16])
-    d['orig_volid'] = ObjectID(s[16:32])
-    d['orig_objid'] = ObjectID(s[32:48])
-    d['orig_domid'] = ObjectID(s[48:64])
-
-    return d
+def decodeObjectID(s: bytes) -> Dict[str, str]:
+    return {
+        'objid': ObjectID(s[0:16]),
+        'orig_volid': ObjectID(s[16:32]),
+        'orig_objid': ObjectID(s[32:48]),
+        'orig_domid': ObjectID(s[48:64])
+    }
 
 def ObjectID(s: bytes) -> str:
     if s == b'\x00' * 16:
         return 'Undefined'
     return f"{s[:4].hex()}-{s[4:6].hex()}-{s[6:8].hex()}-{s[8:10].hex()}-{s[10:16].hex()}"
-

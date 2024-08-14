@@ -42,20 +42,25 @@ class MftSession:
             self.folders = self.analyzer.folders
         except Exception as e:
             raise ParsingError("Error processing MFT file") from e
-
+                
     @error_handler
     def print_records(self) -> None:
         try:
             for i, record in self.mft.items():
                 if self.file_csv:
                     csv_data = mft_to_csv(record, False)
-                    self.file_csv.write(','.join(csv_data) + '\n')
+                    if csv_data[0] != "Error":
+                        self.file_csv.write(','.join(csv_data) + '\n')
+                        self.file_csv.flush()
+                    else:
+                        self.logger.warning(f"Skipping record {i} due to formatting error: {csv_data[1]}")
                 if self.file_csv_time:
                     self.file_csv_time.write(mft_to_l2t(record))
                 if self.file_body:
                     self.file_body.write(mft_to_body(record, self.config.get('bodyfull', False), self.config.get('bodystd', False)))
                 if self.config.get('json'):
                     print(mft_to_json(record))
+
         except IOError as e:
             raise FileOperationError("Error writing output") from e
 

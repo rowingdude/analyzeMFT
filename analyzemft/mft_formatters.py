@@ -76,10 +76,10 @@ class MFTFormatter:
     def to_json(self, record: Dict[str, Any]) -> str:
         try:
             sanitized_record = self._sanitize_record(record)
-            return json.dumps(sanitized_record, indent=2)
+            return json.dumps(sanitized_record, indent=2, default=self._json_serial)
         except (TypeError, ValueError) as e:
             self.logger.error(f"Error converting record to JSON: {e}")
-            return "{}"
+            return json.dumps({"error": "Failed to convert record to JSON"})
 
     def _generate_header(self) -> List[str]:
         return [
@@ -110,26 +110,42 @@ class MFTFormatter:
         ]
 
     def _generate_file_info(self, record: Dict[str, Any]) -> List[str]:
-        if record['fncnt'] > 0:
-            parent_info = [str(record['fn', 0]['par_ref']), str(record['fn', 0]['par_seq'])]
+        if record['fncnt'] > 0 and ('fn', 0) in record:
+            fn_record = record['fn', 0]
+            parent_ref = str(fn_record.get('par_ref', ''))
+            parent_seq = str(fn_record.get('par_seq', fn_record.get('par_ref_seq', '')))
+            parent_info = [parent_ref, parent_seq]
         else:
             parent_info = ['NoParent', 'NoParent']
 
         file_info = parent_info + self._generate_filename_buffer(record)
-        return [str(item) for item in file_info] 
+        return [str(item) for item in file_info]
+
 
     def _generate_filename_buffer(self, record: Dict[str, Any]) -> List[str]:
         if record['fncnt'] > 0 and 'si' in record:
+            fn_record = record['fn', 0]
+            si_record = record['si']
             return [
-                record['filename'], str(record['si']['crtime'].dtstr),
-                record['si']['mtime'].dtstr, record['si']['atime'].dtstr, record['si']['ctime'].dtstr,
-                record['fn', 0]['crtime'].dtstr, record['fn', 0]['mtime'].dtstr,
-                record['fn', 0]['atime'].dtstr, record['fn', 0]['ctime'].dtstr
+                record.get('filename', fn_record.get('name', 'NoFNRecord')),
+                str(si_record.get('crtime', 'NoSIRecord')),
+                str(si_record.get('mtime', 'NoSIRecord')),
+                str(si_record.get('atime', 'NoSIRecord')),
+                str(si_record.get('ctime', 'NoSIRecord')),
+                str(fn_record.get('crtime', 'NoFNRecord')),
+                str(fn_record.get('mtime', 'NoFNRecord')),
+                str(fn_record.get('atime', 'NoFNRecord')),
+                str(fn_record.get('ctime', 'NoFNRecord'))
             ]
+            
         elif 'si' in record:
+            si_record = record['si']
             return [
-                'NoFNRecord', str(record['si']['crtime'].dtstr),
-                record['si']['mtime'].dtstr, record['si']['atime'].dtstr, record['si']['ctime'].dtstr,
+                'NoFNRecord',
+                str(si_record.get('crtime', 'NoSIRecord')),
+                str(si_record.get('mtime', 'NoSIRecord')),
+                str(si_record.get('atime', 'NoSIRecord')),
+                str(si_record.get('ctime', 'NoSIRecord')),
                 'NoFNRecord', 'NoFNRecord', 'NoFNRecord', 'NoFNRecord'
             ]
         else:
@@ -247,11 +263,23 @@ class MFTFormatter:
         for key, value in record.items():
             if isinstance(value, dict):
                 sanitized[key] = self._sanitize_record(value)
+            elif isinstance(value, (list, tuple)):
+                sanitized[key] = [self._sanitize_record(item) if isinstance(item, dict) else item for item in value]
             elif hasattr(value, 'dtstr'):
-                sanitized[key] = value.dtstr
+                sanitized[key] = {
+                    "datetime": value.dtstr,
+                    "unix_timestamp": value.unixtime
+                }
+            elif isinstance(value, bytes):
+                sanitized[key] = value.hex()
             else:
                 sanitized[key] = value
         return sanitized
+    
+    def _json_serial(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Type {type(obj)} not serializable")
     
     def _decode_mft_magic(self, record: Dict[str, Any]) -> str:
         return decodeMFTmagic(record)
@@ -264,7 +292,15 @@ class MFTFormatter:
 
 def mft_to_csv(record: Dict[str, Any], ret_header: bool) -> List[str]:
     formatter = MFTFormatter()
-    return formatter.format(record, 'csv', ret_header=ret_header)
+    try:
+        result = formatter.format(record, 'csv', ret_header=ret_header)
+        if isinstance(result, list):
+            return [str(item) for item in result]  # Ensure all items are strings
+        else:
+            return ["Error", f"Unexpected result type: {type(result)}"]
+    except Exception as e:
+        logging.error(f"Error formatting record to CSV: {e}")
+        return ["Error", str(e)]
 
 def mft_to_body(record: Dict[str, Any], full: bool, std: bool) -> str:
     formatter = MFTFormatter()

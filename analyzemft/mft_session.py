@@ -4,30 +4,24 @@
 #
 # Author: Benjamin Cance (bjc@tdx.li)
 # Copyright Benjamin Cance 2024
-#
-# 2-Aug-24 
-# - Updating to current PEP
 
-VERSION='2.1.1'
-
-import sys
-import csv
 import logging
 from pathlib import Path
-from typing import TextIO
+from typing import Dict, Any
 from .mft_analyzer import MFTAnalyzer
-from .mft_formatters import mft_to_csv, mft_to_body, mft_to_l2t
+from .mft_formatters import mft_to_csv, mft_to_body, mft_to_l2t, mft_to_json
 
 class MftSession:
-    def __init__(self):
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
         self.mft = {}
         self.folders = {}
-        self.options = None
-        self.file_mft: TextIO = None
+        self.file_mft = None
         self.file_csv = None
-        self.file_body: TextIO = None
-        self.file_csv_time: TextIO = None
-        self.setup_logging()
+        self.file_body = None
+        self.file_json = None
+        self.analyzer = None
+
 
     def setup_logging(self):
         logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -62,10 +56,10 @@ class MftSession:
                 sys.exit(1)
 
     def process_mft_file(self):
-        analyzer = MFTAnalyzer(self.options)
-        analyzer.process_mft_file(self.file_mft)
-        self.mft = analyzer.mft
-        self.folders = analyzer.folders
+        self.analyzer = MFTAnalyzer(self.options)
+        self.analyzer.process_mft_file(self.file_mft)
+        self.mft = self.analyzer.mft
+        self.folders = self.analyzer.folders
 
     def print_records(self):
         for i, record in self.mft.items():
@@ -75,6 +69,8 @@ class MftSession:
                 self.file_csv_time.write(mft_to_l2t(record))
             if self.file_body:
                 self.file_body.write(mft_to_body(record, self.options.bodyfull, self.options.bodystd))
+            if self.options.json:
+                print(mft_to_json(record)) 
 
     def close_files(self):
         for file in [self.file_mft, self.file_body, self.file_csv_time]:

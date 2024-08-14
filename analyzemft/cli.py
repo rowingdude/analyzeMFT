@@ -1,15 +1,7 @@
-# Version 2.1.1
-#
-# Author: Benjamin Cance (bjc@tdx.li)
-#
-# 2-Aug-24 
-# - Updating to current PEP
-
-
-import sys
 import logging
-from analyzemft.config import Config
-from analyzemft.mft_session import MftSession
+from pathlib import Path
+from .config import Config
+from .mft_session import MftSession
 
 def setup_logging(log_level: str):
     numeric_level = getattr(logging, log_level.upper(), None)

@@ -10,30 +10,31 @@ import sys
 import logging
 from analyzemft.config import Config
 from analyzemft.mft_session import MftSession
-
-def setup_logging(log_level: str):
-    numeric_level = getattr(logging, log_level.upper(), None)
-    if not isinstance(numeric_level, int):
-        raise ValueError(f'Invalid log level: {log_level}')
-    logging.basicConfig(level=numeric_level, format='%(asctime)s - %(levelname)s - %(message)s')
+from analyzemft.error_handler import setup_logging, MFTAnalysisError, ConfigurationError
 
 def main():
-    config = Config()
-    config.parse_args()
-    conf = config.get_config()
-
-    setup_logging(conf['log_level'])
-
-    session = MftSession(conf)
-    
     try:
-        session.open_files()
-        session.process_mft_file()
-        session.print_records()
+        config = Config()
+        config.parse_args()
+        conf = config.get_config()
+
+        setup_logging(conf['log_level'])
+
+        session = MftSession(conf)
+        session.run()
+
+    except ConfigurationError as e:
+        logging.error(f"Configuration error: {e}")
+        sys.exit(1)
+    except MFTAnalysisError as e:
+        logging.error(f"MFT analysis error: {e}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        logging.info("Analysis interrupted by user")
+        sys.exit(0)
     except Exception as e:
-        logging.error(f"An error occurred: {e}")
-    finally:
-        session.close_files()
+        logging.exception(f"An unexpected error occurred: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

@@ -117,8 +117,24 @@ class MFTAnalyzer:
             0x100: self.handle_logged_utility_stream,
         }
 
-        handler = attribute_handlers.get(attr_record['type'], self.handle_unknown_attribute)
-        handler(attr_record, raw_record, record)
+        attr_type = attr_record['type']
+        handler = attribute_handlers.get(attr_type)
+
+        if handler:
+            handler(attr_record, raw_record, record)
+        else:
+            self.handle_unknown_attribute(attr_record, raw_record, record)
+
+    def handle_unknown_attribute(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
+        attr_type = attr_record['type']
+        self.logger.warning(f"Unknown attribute type: 0x{attr_type:X} in record {record.get('recordnum', 'Unknown')}")
+        self.logger.debug(f"Attribute record: {attr_record}")
+        self.logger.debug(f"Raw record (first 64 bytes): {raw_record[:64].hex()}")
+        
+        # You might want to add this unknown attribute to the record for further analysis
+        if 'unknown_attributes' not in record:
+            record['unknown_attributes'] = []
+        record['unknown_attributes'].append(attr_type)
     
     def decodeMFTHeader(self, record: Dict[str, Any], raw_record: bytes) -> None:
         record['magic'] = struct.unpack("<I", raw_record[:4])[0]

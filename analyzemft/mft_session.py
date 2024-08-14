@@ -32,7 +32,6 @@ class MftSession:
             except IOError as e:
                 raise FileOperationError(f"Unable to open CSV output file: {self.config['csv_filename']}") from e
 
-        # Similar changes for other file operations...
 
     @error_handler
     def process_mft_file(self) -> None:

@@ -15,7 +15,7 @@ class MFTFormatter:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-    def format(self, record: Dict[str, Any], format_type: str, **kwargs) -> str:
+    def format(self, record: Dict[str, Any], format_type: str, **kwargs) -> Any:
         if format_type == 'csv':
             return self.to_csv(record, kwargs.get('ret_header', False))
         elif format_type == 'body':
@@ -45,7 +45,17 @@ class MFTFormatter:
         csv_string.extend(self._generate_attribute_flags(record))
         csv_string.extend(self._generate_additional_info(record))
 
-        return csv_string
+        return [str(item) for item in csv_string]
+
+    def _generate_base_record(self, record: Dict[str, Any]) -> List[str]:
+        return [
+            str(record['recordnum']),
+            decodeMFTmagic(record),
+            decodeMFTisactive(record),
+            decodeMFTrecordtype(record),
+            str(record.get('seq', ''))
+        ]
+
 
     def to_body(self, record: Dict[str, Any], full: bool, std: bool) -> str:
         if record['fncnt'] > 0:
@@ -106,7 +116,7 @@ class MFTFormatter:
             parent_info = ['NoParent', 'NoParent']
 
         file_info = parent_info + self._generate_filename_buffer(record)
-        return file_info
+        return [str(item) for item in file_info] 
 
     def _generate_filename_buffer(self, record: Dict[str, Any]) -> List[str]:
         if record['fncnt'] > 0 and 'si' in record:
@@ -235,6 +245,15 @@ class MFTFormatter:
             else:
                 sanitized[key] = value
         return sanitized
+    
+    def _decode_mft_magic(self, record: Dict[str, Any]) -> str:
+        return decodeMFTmagic(record)
+    
+    def _decode_mft_is_active(self, record: Dict[str, Any]) -> str:
+        return decodeMFTisactive(record)
+
+    def _decode_mft_record_type(self, record: Dict[str, Any]) -> str:
+        return decodeMFTrecordtype(record)
 
 def mft_to_csv(record: Dict[str, Any], ret_header: bool) -> List[str]:
     formatter = MFTFormatter()

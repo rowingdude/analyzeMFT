@@ -96,7 +96,7 @@ class MFTFormatter:
             'FN Info Entry date', 'Standard Information', 'Attribute List', 'Filename',
             'Object ID', 'Volume Name', 'Volume Info', 'Data', 'Index Root',
             'Index Allocation', 'Bitmap', 'Reparse Point', 'EA Information', 'EA',
-            'Property Set', 'Logged Utility Stream', 'Log/Notes', 'STF FN Shift', 'uSec Zero'
+            'Property Set', 'Logged Utility Stream', 'Unknown Attributes', 'Log/Notes', 'STF FN Shift', 'uSec Zero'
         ]
 
     def _generate_base_record(self, record: Dict[str, Any]) -> List[str]:
@@ -162,7 +162,14 @@ class MFTFormatter:
             'indexallocation', 'bitmap', 'reparse', 'eainfo', 'ea',
             'propertyset', 'loggedutility'
         ]
-        return ['True' if attr in record else 'False' for attr in attributes]
+        flags = ['True' if attr in record else 'False' for attr in attributes]
+                
+        if 'unknown_attributes' in record:
+            flags.append(f"Unknown: {','.join(hex(attr) for attr in record['unknown_attributes'])}")
+        else:
+            flags.append('False')  
+        
+        return flags
 
     def _generate_additional_info(self, record: Dict[str, Any]) -> List[str]:
         return [

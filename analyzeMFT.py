@@ -5,17 +5,11 @@
 # 2-Aug-24 
 # - Updating to current PEP
 
-
-import sys
 import logging
-from analyzemft.config import Config
+import sys
 from analyzemft.mft_session import MftSession
-
-def setup_logging(log_level: str):
-    numeric_level = getattr(logging, log_level.upper(), None)
-    if not isinstance(numeric_level, int):
-        raise ValueError(f'Invalid log level: {log_level}')
-    logging.basicConfig(level=numeric_level, format='%(asctime)s - %(levelname)s - %(message)s')
+from analyzemft.config import Config
+from analyzemft.error_handler import setup_logging, MFTAnalysisError
 
 def main():
     config = Config()
@@ -24,16 +18,15 @@ def main():
 
     setup_logging(conf['log_level'])
 
-    session = MftSession(conf)
-    
     try:
-        session.open_files()
-        session.process_mft_file()
-        session.print_records()
+        session = MftSession(conf)
+        session.run()
+    except MFTAnalysisError as e:
+        logging.error(f"MFT analysis failed: {str(e)}")
+        sys.exit(1)
     except Exception as e:
-        logging.error(f"An error occurred: {e}")
-    finally:
-        session.close_files()
+        logging.exception(f"An unexpected error occurred: {str(e)}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

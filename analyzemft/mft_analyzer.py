@@ -3,9 +3,8 @@
 # Version 2.1.1
 # Author: Benjamin Cance (bjc@tdx.li)
 # Copyright Benjamin Cance 2024
-
-import struct
 import logging
+import struct
 from typing import Dict, Any, BinaryIO
 from .mft_utils import WindowsTime, decodeMFTmagic, decodeMFTisactive, decodeMFTrecordtype, decodeVolumeInfo, decodeObjectID
 
@@ -16,12 +15,7 @@ class MFTAnalyzer:
         self.folders: Dict[str, str] = {}
         self.num_records: int = 0
         self.logger = logging.getLogger(__name__)
-        self.setup_logging()
-
-    def setup_logging(self):
-        level = logging.DEBUG if self.config['debug'] else logging.INFO
-        logging.basicConfig(level=level, format='%(asctime)s - %(levelname)s - %(message)s')
-
+        self.debug = config.get('debug', False)
 
     def process_mft_file(self, file_mft: BinaryIO):
         self.num_records = 0
@@ -45,12 +39,14 @@ class MFTAnalyzer:
         self.decode_mft_header(record, raw_record)
 
         if record['magic'] == 0x44414142:
-            self.logger.debug("BAAD MFT Record")
+            if self.debug:
+                self.logger.debug("BAAD MFT Record")
             record['baad'] = True
             return record
 
         if record['magic'] != 0x454c4946:
-            self.logger.debug("Corrupt MFT Record")
+            if self.debug:
+                self.logger.debug("Corrupt MFT Record")
             record['corrupt'] = True
             return record
 
@@ -69,6 +65,7 @@ class MFTAnalyzer:
 
         if record['base_ref'] & 0x8000000000000000:
             record['base_ref'] = -(~record['base_ref'] & 0xFFFFFFFFFFFFFFFF) - 1
+
 
     def parse_attributes(self, record: Dict[str, Any], raw_record: bytes):
         read_ptr = record['attr_off']
@@ -120,8 +117,24 @@ class MFTAnalyzer:
             0x100: self.handle_logged_utility_stream,
         }
 
-        handler = attribute_handlers.get(attr_record['type'], self.handle_unknown_attribute)
-        handler(attr_record, raw_record, record)
+        attr_type = attr_record['type']
+        handler = attribute_handlers.get(attr_type)
+
+        if handler:
+            handler(attr_record, raw_record, record)
+        else:
+            self.handle_unknown_attribute(attr_record, raw_record, record)
+
+    def handle_unknown_attribute(self, attr_record: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]):
+        attr_type = attr_record['type']
+        self.logger.warning(f"Unknown attribute type: 0x{attr_type:X} in record {record.get('recordnum', 'Unknown')}")
+        self.logger.debug(f"Attribute record: {attr_record}")
+        self.logger.debug(f"Raw record (first 64 bytes): {raw_record[:64].hex()}")
+        
+        # You might want to add this unknown attribute to the record for further analysis
+        if 'unknown_attributes' not in record:
+            record['unknown_attributes'] = []
+        record['unknown_attributes'].append(attr_type)
     
     def decodeMFTHeader(self, record: Dict[str, Any], raw_record: bytes) -> None:
         record['magic'] = struct.unpack("<I", raw_record[:4])[0]
@@ -177,116 +190,116 @@ class MFTAnalyzer:
         return d
     
     def handle_standard_information(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
-        if self.options.debug:
+        if self.config.get('debug', False):
             print(f"Standard Information:\n++Type: {hex(ATRrecord['type'])} Length: {ATRrecord['len']} Resident: {ATRrecord['res']} Name Len: {ATRrecord['nlen']} Name Offset: {ATRrecord['name_off']}")
         SIrecord = self.decodeSIAttribute(raw_record[ATRrecord['soff']:])
         record['si'] = SIrecord
-        if self.options.debug:
+        if self.config.get('debug', False):
             print(f"++CRTime: {SIrecord['crtime'].dtstr}\n++MTime: {SIrecord['mtime'].dtstr}\n++ATime: {SIrecord['atime'].dtstr}\n++EntryTime: {SIrecord['ctime'].dtstr}")
 
     def handle_attribute_list(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
-        if self.options.debug:
+        if self.config.get('debug', False):
             print("Attribute list")
         if ATRrecord['res'] == 0:
             ALrecord = self.decodeAttributeList(raw_record[ATRrecord['soff']:], record)
             record['al'] = ALrecord
-            if self.options.debug:
+            if self.config.get('debug', False):
                 print(f"Name: {ALrecord['name']}")
         else:
-            if self.options.debug:
+            if self.config.get('debug', False):
                 print("Non-resident Attribute List?")
             record['al'] = None
 
     def handle_file_name(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
-        if self.options.debug:
+        if self.config.get('debug', False):
             print("File name record")
         FNrecord = self.decodeFNAttribute(raw_record[ATRrecord['soff']:], record)
         record[('fn', record['fncnt'])] = FNrecord
-        if self.options.debug:
+        if self.config.get('debug', False):
             print(f"Name: {FNrecord['name']} ({record['fncnt']})")
         record['fncnt'] += 1
         if FNrecord['crtime'] != 0:
-            if self.options.debug:
+            if self.config.get('debug', False):
                 print(f"\tCRTime: {FNrecord['crtime'].dtstr} MTime: {FNrecord['mtime'].dtstr} ATime: {FNrecord['atime'].dtstr} EntryTime: {FNrecord['ctime'].dtstr}")
 
     def handle_object_id(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         ObjectIDRecord = self.decodeObjectID(raw_record[ATRrecord['soff']:])
         record['objid'] = ObjectIDRecord
-        if self.options.debug:
+        if self.config.get('debug', False):
             print("Object ID")
 
     def handle_security_descriptor(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['sd'] = True
-        if self.options.debug:
+        if self.config.get('debug', False):
             print("Security descriptor")
 
     def handle_volume_name(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['volname'] = True
-        if self.options.debug:
+        if self.config.get('debug', False):
             print("Volume name")
 
     def handle_volume_information(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
-        if self.options.debug:
+        if self.config.get('debug', False):
             print("Volume info attribute")
         VolumeInfoRecord = self.decodeVolumeInfo(raw_record[ATRrecord['soff']:])
         record['volinfo'] = VolumeInfoRecord
 
     def handle_data(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['data'] = True
-        if self.options.debug:
+        if self.config.get('debug', False):
             print("Data attribute")
 
     def handle_index_root(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['indexroot'] = True
-        if self.options.debug:
+        if self.config.get('debug', False):
             print("Index root")
 
     def handle_index_allocation(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['indexallocation'] = True
-        if self.options.debug:
+        if self.config.get('debug', False):
             print("Index allocation")
 
     def handle_bitmap(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['bitmap'] = True
-        if self.options.debug:
+        if self.config.get('debug', False):
             print("Bitmap")
 
     def handle_reparse_point(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['reparsepoint'] = True
-        if self.options.debug:
+        if self.config.get('debug', False):
             print("Reparse point")
 
     def handle_ea_information(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['eainfo'] = True
-        if self.options.debug:
+        if self.config.get('debug', False):
             print("EA Information")
 
     def handle_ea(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['ea'] = True
-        if self.options.debug:
+        if self.config.get('debug', False):
             print("EA")
 
     def handle_property_set(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['propertyset'] = True
-        if self.options.debug:
+        if self.config.get('debug', False):
             print("Property set")
 
     def handle_logged_utility_stream(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
         record['loggedutility'] = True
-        if self.options.debug:
+        if self.config.get('debug', False):
             print("Logged utility stream")
 
     def handle_unknown_attribute(self, ATRrecord: Dict[str, Any], raw_record: bytes, record: Dict[str, Any]) -> None:
-        if self.options.debug:
+        if self.config.get('debug', False):
             print(f"Found an unknown attribute type: {ATRrecord['type']:x}")
 
     
     def decodeSIAttribute(self, s: bytes) -> Dict[str, Any]:
         d = {}
-        d['crtime'] = WindowsTime(struct.unpack("<L", s[:4])[0], struct.unpack("<L", s[4:8])[0], self.options.localtz)
-        d['mtime'] = WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], self.options.localtz)
-        d['ctime'] = WindowsTime(struct.unpack("<L", s[16:20])[0], struct.unpack("<L", s[20:24])[0], self.options.localtz)
-        d['atime'] = WindowsTime(struct.unpack("<L", s[24:28])[0], struct.unpack("<L", s[28:32])[0], self.options.localtz)
+        d['crtime'] = WindowsTime(struct.unpack("<L", s[:4])[0], struct.unpack("<L", s[4:8])[0], self.config.localtz)
+        d['mtime'] = WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], self.config.localtz)
+        d['ctime'] = WindowsTime(struct.unpack("<L", s[16:20])[0], struct.unpack("<L", s[20:24])[0], self.config.localtz)
+        d['atime'] = WindowsTime(struct.unpack("<L", s[24:28])[0], struct.unpack("<L", s[28:32])[0], self.config.localtz)
         d['dos'] = struct.unpack("<I", s[32:36])[0]
         d['maxver'] = struct.unpack("<I", s[36:40])[0]
         d['ver'] = struct.unpack("<I", s[40:44])[0]
@@ -301,10 +314,10 @@ class MFTAnalyzer:
         d = {}
         d['par_ref'] = struct.unpack("<Lxx", s[:6])[0]
         d['par_seq'] = struct.unpack("<H", s[6:8])[0]
-        d['crtime'] = WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], self.options.localtz)
-        d['mtime'] = WindowsTime(struct.unpack("<L", s[16:20])[0], struct.unpack("<L", s[20:24])[0], self.options.localtz)
-        d['ctime'] = WindowsTime(struct.unpack("<L", s[24:28])[0], struct.unpack("<L", s[28:32])[0], self.options.localtz)
-        d['atime'] = WindowsTime(struct.unpack("<L", s[32:36])[0], struct.unpack("<L", s[36:40])[0], self.options.localtz)
+        d['crtime'] = WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], self.config.localtz)
+        d['mtime'] = WindowsTime(struct.unpack("<L", s[16:20])[0], struct.unpack("<L", s[20:24])[0], self.config.localtz)
+        d['ctime'] = WindowsTime(struct.unpack("<L", s[24:28])[0], struct.unpack("<L", s[28:32])[0], self.config.localtz)
+        d['atime'] = WindowsTime(struct.unpack("<L", s[32:36])[0], struct.unpack("<L", s[36:40])[0], self.config.localtz)
         d['alloc_fsize'] = struct.unpack("<q", s[40:48])[0]
         d['real_fsize'] = struct.unpack("<q", s[48:56])[0]
         d['flags'] = struct.unpack("<d", s[56:64])[0]
@@ -346,7 +359,7 @@ class MFTAnalyzer:
                     self.mft[i]['filename'] = 'NoFNRecord'
 
     def get_folder_path(self, seqnum: int) -> str:
-        if self.options.debug:
+        if self.config.get('debug', False):
             print(f"Building Folder For Record Number ({seqnum})")
 
         if seqnum not in self.mft:
@@ -364,7 +377,7 @@ class MFTAnalyzer:
             return self.mft[seqnum]['filename']
 
         if self.mft[seqnum]['fn', 0]['par_ref'] == seqnum:
-            if self.options.debug:
+            if self.config.get('debug', False):
                 print(f"Error, self-referential, while trying to determine path for seqnum {seqnum}")
             self.mft[seqnum]['filename'] = 'ORPHAN/' + self.mft[seqnum]['fn', self.mft[seqnum]['fncnt']-1]['name']
             return self.mft[seqnum]['filename']

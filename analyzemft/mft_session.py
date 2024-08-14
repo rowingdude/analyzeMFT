@@ -1,88 +1,86 @@
-#!/usr/bin/env python
-
-# Version 2.1.1
-#
-# Author: Benjamin Cance (bjc@tdx.li)
-# Copyright Benjamin Cance 2024
-
 import logging
+import sys
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional, IO
 from .mft_analyzer import MFTAnalyzer
 from .mft_formatters import mft_to_csv, mft_to_body, mft_to_l2t, mft_to_json
+from analyzemft.error_handler import error_handler, FileOperationError, ParsingError, MFTAnalysisError
 
 class MftSession:
     def __init__(self, config: Dict[str, Any]):
         self.config = config
-        self.mft = {}
-        self.folders = {}
-        self.file_mft = None
-        self.file_csv = None
-        self.file_body = None
-        self.file_json = None
-        self.analyzer = None
+        self.mft: Dict[int, Dict[str, Any]] = {}
+        self.folders: Dict[str, str] = {}
+        self.file_mft: Optional[IO] = None
+        self.file_csv: Optional[IO] = None
+        self.file_body: Optional[IO] = None
+        self.file_json: Optional[IO] = None
+        self.file_csv_time: Optional[IO] = None
+        self.analyzer: Optional[MFTAnalyzer] = None
+        self.logger = logging.getLogger(__name__)
 
-
-    def setup_logging(self):
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-    def open_files(self):
+    @error_handler
+    def open_files(self) -> None:
         try:
-            self.file_mft = open(self.options.filename, 'rb')
+            self.file_mft = open(self.config['input_file'], 'rb')
         except IOError as e:
-            logging.error(f"Unable to open file: {self.options.filename}. Error: {e}")
-            sys.exit(1)
+            raise FileOperationError(f"Unable to open input file: {self.config['input_file']}") from e
 
-        if self.options.output:
+        if self.config.get('csv_filename'):
             try:
-                output_file = open(self.options.output, 'w', newline='')
-                self.file_csv = csv.writer(output_file, dialect=csv.excel, quoting=csv.QUOTE_ALL)
+                self.file_csv = open(self.config['csv_filename'], 'w', newline='')
             except IOError as e:
-                logging.error(f"Unable to open file: {self.options.output}. Error: {e}")
-                sys.exit(1)
+                raise FileOperationError(f"Unable to open CSV output file: {self.config['csv_filename']}") from e
 
-        if self.options.bodyfile:
-            try:
-                self.file_body = open(self.options.bodyfile, 'w')
-            except IOError as e:
-                logging.error(f"Unable to open file: {self.options.bodyfile}. Error: {e}")
-                sys.exit(1)
 
-        if self.options.csvtimefile:
-            try:
-                self.file_csv_time = open(self.options.csvtimefile, 'w')
-            except IOError as e:
-                logging.error(f"Unable to open file: {self.options.csvtimefile}. Error: {e}")
-                sys.exit(1)
+    @error_handler
+    def process_mft_file(self) -> None:
+        try:
+            self.analyzer = MFTAnalyzer(self.config)
+            self.analyzer.process_mft_file(self.file_mft)
+            self.mft = self.analyzer.mft
+            self.folders = self.analyzer.folders
+        except Exception as e:
+            raise ParsingError("Error processing MFT file") from e
 
-    def process_mft_file(self):
-        self.analyzer = MFTAnalyzer(self.options)
-        self.analyzer.process_mft_file(self.file_mft)
-        self.mft = self.analyzer.mft
-        self.folders = self.analyzer.folders
+    @error_handler
+    def print_records(self) -> None:
+        try:
+            for i, record in self.mft.items():
+                if self.file_csv:
+                    csv_data = mft_to_csv(record, False)
+                    self.file_csv.write(','.join(csv_data) + '\n')
+                if self.file_csv_time:
+                    self.file_csv_time.write(mft_to_l2t(record))
+                if self.file_body:
+                    self.file_body.write(mft_to_body(record, self.config.get('bodyfull', False), self.config.get('bodystd', False)))
+                if self.config.get('json'):
+                    print(mft_to_json(record))
+        except IOError as e:
+            raise FileOperationError("Error writing output") from e
 
-    def print_records(self):
-        for i, record in self.mft.items():
-            if self.file_csv:
-                self.file_csv.writerow(mft_to_csv(record, False))
-            if self.file_csv_time:
-                self.file_csv_time.write(mft_to_l2t(record))
-            if self.file_body:
-                self.file_body.write(mft_to_body(record, self.options.bodyfull, self.options.bodystd))
-            if self.options.json:
-                print(mft_to_json(record)) 
-
-    def close_files(self):
-        for file in [self.file_mft, self.file_body, self.file_csv_time]:
+    @error_handler
+    def close_files(self) -> None:
+        files_to_close = [
+            ('MFT file', self.file_mft),
+            ('CSV file', self.file_csv),
+            ('Body file', self.file_body),
+            ('CSV time file', self.file_csv_time)
+        ]
+        for file_name, file in files_to_close:
             if file:
-                file.close()
-        if self.file_csv:
-            self.file_csv.close()
+                try:
+                    file.close()
+                except Exception as e:
+                    self.logger.error(f"Error closing {file_name}: {e}")
 
-    def run(self):
+    def run(self) -> None:
         try:
             self.open_files()
             self.process_mft_file()
             self.print_records()
+        except MFTAnalysisError as e:
+            self.logger.error(f"An error occurred during MFT analysis: {e}")
+            raise
         finally:
             self.close_files()

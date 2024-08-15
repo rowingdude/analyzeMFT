@@ -3,17 +3,18 @@
 
 This document lists the changes and version history for the AnalyzeMFT script and component scripts.
 
-## Version 2.1.2 (2024-08-13)
+## Version 3.0 (2024-08-15)
 
-Work has officially begun on the next minor revision of this application. The to do list is below. We'll update as things get finished.
+Work has completed on the class-based layout. The program has been split into individual files each composed of the class within. 
+I believe this is the way to go (personal preference) as I like to work on one module at a time!
+
 
 ### To do list:
 
-1. Finish the "class based layout"
-2. Improve the readabilityby breaking up some of the large functions like `parse_records`
-3. Implement a testing framework involving the sister project [GenerateMFT](https://github.com/rowingdude/GenerateMFT/).
-4. Implement multithreading as an option
+1. Implement a testing framework involving the sister project [GenerateMFT](https://github.com/rowingdude/GenerateMFT/).
+2. Implement multithreading as an option
 
+<! ----------------- We are going to version up to 3.0 given the complete rewrite ------------------->
 
 ## Version 2.1.1 (2024-08-02)
 

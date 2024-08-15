@@ -5,16 +5,12 @@
 # Author: Benjamin Cance (bjc@tdx.li)
 # Copyright Benjamin Cance 2024
 
-from .config import Config
-from .mft_session import MftSession
-from .mft_analyzer import MFTAnalyzer
-from .mft_formatters import mft_to_csv, mft_to_body, mft_to_l2t, mft_to_json
-from .mft_utils import WindowsTime, decodeMFTmagic, decodeMFTisactive, decodeMFTrecordtype, decodeVolumeInfo, decodeObjectID
-from .error_handler import setup_logging, error_handler, MFTAnalysisError, FileOperationError, ParsingError, ConfigurationError
+from .mft_core import MFTAnalyzer, MFTRecord
+from .mft_output import MFTOutputFormatter, MFTOutputSession
+from .config import parse_arguments
+from .error_handler import setup_logging, error_handler, MFTAnalysisError
 
 __all__ = [
-    'Config', 'MftSession', 'MFTAnalyzer', 
-    'mft_to_csv', 'mft_to_body', 'mft_to_l2t', 'mft_to_json',
-    'WindowsTime', 'decodeMFTmagic', 'decodeMFTisactive', 'decodeMFTrecordtype', 'decodeVolumeInfo', 'decodeObjectID',
-    'setup_logging', 'error_handler', 'MFTAnalysisError', 'FileOperationError', 'ParsingError', 'ConfigurationError'
+    'MFTAnalyzer', 'MFTRecord', 'MFTOutputFormatter', 'MFTOutputSession',
+    'parse_arguments', 'setup_logging', 'error_handler', 'MFTAnalysisError'
 ]

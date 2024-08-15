@@ -1,66 +1,63 @@
 import argparse
-import json
 from typing import Dict, Any
-from pathlib import Path
+from dataclasses import dataclass, field
 
-DEFAULT_CONFIG = {
-    "debug": False,
-    "localtz": None,
-    "bodystd": False,
-    "bodyfull": False,
-    "json_output": False,
-    "output_dir": "output",
-    "csv_filename": "mft_output.csv",
-    "bodyfile_name": "mft_bodyfile",
-    "json_filename": "mft_output.json",
-    "log_level": "INFO"
-}
-
+@dataclass
 class Config:
-    def __init__(self):
-        self.parser = self.create_argument_parser()
-        self.args = None
-        self.config: Dict[str, Any] = DEFAULT_CONFIG.copy()
+    input_file: str = ""
+    output_file: str = "mft_output.csv"
+    output_format: str = "csv"
+    log_level: str = "INFO"
+    debug: bool = False
+    local_timezone: bool = False
+    anomaly_detection: bool = False
+    reconstruct_paths: bool = True
+    max_records: int = 15
 
-    def create_argument_parser(self) -> argparse.ArgumentParser:
+    _parser: argparse.ArgumentParser = field(init=False, repr=False)
+
+    def __post_init__(self):
+        self._parser = self._create_argument_parser()
+
+    def _create_argument_parser(self) -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser(description="MFT Analyzer")
         parser.add_argument("input_file", help="Path to the MFT file to analyze")
-        parser.add_argument("--config", help="Path to a JSON configuration file")
-        parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-        parser.add_argument("--localtz", help="Use local timezone")
-        parser.add_argument("--bodystd", action="store_true", help="Use standard body format")
-        parser.add_argument("--bodyfull", action="store_true", help="Use full body format")
-        parser.add_argument("--json", action="store_true", help="Output in JSON format")
-        parser.add_argument("--output-dir", help="Directory for output files")
-        parser.add_argument("--csv-filename", help="Name of the CSV output file")
-        parser.add_argument("--bodyfile-name", help="Name of the body file")
-        parser.add_argument("--json-filename", help="Name of the JSON output file")
-        parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-                            help="Set the logging level")
+        parser.add_argument("--output", help="Output file path", default=self.output_file)
+        parser.add_argument("--format", choices=["csv", "json"], default=self.output_format, help="Output format")
+        parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR"], default=self.log_level, help="Logging level")
+        parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+        parser.add_argument("--local-timezone", action="store_true", help="Use local timezone for timestamps")
+        parser.add_argument("--anomaly-detection", action="store_true", help="Enable anomaly detection")
+        parser.add_argument("--no-path-reconstruction", action="store_false", dest="reconstruct_paths", help="Disable file path reconstruction")
+        parser.add_argument("--max-records", type=int, default=0, help="Maximum number of records to process (0 for all)")
         return parser
 
-    def load_config_file(self, config_file: str):
-        try:
-            with open(config_file, 'r') as f:
-                file_config = json.load(f)
-                self.config.update(file_config)
-        except json.JSONDecodeError:
-            print(f"Error: The config file {config_file} is not valid JSON.")
-            exit(1)
-        except FileNotFoundError:
-            print(f"Error: The config file {config_file} was not found.")
-            exit(1)
+    def parse_arguments(self) -> None:
+        args = self._parser.parse_args()
+        self.input_file = args.input_file
+        self.output_file = args.output
+        self.output_format = args.format
+        self.log_level = args.log_level
+        self.debug = args.debug
+        self.local_timezone = args.local_timezone
+        self.anomaly_detection = args.anomaly_detection
+        self.reconstruct_paths = args.reconstruct_paths
+        self.max_records = args.max_records
 
-    def parse_args(self):
-        self.args = self.parser.parse_args()
-        
-        if self.args.config:
-            self.load_config_file(self.args.config)
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "input_file": self.input_file,
+            "output_file": self.output_file,
+            "output_format": self.output_format,
+            "log_level": self.log_level,
+            "debug": self.debug,
+            "local_timezone": self.local_timezone,
+            "anomaly_detection": self.anomaly_detection,
+            "reconstruct_paths": self.reconstruct_paths,
+            "max_records": self.max_records,
+        }
 
-        # Override config with command-line arguments
-        for arg, value in vars(self.args).items():
-            if value is not None:
-                self.config[arg] = value
-
-    def get_config(self) -> Dict[str, Any]:
-        return self.config
+def get_config() -> Config:
+    config = Config()
+    config.parse_arguments()
+    return config

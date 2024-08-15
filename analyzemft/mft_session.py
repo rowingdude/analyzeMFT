@@ -1,5 +1,6 @@
 import logging
 import sys
+import json
 from pathlib import Path
 from typing import Dict, Any, Optional, IO
 from .mft_analyzer import MFTAnalyzer
@@ -28,7 +29,7 @@ class MftSession:
 
         if self.config.get('csv_filename'):
             try:
-                self.file_csv = open(self.config['csv_filename'], 'w', newline='')
+                self.file_csv = open(self.config['csv_filename'], 'w', newline='', encoding='utf-8')
             except IOError as e:
                 raise FileOperationError(f"Unable to open CSV output file: {self.config['csv_filename']}") from e
 
@@ -50,16 +51,23 @@ class MftSession:
                 if self.file_csv:
                     csv_data = mft_to_csv(record, False)
                     if csv_data[0] != "Error":
-                        self.file_csv.write(','.join(csv_data) + '\n')
+                        try:
+                            self.file_csv.write(','.join(csv_data) + '\n')
+                        except UnicodeEncodeError as ue:
+                            self.logger.warning(f"UnicodeEncodeError in record {i}: {ue}")
+                            # Fall back to ASCII encoding, replacing non-ASCII characters
+                            ascii_data = [item.encode('ascii', 'replace').decode('ascii') for item in csv_data]
+                            self.file_csv.write(','.join(ascii_data) + '\n')
+                        except Exception as e:
+                            self.logger.error(f"Unexpected error writing record {i}: {e}")
                         self.file_csv.flush()
                     else:
                         self.logger.warning(f"Skipping record {i} due to formatting error: {csv_data[1]}")
-                if self.file_csv_time:
-                    self.file_csv_time.write(mft_to_l2t(record))
-                if self.file_body:
-                    self.file_body.write(mft_to_body(record, self.config.get('bodyfull', False), self.config.get('bodystd', False)))
-                if self.config.get('json'):
-                    print(mft_to_json(record))
+                        try:
+                            serializable_record = self._make_serializable(record)
+                            self.logger.debug(f"Problematic record data: {json.dumps(serializable_record, default=str)}")
+                        except Exception as e:
+                            self.logger.error(f"Error serializing problematic record {i}: {e}")
 
         except IOError as e:
             raise FileOperationError("Error writing output") from e

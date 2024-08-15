@@ -27,8 +27,7 @@ Basic usage:
 
 ## Versioning
 
-Current version: 2.1
-Beta/Testing Version: 3.0
+Current version: 3.0
 
 ## Author
 

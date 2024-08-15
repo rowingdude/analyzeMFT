@@ -1,11 +1,11 @@
 from setuptools import setup, find_packages
 
-with open('README.txt', 'r', encoding='utf-8') as f:
-    long_description = f.read()
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
 
 setup(
     name='analyzeMFT',
-    version='2.1.1',
+    version='3.0',
     author='Benjamin Cance',
     author_email='bjc@tdx.li',
     packages=find_packages(),
@@ -15,20 +15,21 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     scripts=['analyzeMFT.py'],
-    install_requires=[
-        'typing;python_version<"3.5"',
-    ],
     classifiers=[
-        'Development Status :: 4 - Beta',
-        'Intended Audience :: Developers',
-        'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
-        'Topic :: System :: Filesystems',
-        'Topic :: Utilities',
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
     ],
-    python_requires='>=3.6',
+    python_requires=">=3.6",
+    entry_points={
+        "console_scripts": [
+            "analyze_mft=analyzeMFT:main",
+        ],
+    },
 )

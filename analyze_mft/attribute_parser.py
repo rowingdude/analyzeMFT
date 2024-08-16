@@ -28,18 +28,26 @@ class AttributeParser:
             raise ValueError("Insufficient data for decoding attribute header")
         
         d = {}
+
         d['type'] = struct.unpack("<I", self.raw_data[:4])[0]
+        
         if d['type'] == 0xffffffff:
             return d
+        
+        if len(self.raw_data) < 24: 
+            raise ValueError("Insufficient data for full attribute header")
+        
         d['len'] = struct.unpack("<I", self.raw_data[4:8])[0]
         d['res'] = struct.unpack("B", self.raw_data[8:9])[0]
         d['name_off'] = struct.unpack("<H", self.raw_data[10:12])[0]
         d['flags'] = struct.unpack("<H", self.raw_data[12:14])[0]
         d['id'] = struct.unpack("<H", self.raw_data[14:16])[0]
+        
         if d['res'] == 0:
             d['ssize'] = struct.unpack("<L", self.raw_data[16:20])[0]
             d['soff'] = struct.unpack("<H", self.raw_data[20:22])[0]
             d['idxflag'] = struct.unpack("<H", self.raw_data[22:24])[0]
+        
         else:
             d['start_vcn'] = struct.unpack("<d", self.raw_data[16:24])[0]
             d['last_vcn'] = struct.unpack("<d", self.raw_data[24:32])[0]

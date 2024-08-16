@@ -3,6 +3,13 @@ from .windows_time import WindowsTime
 
 class AttributeParser:
     def __init__(self, raw_data, options):
+
+        if not raw_data:
+            raise ValueError("No raw data provided to AttributeParser")
+            
+        if not options:
+            raise ValueError("No options provided to AttributeParser")
+
         self.raw_data = raw_data
         self.options = options
 

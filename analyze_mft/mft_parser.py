@@ -10,7 +10,13 @@ class MFTParser:
         self.folders = {}
 
     def parse_mft_file(self):
+
+        if not self.file_handler or not self.csv_writer:
+            print("Error: File handler or CSV writer not properly initialized.")
+            sys.exit(1)
+
         self.num_records = 0
+        
         if self.options.output is not None:
             self.csv_writer.write_csv_header()
 

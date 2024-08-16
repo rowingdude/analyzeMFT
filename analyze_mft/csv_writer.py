@@ -1,11 +1,32 @@
 from .common_imports import *
 class CSVWriter:
     def __init__(self, options, file_handler):
+
+        if not file_handler:
+        
+            print("Error: File handler not provided to CSVWriter.")
+            sys.exit(1)
+        
         self.options = options
         self.file_handler = file_handler
-        self.csv_writer = csv.writer(file_handler.file_csv, quoting=csv.QUOTE_ALL) if file_handler.file_csv else None
+        
+        if file_handler.file_csv:
+        
+            self.csv_writer = csv.writer(file_handler.file_csv, quoting=csv.QUOTE_ALL)
+        
+        else:
+        
+            self.csv_writer = None
+
+            if options.output:
+                print("Warning: CSV output file specified but not opened in file handler.")
 
     def write_csv_header(self):
+        
+        if not self.csv_writer:
+            print("Error: Attempting to write CSV header without a valid CSV writer.")
+            sys.exit(1)
+            
         header = ['Record Number', 'Good', 'Active', 'Record type',
                   'Sequence Number', 'Parent File Rec. #', 'Parent File Rec. Seq. #',
                   'Filename #1', 'Std Info Creation date', 'Std Info Modification date',

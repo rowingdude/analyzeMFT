@@ -6,6 +6,7 @@ try:
     from analyze_mft.csv_writer import CSVWriter
     from analyze_mft.options_parser import OptionsParser
     from analyze_mft.attribute_parser import AttributeParser
+    from analyze_mft.thread_manager import ThreadManager
 
 except ImportError as e:
     print(f"Error: Failed to import required modules. {e}")
@@ -20,10 +21,11 @@ def main():
 
     csv_writer = CSVWriter(options, file_handler)
 
-    mft_parser = MFTParser(options, file_handler, csv_writer)
-    mft_parser.parse_mft_file()
-    mft_parser.generate_filepaths()
-    mft_parser.print_records()
+    with ThreadManager(options.thread_count) as thread_manager:
+        mft_parser = MFTParser(options, file_handler, csv_writer)
+        mft_parser.parse_mft_file()
+        mft_parser.generate_filepaths()
+        mft_parser.print_records()
 
 if __name__ == "__main__":
     main()

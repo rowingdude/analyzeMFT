@@ -38,6 +38,8 @@ class OptionsParser:
                                help="Turn on debugging output")
         self.parser.add_option("-v", "--version", action="store_true"  , dest="version",
                                help="Report version and exit")
+        self.parser.add_option("-V", "--verbose", action="store_true"  , dest="verbose",
+                           help="Enable verbose output")
 
         #  Group 4: Performance options
         performance_group = OptionGroup(self.parser, "Performance Options")

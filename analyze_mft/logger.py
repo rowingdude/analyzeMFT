@@ -32,3 +32,8 @@ class Logger:
     @staticmethod
     def error(message):
         logging.error(message)
+    
+    @staticmethod
+    def verbose(message):
+        if logging.getLogger('').isEnabledFor(logging.INFO):
+            print(message)

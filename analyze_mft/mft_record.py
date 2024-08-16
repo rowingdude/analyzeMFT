@@ -8,7 +8,7 @@ class MFTRecord:
             raise ValueError("No raw record data provided to MFTRecord")
         if not options:
             raise ValueError("No options provided to MFTRecord")
-            
+
         self.raw_record = raw_record
         self.options = options
         self.record = {
@@ -50,6 +50,10 @@ class MFTRecord:
         self.record['recordnum'] = struct.unpack("<I", self.raw_record[44:48])[0]
 
     def parse(self):
+
+        if len(self.raw_record) < 48:  
+            raise ValueError(f"Invalid MFT record size: Expected at least 48 bytes, got {len(self.raw_record)}")
+
         try:
             self.decode_mft_header()
 

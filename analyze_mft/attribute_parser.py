@@ -60,8 +60,19 @@ class AttributeParser:
         return d
 
     def parse_standard_information(self):
+
+        header = self.decode_attribute_header()
+        if 'soff' not in header:
+            raise ValueError("Invalid attribute header for standard information")
+        
+        s = self.raw_data[header['soff']:]
+        if len(s) < 72: 
+            raise ValueError("Insufficient data for parsing standard information")
+
         d = {}
+        
         s = self.raw_data[self.decode_attribute_header()['soff']:]
+        
         d['crtime'] = WindowsTime(struct.unpack("<L", s[:4])[0], struct.unpack("<L", s[4:8])[0], self.options.localtz)
         d['mtime'] = WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], self.options.localtz)
         d['ctime'] = WindowsTime(struct.unpack("<L", s[16:20])[0], struct.unpack("<L", s[20:24])[0], self.options.localtz)
@@ -74,6 +85,7 @@ class AttributeParser:
         d['sec_id'] = struct.unpack("<I", s[52:56])[0]
         d['quota'] = struct.unpack("<d", s[56:64])[0]
         d['usn'] = struct.unpack("<d", s[64:72])[0]
+        
         return d
 
     def parse_file_name(self, record):

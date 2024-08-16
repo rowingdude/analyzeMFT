@@ -1,4 +1,7 @@
 from .common_imports import *
+from .thread_manager import ThreadManager
+
+
 class CSVWriter:
     def __init__(self, options, file_handler):
 
@@ -9,6 +12,7 @@ class CSVWriter:
         
         self.options = options
         self.file_handler = file_handler
+        self.thread_manager = ThreadManager(options.thread_count)
         
         if file_handler.file_csv:
         
@@ -44,8 +48,13 @@ class CSVWriter:
         self.csv_writer.writerow(header)
 
     def write_csv_record(self, record):
-        csv_record = self._prepare_csv_record(record)
-        self.csv_writer.writerow(csv_record)
+
+        if self.options.thread_count > 1:
+            self.thread_manager.map(self.write_csv_record, records)
+
+        else:
+            for record in records:
+                self.write_csv_record(record)
 
     def write_bodyfile(self, record):
         bodyfile_record = self._prepare_bodyfile_record(record)

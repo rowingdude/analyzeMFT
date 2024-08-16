@@ -1,5 +1,6 @@
 from .common_imports import *
-from .mft_record import MFTRecord
+from .mft_record     import MFTRecord
+from .thread_manager import ThreadManager
 
 class MFTParser:
     def __init__(self, options, file_handler, csv_writer):
@@ -8,6 +9,7 @@ class MFTParser:
         self.csv_writer = csv_writer
         self.mft = {}
         self.folders = {}
+        self.thread_manager = ThreadManager(options.thread_count)
 
     def parse_mft_file(self):
 
@@ -23,13 +25,11 @@ class MFTParser:
         raw_records = self._read_all_records()
 
         if self.options.thread_count > 1:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=self.options.thread_count) as executor:
-                futures = [executor.submit(self._parse_single_record, raw_record) for raw_record in raw_records]
-                for future in concurrent.futures.as_completed(futures):
-                    record = future.result()
-                    if record:
-                        self.mft[self.num_records] = record
-                        self.num_records += 1
+            parsed_records = self.thread_manager.map(self._parse_single_record, raw_records)
+            for record in parsed_records:
+                if record:
+                    self.mft[self.num_records] = record
+                    self.num_records = self.thread_manager.safe_increment(self.num_records)
         else:
             for raw_record in raw_records:
                 record = self._parse_single_record(raw_record)

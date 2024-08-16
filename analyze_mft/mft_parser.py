@@ -1,6 +1,7 @@
 from .common_imports import *
 from .mft_record     import MFTRecord
 from .thread_manager import ThreadManager
+from .logger         import Logger
 
 class MFTParser:
     def __init__(self, options, file_handler, csv_writer):
@@ -9,6 +10,7 @@ class MFTParser:
         self.csv_writer = csv_writer
         self.mft = {}
         self.folders = {}
+        self.logger = Logger(options)
         self.thread_manager = ThreadManager(options.thread_count)
 
     def parse_mft_file(self):
@@ -18,24 +20,37 @@ class MFTParser:
             sys.exit(1)
 
         self.num_records = 0
-        
+
+        self.logger.verbose("Starting to parse MFT file...")
+
         if self.options.output is not None:
             self.csv_writer.write_csv_header()
 
         raw_records = self._read_all_records()
+        self.logger.verbose(f"Read {len(raw_records)} raw records from MFT file.")
 
         if self.options.thread_count > 1:
-            parsed_records = self.thread_manager.map(self._parse_single_record, raw_records)
-            for record in parsed_records:
-                if record:
-                    self.mft[self.num_records] = record
-                    self.num_records = self.thread_manager.safe_increment(self.num_records)
+            self.logger.verbose(f"Using {self.options.thread_count} threads for parsing.")
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.options.thread_count) as executor:
+                futures = [executor.submit(self._parse_single_record, raw_record) for raw_record in raw_records]
+                for future in concurrent.futures.as_completed(futures):
+                    record = future.result()
+                    if record:
+                        self.mft[self.num_records] = record
+                        self.num_records += 1
+                        if self.num_records % 1000 == 0:
+                            self.logger.verbose(f"Parsed {self.num_records} records...")
         else:
             for raw_record in raw_records:
                 record = self._parse_single_record(raw_record)
                 if record:
                     self.mft[self.num_records] = record
                     self.num_records += 1
+                    if self.num_records % 1000 == 0:
+                        self.logger.verbose(f"Parsed {self.num_records} records...")
+
+        self.logger.verbose(f"Finished parsing MFT file. Total records: {self.num_records}")
+
 
     def _read_all_records(self):
         raw_records = []
@@ -65,12 +80,14 @@ class MFTParser:
             record['birth_domain_id'] = ''
     
     def generate_filepaths(self):
+        self.logger.verbose("Generating file paths...")
         for i in self.mft:
             if self.mft[i]['filename'] == '':
                 if self.mft[i]['fncnt'] > 0:
                     self.get_folder_path(i)
                 else:
                     self.mft[i]['filename'] = 'NoFNRecord'
+        self.logger.verbose("Finished generating file paths.")
 
     def get_folder_path(self, seqnum):
         if seqnum not in self.mft:
@@ -97,6 +114,7 @@ class MFTParser:
         return self.mft[seqnum]['filename']
 
     def print_records(self):
+        self.logger.verbose("Writing records to output files...")
         for i in self.mft:
             if self.options.output is not None:
                 self.csv_writer.write_csv_record(self.mft[i])
@@ -104,4 +122,5 @@ class MFTParser:
                 self.csv_writer.write_l2t(self.mft[i])
             if self.options.bodyfile is not None:
                 self.csv_writer.write_bodyfile(self.mft[i])
+        self.logger.verbose("Finished writing records to output files.")
 

@@ -23,7 +23,35 @@ AnalyzeMFT is a Python script designed to translate the NTFS Master File Table (
 
 Basic usage:
 
-`python AnalyzeMFT.py -f <mft_file> -o <output_file>`
+```
+Usage: analyzeMFT.py [options] filename
+
+Options:
+  -h, --help            show this help message and exit
+  -f FILE, --file=FILE  Read MFT from FILE
+  -a, --anomaly         Turn on anomaly detection
+  -l, --localtz         Report times using local timezone
+  -d, --debug           Turn on debugging output
+  -v, --version         Report version and exit
+
+  Output Options:
+    -o FILE, --output=FILE
+                        Write results to CSV FILE
+    -b FILE, --bodyfile=FILE
+                        Write MAC information to bodyfile
+    -c FILE, --csvtimefile=FILE
+                        Write CSV format timeline file
+
+  Body File Options:
+    --bodystd           Use STD_INFO timestamps for body file rather than FN     
+                        timestamps
+    --bodyfull          Use full path name + filename rather than just
+                        filename
+
+  Performance Options:
+    --threads=THREAD_COUNT
+                        Number of threads to use for parsing (default: 1)
+```
 
 ## Versioning
 

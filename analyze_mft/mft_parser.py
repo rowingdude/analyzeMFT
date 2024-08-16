@@ -16,6 +16,21 @@ class MFTParser:
 
         raw_record = self.file_handler.read_mft_record()
 
+        if self.options.thread_count > 1:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.options.thread_count) as executor:
+                futures = [executor.submit(self._parse_single_record, raw_record) for raw_record in raw_records]
+                for future in concurrent.futures.as_completed(futures):
+                    record = future.result()
+                    if record:
+                        self.mft[self.num_records] = record
+                        self.num_records += 1
+        else:
+            for raw_record in raw_records:
+                record = self._parse_single_record(raw_record)
+                if record:
+                    self.mft[self.num_records] = record
+                    self.num_records += 1
+
         while raw_record:
             mft_record = MFTRecord(raw_record, self.options)
             record = mft_record.parse()

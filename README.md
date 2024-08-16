@@ -33,6 +33,7 @@ Options:
   -l, --localtz         Report times using local timezone
   -d, --debug           Turn on debugging output
   -v, --version         Report version and exit
+  -V, --verbose         Provide additional output as the program runs (Dangerous, can produce a lot of information)
 
   Output Options:
     -o FILE, --output=FILE

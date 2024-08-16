@@ -11,35 +11,35 @@ class OptionsParser:
         self.parser.add_option("-f", "--file", dest="filename",
                                help="Read MFT from FILE", metavar="FILE")
         
-        # Output options
+        # Group 1: Output options
         output_group = OptionGroup(self.parser, "Output Options")
-        output_group.add_option("-o", "--output", dest="output",
-                                help="Write results to CSV FILE", metavar="FILE")
-        output_group.add_option("-b", "--bodyfile", dest="bodyfile",
-                                help="Write MAC information to bodyfile", metavar="FILE")
+        output_group.add_option("-o", "--output"     , dest="output",
+                                help="Write results to CSV FILE"         , metavar="FILE")
+        output_group.add_option("-b", "--bodyfile"   , dest="bodyfile",
+                                help="Write MAC information to bodyfile" , metavar="FILE")
         output_group.add_option("-c", "--csvtimefile", dest="csvtimefile",
-                                help="Write CSV format timeline file", metavar="FILE")
+                                help="Write CSV format timeline file"    , metavar="FILE")
         self.parser.add_option_group(output_group)
 
-        # Body file options
+        #  Group 2: Body file options
         body_group = OptionGroup(self.parser, "Body File Options")
-        body_group.add_option("--bodystd", action="store_true", dest="bodystd",
+        body_group.add_option("--bodystd" , action="store_true", dest="bodystd",
                               help="Use STD_INFO timestamps for body file rather than FN timestamps")
         body_group.add_option("--bodyfull", action="store_true", dest="bodyfull",
                               help="Use full path name + filename rather than just filename")
         self.parser.add_option_group(body_group)
 
-        # Other options
-        self.parser.add_option("-a", "--anomaly", action="store_true", dest="anomaly",
+        #  Group 3: Misc options
+        self.parser.add_option("-a", "--anomaly", action="store_true"  , dest="anomaly",
                                help="Turn on anomaly detection")
-        self.parser.add_option("-l", "--localtz", action="store_true", dest="localtz",
+        self.parser.add_option("-l", "--localtz", action="store_true"  , dest="localtz",
                                help="Report times using local timezone")
-        self.parser.add_option("-d", "--debug", action="store_true", dest="debug",
+        self.parser.add_option("-d", "--debug"  , action="store_true"  , dest="debug",
                                help="Turn on debugging output")
-        self.parser.add_option("-v", "--version", action="store_true", dest="version",
+        self.parser.add_option("-v", "--version", action="store_true"  , dest="version",
                                help="Report version and exit")
 
-        # Performance options
+        #  Group 4: Performance options
         performance_group = OptionGroup(self.parser, "Performance Options")
         performance_group.add_option("--threads", type="int", dest="thread_count", default=1,
                                      help="Number of threads to use for parsing (default: 1)")

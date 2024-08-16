@@ -6,7 +6,7 @@ class AttributeParser:
 
         if not raw_data:
             raise ValueError("No raw data provided to AttributeParser")
-            
+
         if not options:
             raise ValueError("No options provided to AttributeParser")
 
@@ -14,6 +14,11 @@ class AttributeParser:
         self.options = options
 
     def parse(self):
+
+        if len(self.raw_data) < 4:  
+        
+            raise ValueError("Insufficient data for parsing attribute")
+        
         return self.decode_attribute_header()
 
     def decode_attribute_header(self):

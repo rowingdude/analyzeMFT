@@ -3,6 +3,13 @@ from datetime import datetime, timezone
 
 class WindowsTime:
     def __init__(self, low, high, localtz):
+
+        if not isinstance(low, int) or not isinstance(high, int):
+            raise ValueError("Low and high values must be integers")
+        
+        if not isinstance(localtz, bool):
+            raise ValueError("localtz must be a boolean value")
+
         self.low = int(low)
         self.high = int(high)
         self.localtz = localtz

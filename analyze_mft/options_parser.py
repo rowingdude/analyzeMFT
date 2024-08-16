@@ -61,6 +61,9 @@ class OptionsParser:
         if not options.filename:
             options.filename = args[0]
 
+        if not os.path.exists(options.filename):
+            self.parser.error(f"The specified file does not exist: {options.filename}")
+
         output_options = [options.output, options.bodyfile, options.csvtimefile]
         if not any(output_options):
             self.parser.error("At least one output option (-o, -b, or -c) is required.")
@@ -71,5 +74,13 @@ class OptionsParser:
 
         if options.thread_count < 1:
             self.parser.error("Thread count must be at least 1")
+
+        if options.thread_count > os.cpu_count():
+            print(f"Warning: Specified thread count ({options.thread_count}) exceeds available CPU cores ({os.cpu_count()})")
+
+        for output_file in [options.output, options.bodyfile, options.csvtimefile]:
+            if output_file and os.path.exists(output_file):
+                print(f"Warning: Output file already exists and will be overwritten: {output_file}")
+
 
         return options

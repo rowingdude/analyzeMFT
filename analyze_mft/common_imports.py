@@ -5,6 +5,7 @@ import csv
 import binascii
 import sys
 import logging
+import json
 import concurrent.futures
 
 from threading import Lock

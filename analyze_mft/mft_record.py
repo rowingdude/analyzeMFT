@@ -3,6 +3,12 @@ from .attribute_parser import AttributeParser
 
 class MFTRecord:
     def __init__(self, raw_record, options):
+
+        if not raw_record:
+            raise ValueError("No raw record data provided to MFTRecord")
+        if not options:
+            raise ValueError("No options provided to MFTRecord")
+            
         self.raw_record = raw_record
         self.options = options
         self.record = {

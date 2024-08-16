@@ -2,6 +2,7 @@ from .common_imports import *
 from .mft_record     import MFTRecord
 from .thread_manager import ThreadManager
 from .logger         import Logger
+from .json_writer    import JSONWriter
 
 class MFTParser:
     def __init__(self, options, file_handler, csv_writer):
@@ -12,6 +13,7 @@ class MFTParser:
         self.folders = {}
         self.logger = Logger(options)
         self.thread_manager = ThreadManager(options.thread_count)
+        self.json_writer = JSONWriter(options, file_handler)
 
     def parse_mft_file(self):
 
@@ -122,5 +124,12 @@ class MFTParser:
                 self.csv_writer.write_l2t(self.mft[i])
             if self.options.bodyfile is not None:
                 self.csv_writer.write_bodyfile(self.mft[i])
+            if self.options.jsonfile is not None:
+                self.json_writer.write_json_record(self.mft[i])
+
+        # This writes the entire file, in the loop, we write (stage) records.
+        if self.options.jsonfile is not None:
+            self.json_writer.write_json_file()
+        
         self.logger.verbose("Finished writing records to output files.")
 

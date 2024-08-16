@@ -1,9 +1,15 @@
-from analyze_mft.common_imports import *
-from analyze_mft.mft_parser import MFTParser
-from analyze_mft.file_handler import FileHandler
-from analyze_mft.csv_writer import CSVWriter
-from analyze_mft.options_parser import OptionsParser
-from analyze_mft.attribute_parser import AttributeParser
+try:
+
+    from analyze_mft.common_imports import *
+    from analyze_mft.mft_parser import MFTParser
+    from analyze_mft.file_handler import FileHandler
+    from analyze_mft.csv_writer import CSVWriter
+    from analyze_mft.options_parser import OptionsParser
+    from analyze_mft.attribute_parser import AttributeParser
+
+except ImportError as e:
+    print(f"Error: Failed to import required modules. {e}")
+    sys.exit(1)
 
 def main():
     options_parser = OptionsParser()

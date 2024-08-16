@@ -20,6 +20,7 @@ class WindowsTime:
 
     def _parse_time(self):
         if (self.low == 0) and (self.high == 0):
+            self.dtstr = "Never"
             return
         
         self.unixtime = self.get_unix_time()

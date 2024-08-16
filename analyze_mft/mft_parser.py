@@ -14,7 +14,7 @@ class MFTParser:
         if self.options.output is not None:
             self.csv_writer.write_csv_header()
 
-        raw_record = self.file_handler.read_mft_record()
+        raw_records = self._read_all_records()
 
         if self.options.thread_count > 1:
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.options.thread_count) as executor:
@@ -31,16 +31,6 @@ class MFTParser:
                     self.mft[self.num_records] = record
                     self.num_records += 1
 
-        while raw_record:
-            mft_record = MFTRecord(raw_record, self.options)
-            record = mft_record.parse()
-            
-            self._parse_object_id(record)
-            self._check_usec_zero(record)
-            self.mft[self.num_records] = record
-            self.num_records += 1
-            raw_record = self.file_handler.read_mft_record()
-    
     def _parse_object_id(self, record):
         if 'objid' in record:
             # Parse object ID data

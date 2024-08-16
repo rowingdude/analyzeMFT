@@ -80,3 +80,18 @@ class MFTParser:
                 self.csv_writer.write_l2t(self.mft[i])
             if self.options.bodyfile is not None:
                 self.csv_writer.write_bodyfile(self.mft[i])
+
+    def _read_all_records(self):
+        raw_records = []
+        raw_record = self.file_handler.read_mft_record()
+        while raw_record:
+            raw_records.append(raw_record)
+            raw_record = self.file_handler.read_mft_record()
+        return raw_records
+
+    def _parse_single_record(self, raw_record):
+        mft_record = MFTRecord(raw_record, self.options)
+        record = mft_record.parse()
+        self._parse_object_id(record)
+        self._check_usec_zero(record)
+        return record

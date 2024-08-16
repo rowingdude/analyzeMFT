@@ -13,6 +13,7 @@ I believe this is the way to go (personal preference) as I like to work on one m
 
 1. Implement a testing framework involving the sister project [GenerateMFT](https://github.com/rowingdude/GenerateMFT/).
 2. Implement multithreading as an option
+3. Complete a more succinct and visually appealing menu system (✅ 16-Aug-24 )
 
 <! ----------------- We are going to version up to 3.0 given the complete rewrite ------------------->
 

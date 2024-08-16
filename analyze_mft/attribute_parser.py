@@ -62,10 +62,12 @@ class AttributeParser:
     def parse_standard_information(self):
 
         header = self.decode_attribute_header()
+
         if 'soff' not in header:
             raise ValueError("Invalid attribute header for standard information")
         
         s = self.raw_data[header['soff']:]
+
         if len(s) < 72: 
             raise ValueError("Insufficient data for parsing standard information")
 
@@ -89,8 +91,21 @@ class AttributeParser:
         return d
 
     def parse_file_name(self, record):
+
+        header = self.decode_attribute_header()
+        
+        if 'soff' not in header:
+            raise ValueError("Invalid attribute header for file name")
+        
+        s = self.raw_data[header['soff']:]
+
+        if len(s) < 66:
+            raise ValueError("Insufficient data for parsing file name")
+
         d = {}
+
         s = self.raw_data[self.decode_attribute_header()['soff']:]
+
         d['par_ref'] = struct.unpack("<Lxx", s[:6])[0]
         d['par_seq'] = struct.unpack("<H", s[6:8])[0]
         d['crtime'] = WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], self.options.localtz)
@@ -104,6 +119,7 @@ class AttributeParser:
         d['nspace'] = struct.unpack("B", s[65:66])[0]
 
         bytes_left = d['nlen']*2
+
         d['name'] = s[66:66+bytes_left].decode('utf-16-le')
 
         return d

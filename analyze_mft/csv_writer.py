@@ -17,11 +17,16 @@ class CSVWriter:
         else:
         
             self.csv_writer = None
-            
+
             if options.output:
                 print("Warning: CSV output file specified but not opened in file handler.")
 
     def write_csv_header(self):
+        
+        if not self.csv_writer:
+            print("Error: Attempting to write CSV header without a valid CSV writer.")
+            sys.exit(1)
+            
         header = ['Record Number', 'Good', 'Active', 'Record type',
                   'Sequence Number', 'Parent File Rec. #', 'Parent File Rec. Seq. #',
                   'Filename #1', 'Std Info Creation date', 'Std Info Modification date',

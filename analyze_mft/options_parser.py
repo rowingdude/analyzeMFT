@@ -19,6 +19,8 @@ class OptionsParser:
                                 help="Write MAC information to bodyfile" , metavar="FILE")
         output_group.add_option("-c", "--csvtimefile", dest="csvtimefile",
                                 help="Write CSV format timeline file"    , metavar="FILE")
+        output_group.add_option("-j", "--json", dest="jsonfile",
+                        help="Write results to JSON FILE", metavar="FILE")
         self.parser.add_option_group(output_group)
 
         #  Group 2: Body file options
@@ -66,9 +68,9 @@ class OptionsParser:
         if not os.path.exists(options.filename):
             self.parser.error(f"The specified file does not exist: {options.filename}")
 
-        output_options = [options.output, options.bodyfile, options.csvtimefile]
+        output_options = [options.output, options.bodyfile, options.csvtimefile, options.jsonfile]
         if not any(output_options):
-            self.parser.error("At least one output option (-o, -b, or -c) is required.")
+            self.parser.error("At least one output option (-o, -b, -j, or -c) is required.")
 
         if options.bodystd or options.bodyfull:
             if not options.bodyfile:
@@ -80,7 +82,7 @@ class OptionsParser:
         if options.thread_count > os.cpu_count():
             print(f"Warning: Specified thread count ({options.thread_count}) exceeds available CPU cores ({os.cpu_count()})")
 
-        for output_file in [options.output, options.bodyfile, options.csvtimefile]:
+        for output_file in [options.output, options.bodyfile, options.csvtimefile, options.jsonfile]:
             if output_file and os.path.exists(output_file):
                 print(f"Warning: Output file already exists and will be overwritten: {output_file}")
 

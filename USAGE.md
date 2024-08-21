@@ -4,35 +4,21 @@ This document provides detailed information on how to use the AnalyzeMFT script.
 
 ## Command-line Options
 
-```
-Usage: analyzeMFT.py [options] filename
+`python AnalyzeMFT.py [options]`
 
-Options:
-  -h, --help            show this help message and exit
-  -f FILE, --file=FILE  Read MFT from FILE
-  -a, --anomaly         Turn on anomaly detection
-  -l, --localtz         Report times using local timezone
-  -d, --debug           Turn on debugging output
-  -v, --version         Report version and exit
+Available options:
 
-  Output Options:
-    -o FILE, --output=FILE
-                        Write results to CSV FILE
-    -b FILE, --bodyfile=FILE
-                        Write MAC information to bodyfile
-    -c FILE, --csvtimefile=FILE
-                        Write CSV format timeline file
+- `-v`, `--version`: Report version and exit
+- `-f FILE`, `--file FILE`: Read MFT from FILE
+- `-o FILE`, `--output FILE`: Write results to FILE in CSV format
+- `-a`, `--anomaly`: Turn on anomaly detection
+- `-b FILE`, `--bodyfile FILE`: Write MAC information to bodyfile
+- `--bodystd`: Use STD_INFO timestamps for body file rather than FN timestamps
+- `--bodyfull`: Use full path name + filename rather than just filename in bodyfile
+- `-c FILE`, `--csvtimefile FILE`: Write CSV format timeline file
+- `-l`, `--localtz`: Report times using local timezone
+- `-d`, `--debug`: Turn on debugging output
 
-  Body File Options:
-    --bodystd           Use STD_INFO timestamps for body file rather than FN     
-                        timestamps
-    --bodyfull          Use full path name + filename rather than just
-                        filename
-
-  Performance Options:
-    --threads=THREAD_COUNT
-                        Number of threads to use for parsing (default: 1)      
-```
 ## Basic Usage
 
 To analyze an MFT file and output the results to a CSV file:

@@ -3,51 +3,26 @@ from .windows_time import WindowsTime
 
 class AttributeParser:
     def __init__(self, raw_data, options):
-
-        if not raw_data:
-            raise ValueError("No raw data provided to AttributeParser")
-
-        if not options:
-            raise ValueError("No options provided to AttributeParser")
-
         self.raw_data = raw_data
         self.options = options
 
     def parse(self):
-
-        if len(self.raw_data) < 4:  
-        
-            raise ValueError("Insufficient data for parsing attribute")
-        
         return self.decode_attribute_header()
 
     def decode_attribute_header(self):
-        
-        if len(self.raw_data) < 16:  
-        
-            raise ValueError("Insufficient data for decoding attribute header")
-        
         d = {}
-
         d['type'] = struct.unpack("<I", self.raw_data[:4])[0]
-        
         if d['type'] == 0xffffffff:
             return d
-        
-        if len(self.raw_data) < 24: 
-            raise ValueError("Insufficient data for full attribute header")
-        
         d['len'] = struct.unpack("<I", self.raw_data[4:8])[0]
         d['res'] = struct.unpack("B", self.raw_data[8:9])[0]
         d['name_off'] = struct.unpack("<H", self.raw_data[10:12])[0]
         d['flags'] = struct.unpack("<H", self.raw_data[12:14])[0]
         d['id'] = struct.unpack("<H", self.raw_data[14:16])[0]
-        
         if d['res'] == 0:
             d['ssize'] = struct.unpack("<L", self.raw_data[16:20])[0]
             d['soff'] = struct.unpack("<H", self.raw_data[20:22])[0]
             d['idxflag'] = struct.unpack("<H", self.raw_data[22:24])[0]
-        
         else:
             d['start_vcn'] = struct.unpack("<d", self.raw_data[16:24])[0]
             d['last_vcn'] = struct.unpack("<d", self.raw_data[24:32])[0]
@@ -60,21 +35,8 @@ class AttributeParser:
         return d
 
     def parse_standard_information(self):
-
-        header = self.decode_attribute_header()
-
-        if 'soff' not in header:
-            raise ValueError("Invalid attribute header for standard information")
-        
-        s = self.raw_data[header['soff']:]
-
-        if len(s) < 72: 
-            raise ValueError("Insufficient data for parsing standard information")
-
         d = {}
-        
         s = self.raw_data[self.decode_attribute_header()['soff']:]
-        
         d['crtime'] = WindowsTime(struct.unpack("<L", s[:4])[0], struct.unpack("<L", s[4:8])[0], self.options.localtz)
         d['mtime'] = WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], self.options.localtz)
         d['ctime'] = WindowsTime(struct.unpack("<L", s[16:20])[0], struct.unpack("<L", s[20:24])[0], self.options.localtz)
@@ -87,25 +49,11 @@ class AttributeParser:
         d['sec_id'] = struct.unpack("<I", s[52:56])[0]
         d['quota'] = struct.unpack("<d", s[56:64])[0]
         d['usn'] = struct.unpack("<d", s[64:72])[0]
-        
         return d
 
     def parse_file_name(self, record):
-
-        header = self.decode_attribute_header()
-        
-        if 'soff' not in header:
-            raise ValueError("Invalid attribute header for file name")
-        
-        s = self.raw_data[header['soff']:]
-
-        if len(s) < 66:
-            raise ValueError("Insufficient data for parsing file name")
-
         d = {}
-
         s = self.raw_data[self.decode_attribute_header()['soff']:]
-
         d['par_ref'] = struct.unpack("<Lxx", s[:6])[0]
         d['par_seq'] = struct.unpack("<H", s[6:8])[0]
         d['crtime'] = WindowsTime(struct.unpack("<L", s[8:12])[0], struct.unpack("<L", s[12:16])[0], self.options.localtz)
@@ -119,7 +67,6 @@ class AttributeParser:
         d['nspace'] = struct.unpack("B", s[65:66])[0]
 
         bytes_left = d['nlen']*2
-
         d['name'] = s[66:66+bytes_left].decode('utf-16-le')
 
         return d

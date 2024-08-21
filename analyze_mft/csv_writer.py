@@ -1,36 +1,11 @@
 from .common_imports import *
-from .thread_manager import ThreadManager
-
-
 class CSVWriter:
     def __init__(self, options, file_handler):
-
-        if not file_handler:
-        
-            print("Error: File handler not provided to CSVWriter.")
-            sys.exit(1)
-        
         self.options = options
         self.file_handler = file_handler
-        self.thread_manager = ThreadManager(options.thread_count)
-        
-        if file_handler.file_csv:
-        
-            self.csv_writer = csv.writer(file_handler.file_csv, quoting=csv.QUOTE_ALL)
-        
-        else:
-        
-            self.csv_writer = None
-
-            if options.output:
-                print("Warning: CSV output file specified but not opened in file handler.")
+        self.csv_writer = csv.writer(file_handler.file_csv, quoting=csv.QUOTE_ALL) if file_handler.file_csv else None
 
     def write_csv_header(self):
-        
-        if not self.csv_writer:
-            print("Error: Attempting to write CSV header without a valid CSV writer.")
-            sys.exit(1)
-            
         header = ['Record Number', 'Good', 'Active', 'Record type',
                   'Sequence Number', 'Parent File Rec. #', 'Parent File Rec. Seq. #',
                   'Filename #1', 'Std Info Creation date', 'Std Info Modification date',
@@ -48,13 +23,8 @@ class CSVWriter:
         self.csv_writer.writerow(header)
 
     def write_csv_record(self, record):
-
-        if self.options.thread_count > 1:
-            self.thread_manager.map(self.write_csv_record, records)
-
-        else:
-            for record in records:
-                self.write_csv_record(record)
+        csv_record = self._prepare_csv_record(record)
+        self.csv_writer.writerow(csv_record)
 
     def write_bodyfile(self, record):
         bodyfile_record = self._prepare_bodyfile_record(record)

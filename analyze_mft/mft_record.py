@@ -3,12 +3,6 @@ from .attribute_parser import AttributeParser
 
 class MFTRecord:
     def __init__(self, raw_record, options):
-
-        if not raw_record:
-            raise ValueError("No raw record data provided to MFTRecord")
-        if not options:
-            raise ValueError("No options provided to MFTRecord")
-
         self.raw_record = raw_record
         self.options = options
         self.record = {
@@ -50,49 +44,38 @@ class MFTRecord:
         self.record['recordnum'] = struct.unpack("<I", self.raw_record[44:48])[0]
 
     def parse(self):
-
-        if len(self.raw_record) < 48:  
-            raise ValueError(f"Invalid MFT record size: Expected at least 48 bytes, got {len(self.raw_record)}")
-
         try:
             self.decode_mft_header()
 
-            if self.record['attr_off'] >= len(self.raw_record):
-                raise ValueError(f"Invalid attribute offset: {self.record['attr_off']} exceeds record length {len(self.raw_record)}")
+            if len(self.raw_record) < 1024:
+                raise ValueError(f"Invalid MFT record size: Expected 1024 bytes, got {len(self.raw_record)}")
 
             self.read_ptr = self.record['attr_off']
             
-            while self.read_ptr < len(self.raw_record):
-
-                if self.read_ptr + 8 > len(self.raw_record): 
-                    break
-
+            while self.read_ptr < 1024:
                 attr_parser = AttributeParser(self.raw_record[self.read_ptr:], self.options)
                 attr_record = attr_parser.parse()
                 
                 if attr_record['type'] == 0xffffffff:
                     break
 
-                if attr_record['type'] == 0x10: 
+                if attr_record['type'] == 0x10:  # Standard Information
                     self.record['si'] = attr_parser.parse_standard_information()
-
-                elif attr_record['type'] == 0x30: 
+                elif attr_record['type'] == 0x30:  # File Name
                     fn_record = attr_parser.parse_file_name(self.record)
                     self.record['fn', self.record['fncnt']] = fn_record
                     self.record['fncnt'] += 1
 
                 if attr_record['len'] > 0:
                     self.read_ptr += attr_record['len']
-                    
                 else:
                     break
 
+        except ValueError as e:
+            print(f"ValueError while parsing record: {e}")
         except struct.error as e:
             print(f"StructError while parsing record: {e}")
-            return None
-
         except Exception as e:
-            print(f"Unexpected error while parsing record: {e}")
-            return None
+            print(f"Unexpected error: {e}")
 
         return self.record

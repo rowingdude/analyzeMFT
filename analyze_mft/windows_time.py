@@ -28,7 +28,7 @@ class WindowsTime:
         except Exception as e:
             self.dtstr = f"Invalid timestamp: {e}"
             self.unixtime = 0
-
+# Need to improve these functions.
     def get_unix_time(self):
         t = float(self.high) * 2**32 + self.low
         return (t * 1e-7 - 11644473600)

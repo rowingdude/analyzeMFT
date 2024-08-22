@@ -1,24 +1,30 @@
-import struct
-import datetime
-import os
-import csv
+# Standard library imports
 import binascii
-import sys
-import logging
-import json
 import concurrent.futures
-
-from.constants import *
-from threading import Lock
+import csv
+import json
+import logging
+import os
+import struct
+import sys
 from datetime import datetime, timezone
-from optparse import OptionParser
-from .windows_time import *
+from optparse import OptionParser, OptionGroup
+from threading import Lock
 
-from .mft_record     import MFTRecord
+# Local imports
+from .constants import *
+from .windows_time import WindowsTime
+from .mft_record import MFTRecord
 from .thread_manager import ThreadManager
-from .logger         import Logger
-from .json_writer    import JSONWriter
+from .logger import Logger
+from .json_writer import JSONWriter
 from .attribute_parser import AttributeParser
 
-
-from optparse import OptionParser, OptionGroup
+# Define __all__ to explicitly state what should be imported when using "from common_imports import *"
+__all__ = [
+    'binascii', 'concurrent', 'csv', 'json', 'logging', 'os', 'struct', 'sys',
+    'datetime', 'timezone', 'OptionParser', 'OptionGroup', 'Lock',
+    'WindowsTime', 'MFTRecord', 'ThreadManager', 'Logger', 'JSONWriter', 'AttributeParser',
+    
+    'VERSION'
+]

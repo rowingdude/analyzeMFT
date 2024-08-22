@@ -1,6 +1,7 @@
 from .mft_record import MFTRecord
 from .logger import Logger
 from .json_writer import JSONWriter
+from .thread_manager   import ThreadManager
 import concurrent.futures
 
 
@@ -62,7 +63,7 @@ class MFTParser:
         try:
             mft_record = MFTRecord(raw_record, self.options, self.logger)
             record = mft_record.parse()
-            
+
             if raw_record is None:
                 self.logger.error("Received None as raw_record")
                 return None

@@ -1,7 +1,6 @@
 import sys 
 try:
 
-    from analyze_mft.common_imports   import *
     from analyze_mft.mft_parser       import MFTParser
     from analyze_mft.file_handler     import FileHandler
     from analyze_mft.csv_writer       import CSVWriter
@@ -20,7 +19,7 @@ def main():
     options = options_parser.parse_options()
 
     logger = Logger(options)
-    logger.info(f"Starting analyzeMFT-v{VERSION}")
+    logger.info(f"Starting analyzeMFT")
 
     file_handler = FileHandler(options)
     file_handler.open_files()

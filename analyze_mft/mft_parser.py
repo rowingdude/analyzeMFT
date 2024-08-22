@@ -16,6 +16,11 @@ class MFTParser:
         self.json_writer = JSONWriter(options, file_handler)
 
     def parse_mft_file(self):
+        try:
+            windows_time = WindowsTime(timestamp, self.options.localtz)
+        except ValueError as e:
+            self.logger.warning(f"Invalid timestamp encountered: {e}")
+            windows_time = WindowsTime(0, self.options.localtz)
 
         if not self.file_handler or not self.csv_writer:
             print("Error: File handler or CSV writer not properly initialized.")

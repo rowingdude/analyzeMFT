@@ -16,11 +16,20 @@ class MFTParser:
         self.json_writer = JSONWriter(options, file_handler)
 
     def parse_mft_file(self):
+        # Adding additional error checks before we get going
+
         try:
-            windows_time = WindowsTime(timestamp, self.options.localtz)
-        except ValueError as e:
-            self.logger.warning(f"Invalid timestamp encountered: {e}")
-            windows_time = WindowsTime(0, self.options.localtz)
+            mft_record = MFTRecord(raw_record, self.options, self.logger)
+            record = mft_record.parse()
+            if record is not None:
+                self._parse_object_id(record)
+                self._check_usec_zero(record)
+                self.logger.debug(f"Parsed record {record['recordnum']}: filename={record.get('filename', 'N/A')}")
+            return record
+
+        except Exception as e:
+            self.logger.error(f"Error parsing record: {str(e)}")
+            return None
 
         if not self.file_handler or not self.csv_writer:
             print("Error: File handler or CSV writer not properly initialized.")
@@ -79,6 +88,8 @@ class MFTParser:
         if 'si' in record:
             si_times = [record['si']['crtime'], record['si']['mtime'], record['si']['atime'], record['si']['ctime']]
             record['usec-zero'] = all(time.unixtime % 1 == 0 for time in si_times)
+            self.logger.debug(f"Record {record['recordnum']} usec-zero: {record['usec-zero']}")
+            
     def _parse_object_id(self, record):
         if 'objid' in record:
             # Parse object ID data

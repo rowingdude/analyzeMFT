@@ -12,6 +12,8 @@ class AttributeParser:
 
         self.raw_data = raw_data
         self.options = options
+        self.logger = logger
+
 
     def parse(self):
 
@@ -93,6 +95,7 @@ class AttributeParser:
         d['quota'] = struct.unpack("<Q", s[56:64])[0]
         d['usn'] = struct.unpack("<Q", s[64:72])[0]
 
+        self.logger.debug(f"Parsed SI timestamps: crtime={d['crtime']}, mtime={d['mtime']}, atime={d['atime']}, ctime={d['ctime']}")
         return d
 
     def parse_file_name(self, record):
@@ -109,7 +112,7 @@ class AttributeParser:
         except ValueError as e:
             self.logger.warning(f"Invalid timestamp encountered: {e}")
             windows_time = WindowsTime(0, self.options.localtz)  
-            
+
         d = {}
         d['par_ref'] = struct.unpack("<Q", s[:8])[0]
         d['crtime'] = WindowsTime(struct.unpack("<Q", s[:8])[0], self.options.localtz)
@@ -127,4 +130,6 @@ class AttributeParser:
             raise ValueError("Insufficient data for filename")
         d['name'] = s[66:66+bytes_left].decode('utf-16-le')
 
+        self.logger.debug(f"Parsed FN timestamps: crtime={d['crtime']}, mtime={d['mtime']}, atime={d['atime']}, ctime={d['ctime']}")
+        
         return d

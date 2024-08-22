@@ -1,39 +1,43 @@
-from .common_imports import *
+import logging
+from .constants import VERSION
 
 class Logger:
     def __init__(self, options):
         self.options = options
-        self.setup_logging()
+        self.logger = self.setup_logging()
 
     def setup_logging(self):
         log_level = logging.DEBUG if self.options.debug else logging.INFO
-        logging.basicConfig(level=log_level,
-                            format='%(asctime)s - %(levelname)s - %(message)s',
-                            filename='analyzeMFT.log' if self.options.debug else None)
+        logger = logging.getLogger('analyzeMFT')
+        logger.setLevel(log_level)
+
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+        if self.options.debug:
+            file_handler = logging.FileHandler('analyzeMFT_debug.log')
+            file_handler.setLevel(logging.DEBUG)
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+
         if self.options.verbose:
-            console = logging.StreamHandler()
-            console.setLevel(logging.INFO)
-            formatter = logging.Formatter('%(levelname)s - %(message)s')
-            console.setFormatter(formatter)
-            logging.getLogger('').addHandler(console)
+            console_handler = logging.StreamHandler()
+            console_handler.setLevel(logging.INFO)
+            console_handler.setFormatter(formatter)
+            logger.addHandler(console_handler)
 
-    @staticmethod
-    def info(message):
-        logging.info(message)
+        return logger
 
-    @staticmethod
-    def debug(message):
-        logging.debug(message)
+    def debug(self, message):
+        self.logger.debug(message)
 
-    @staticmethod
-    def warning(message):
-        logging.warning(message)
+    def info(self, message):
+        self.logger.info(message)
 
-    @staticmethod
-    def error(message):
-        logging.error(message)
-    
-    @staticmethod
-    def verbose(message):
-        if logging.getLogger('').isEnabledFor(logging.INFO):
-            print(message)
+    def warning(self, message):
+        self.logger.warning(message)
+
+    def error(self, message):
+        self.logger.error(message)
+
+    def critical(self, message):
+        self.logger.critical(message)

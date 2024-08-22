@@ -29,20 +29,20 @@ def main():
     csv_writer = CSVWriter(options, file_handler)
 
     with ThreadManager(options.thread_count) as thread_manager:
-
-        logger.verbose("Initializaing the MFT parsing object...")
+        
+        logger.info("Initializing the MFT parsing object...")
         mft_parser = MFTParser(options, file_handler, csv_writer)
         
-        logger.verbose("Running the MFT parser...")
+        logger.info("Running the MFT parser...")
         mft_parser.parse_mft_file()
         
-        logger.verbose("Generating file paths...")
+        logger.info("Generating file paths...")
         mft_parser.generate_filepaths()
         
-        logger.verbose("Writing records...")
+        logger.info("Writing records...")
         mft_parser.print_records()
 
-    logger.verbose("analyzeMFT completed successfully.")
+    logger.info("analyzeMFT completed successfully.")
 
 if __name__ == "__main__":
     main()

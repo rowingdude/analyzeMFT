@@ -16,6 +16,7 @@ class WindowsTime:
         self.dtstr = "Not defined"
         self.unixtime = 0
         self._parse_time()
+        self.logger = logging.getLogger('analyzeMFT')
 
     def _validate_inputs(self):
         if self.low is not None and (not isinstance(self.low, int) or not isinstance(self.high, int)):
@@ -28,6 +29,7 @@ class WindowsTime:
     def _parse_time(self):
         if self.timestamp == 0:
             self.dtstr = "Never"
+            self.logger.debug(f"Zero timestamp encountered")
             return
 
         try:
@@ -37,10 +39,12 @@ class WindowsTime:
 
             self.dt = self._create_datetime()
             self.dtstr = self.dt.isoformat()
+            self.logger.debug(f"Parsed Windows time: {self.dtstr}")
 
         except (ValueError, OverflowError) as e:
             self.dtstr = f"Invalid timestamp: {e}"
             self.unixtime = 0
+            self.logger.warning(f"Invalid timestamp encountered: {e}")
 
     def _calculate_unixtime(self):
         if self.low is not None and self.high is not None:

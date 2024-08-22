@@ -157,12 +157,120 @@ class CSVWriter:
         return csv_record
 
     def _prepare_bodyfile_record(self, record):
-        # Implement the logic from the original mft_to_body function
-        return f"Placeholder for bodyfile record: {record['recordnum']}"
+        bodyfile_parts = []
+
+        # MD5 (we don't have this information, so we'll use a placeholder)
+        bodyfile_parts.append('0')
+
+        # Full path
+        if self.options.bodyfull:
+            full_path = record.get('filename', '')
+        else:
+            full_path = os.path.basename(record.get('filename', ''))
+        bodyfile_parts.append(full_path)
+
+        # Inode number
+        bodyfile_parts.append(str(record['recordnum']))
+
+        # Mode (we don't have exact permissions, so we'll use a placeholder)
+        bodyfile_parts.append('0')
+
+        # UID (we don't have this information)
+        bodyfile_parts.append('0')
+
+        # GID (we don't have this information)
+        bodyfile_parts.append('0')
+
+        # Size
+        size = '0'
+        if 'fn' in record and record['fncnt'] > 0:
+            size = str(record['fn', 0].get('real_fsize', '0'))
+        bodyfile_parts.append(size)
+
+        # Timestamps
+        timestamp_source = 'si' if self.options.bodystd else 'fn'
+        
+        if timestamp_source in record:
+            atime = int(record[timestamp_source]['atime'].unixtime)
+            mtime = int(record[timestamp_source]['mtime'].unixtime)
+            ctime = int(record[timestamp_source]['ctime'].unixtime)
+            crtime = int(record[timestamp_source]['crtime'].unixtime)
+        else:
+            atime = mtime = ctime = crtime = 0
+
+        bodyfile_parts.extend([str(atime), str(mtime), str(ctime), str(crtime)])
+
+        # Filename (for AFF4 support)
+        bodyfile_parts.append(os.path.basename(full_path))
+
+        return '|'.join(bodyfile_parts)
 
     def _prepare_l2t_record(self, record):
-        # Implement the logic from the original mft_to_l2t function
-        return f"Placeholder for l2t record: {record['recordnum']}"
+        l2t_record = []
+
+        # Date format: MM/DD/YYYY HH:MM:SS
+        date_format = "%m/%d/%Y %H:%M:%S"
+
+        # Add timestamps (if available)
+        if 'si' in record:
+            l2t_record.extend([
+                record['si']['crtime'].dt.strftime(date_format),
+                record['si']['mtime'].dt.strftime(date_format),
+                record['si']['atime'].dt.strftime(date_format),
+                record['si']['ctime'].dt.strftime(date_format)
+            ])
+        else:
+            l2t_record.extend(['', '', '', ''])
+
+        # Add timezone
+        l2t_record.append(self.options.localtz and 'LOCAL' or 'UTC')
+
+        # Add MACB (Modified, Accessed, Created, Birth)
+        l2t_record.append('MACB')
+
+        # Add source
+        l2t_record.append('FILE')
+
+        # Add source_type
+        l2t_record.append('MFT')
+
+        # Add type
+        l2t_record.append(self._decode_mft_recordtype(record))
+
+        # Add user
+        l2t_record.append('')  # We don't have user information in MFT records
+
+        # Add host
+        l2t_record.append('')  # We don't have host information in MFT records
+
+        # Add short description (filename)
+        l2t_record.append(record.get('filename', ''))
+
+        # Add description (full path)
+        l2t_record.append(record.get('filename', ''))
+
+        # Add version
+        l2t_record.append('')  # We don't have version information in MFT records
+
+        # Add filename
+        l2t_record.append(record.get('filename', ''))
+
+        # Add inode
+        l2t_record.append(str(record['recordnum']))
+
+        # Add notes
+        l2t_record.append(record.get('notes', ''))
+
+        # Add format
+        l2t_record.append('MFT')
+
+        # Add extra
+        extra = f"Seq: {record['seq']}"
+        if 'fncnt' in record:
+            extra += f", FN_count: {record['fncnt']}"
+        l2t_record.append(extra)
+
+        return '|'.join(l2t_record)
 
     def _decode_mft_magic(self, record):
         if record['magic'] == 0x454c4946:

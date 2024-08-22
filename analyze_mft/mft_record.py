@@ -53,7 +53,13 @@ class MFTRecord:
 
         if len(self.raw_record) < 48:  
             raise ValueError(f"Invalid MFT record size: Expected at least 48 bytes, got {len(self.raw_record)}")
-
+            
+        try:
+            windows_time = WindowsTime(timestamp, self.options.localtz)
+        except ValueError as e:
+            self.logger.warning(f"Invalid timestamp encountered: {e}")
+            windows_time = WindowsTime(0, self.options.localtz)  
+            
         try:
             self.decode_mft_header()
 

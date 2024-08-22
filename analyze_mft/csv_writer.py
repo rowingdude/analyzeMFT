@@ -1,6 +1,6 @@
-from .common_imports import *
-from .thread_manager import ThreadManager
-
+import csv
+import os
+from .windows_time import WindowsTime
 
 class CSVWriter:
     def __init__(self, options, file_handler):
@@ -12,7 +12,6 @@ class CSVWriter:
         
         self.options = options
         self.file_handler = file_handler
-        self.thread_manager = ThreadManager(options.thread_count)
         
         if file_handler.file_csv:
         

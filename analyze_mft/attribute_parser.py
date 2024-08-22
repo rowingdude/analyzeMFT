@@ -1,4 +1,5 @@
-from .common_imports import *
+import struct
+from .windows_time import WindowsTime
 
 
 class AttributeParser:

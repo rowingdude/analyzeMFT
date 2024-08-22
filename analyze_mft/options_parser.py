@@ -1,5 +1,6 @@
-from .common_imports import *
-
+from optparse import OptionParser, OptionGroup
+import os
+from .constants import VERSION
 
 class OptionsParser:
     def __init__(self):

@@ -1,4 +1,7 @@
-from .common_imports import *
+from .mft_record import MFTRecord
+from .logger import Logger
+from .json_writer import JSONWriter
+import concurrent.futures
 
 
 class MFTParser:
@@ -57,7 +60,9 @@ class MFTParser:
     def _parse_single_record(self, raw_record):
 
         try:
-
+            mft_record = MFTRecord(raw_record, self.options, self.logger)
+            record = mft_record.parse()
+            
             if raw_record is None:
                 self.logger.error("Received None as raw_record")
                 return None

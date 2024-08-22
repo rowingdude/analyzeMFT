@@ -1,5 +1,4 @@
-from .common_imports import *
-
+import json
 class JSONWriter:
     def __init__(self, options, file_handler):
         self.options = options

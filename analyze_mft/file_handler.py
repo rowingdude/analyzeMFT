@@ -1,4 +1,4 @@
-from .common_imports import *
+import sys
 
 class FileHandler:
     def __init__(self, options):

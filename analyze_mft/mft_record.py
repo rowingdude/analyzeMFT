@@ -1,5 +1,6 @@
-from .common_imports import *
-
+import struct
+from .attribute_parser import AttributeParser
+from .windows_time import WindowsTime
 
 class MFTRecord:
     def __init__(self, raw_record, options):
@@ -67,7 +68,7 @@ class MFTRecord:
                 if self.read_ptr + 8 > len(self.raw_record): 
                     break
 
-                attr_parser = AttributeParser(self.raw_record[self.read_ptr:], self.options)
+                attr_parser = AttributeParser(self.raw_record[self.read_ptr:], self.options, self.logger)
                 attr_record = attr_parser.parse()
                 
                 if attr_record['type'] == 0xffffffff:
@@ -91,12 +92,8 @@ class MFTRecord:
                 else:
                     break
 
-        except struct.error as e:
-            print(f"StructError while parsing record: {e}")
-            return None
-
         except Exception as e:
-            print(f"Unexpected error while parsing record: {e}")
+            self.logger.error(f"Unexpected error while parsing record: {e}")
             return None
 
         return self.record

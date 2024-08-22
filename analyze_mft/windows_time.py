@@ -1,4 +1,4 @@
-from .common_imports import *
+from datetime import datetime, timezone
 
 class WindowsTime:
     def __init__(self, *args):

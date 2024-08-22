@@ -1,5 +1,5 @@
 import logging
-from .constants import VERSION
+from .constants import *
 
 class Logger:
     def __init__(self, options):

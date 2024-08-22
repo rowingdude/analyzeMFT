@@ -1,5 +1,5 @@
 from .common_imports import *
-from .attribute_parser import AttributeParser
+
 
 class MFTRecord:
     def __init__(self, raw_record, options):
@@ -53,7 +53,7 @@ class MFTRecord:
 
         if len(self.raw_record) < 48:  
             raise ValueError(f"Invalid MFT record size: Expected at least 48 bytes, got {len(self.raw_record)}")
-            
+
         try:
             windows_time = WindowsTime(timestamp, self.options.localtz)
         except ValueError as e:

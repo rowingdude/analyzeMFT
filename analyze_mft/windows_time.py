@@ -1,5 +1,4 @@
 from .common_imports import *
-from datetime import datetime, timezone
 
 class WindowsTime:
     def __init__(self, *args):
@@ -69,3 +68,5 @@ class WindowsTime:
 
     def __repr__(self):
         return f"WindowsTime(timestamp={self.timestamp}, localtz={self.localtz}, dtstr='{self.dtstr}')"
+
+    __all__ = ['WindowsTime']

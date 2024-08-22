@@ -1,5 +1,5 @@
 from .common_imports import *
-from .windows_time import WindowsTime
+
 
 class AttributeParser:
     def __init__(self, raw_data, options):

@@ -1,8 +1,5 @@
 from .common_imports import *
-from .mft_record     import MFTRecord
-from .thread_manager import ThreadManager
-from .logger         import Logger
-from .json_writer    import JSONWriter
+
 
 class MFTParser:
     def __init__(self, options, file_handler, csv_writer):
@@ -16,26 +13,6 @@ class MFTParser:
         self.json_writer = JSONWriter(options, file_handler)
 
     def parse_mft_file(self):
-        # Adding additional error checks before we get going
-
-        try:
-            mft_record = MFTRecord(raw_record, self.options, self.logger)
-            record = mft_record.parse()
-            if record is not None:
-                self._parse_object_id(record)
-                self._check_usec_zero(record)
-                self.logger.debug(f"Parsed record {record['recordnum']}: filename={record.get('filename', 'N/A')}")
-            return record
-
-        except Exception as e:
-            self.logger.error(f"Error parsing record: {str(e)}")
-            return None
-
-        if not self.file_handler or not self.csv_writer:
-            print("Error: File handler or CSV writer not properly initialized.")
-            sys.exit(1)
-
-        self.num_records = 0
 
         self.logger.info("Starting to parse MFT file...")
 
@@ -46,26 +23,27 @@ class MFTParser:
         self.logger.info(f"Read {len(raw_records)} raw records from MFT file.")
 
         if self.options.thread_count > 1:
-            self.logger.info(f"Using {self.options.thread_count} threads for parsing.")
+            self.logger.verbose(f"Using {self.options.thread_count} threads for parsing.")
             with concurrent.futures.ThreadPoolExecutor(max_workers=self.options.thread_count) as executor:
                 futures = [executor.submit(self._parse_single_record, raw_record) for raw_record in raw_records]
                 for future in concurrent.futures.as_completed(futures):
                     record = future.result()
-                    if record is not None:
+                    if record:
                         self.mft[self.num_records] = record
                         self.num_records += 1
                         if self.num_records % 1000 == 0:
-                            self.logger.info(f"Parsed {self.num_records} records...")
+                            self.logger.verbose(f"Parsed {self.num_records} records...")
         else:
             for raw_record in raw_records:
                 record = self._parse_single_record(raw_record)
-                if record is not None:
+                if record:
                     self.mft[self.num_records] = record
                     self.num_records += 1
                     if self.num_records % 1000 == 0:
-                        self.logger.info(f"Parsed {self.num_records} records...")
+                        self.logger.verbose(f"Parsed {self.num_records} records...")
 
         self.logger.info(f"Finished parsing MFT file. Total records: {self.num_records}")
+
 
 
     def _read_all_records(self):
@@ -77,12 +55,27 @@ class MFTParser:
         return raw_records
 
     def _parse_single_record(self, raw_record):
-        mft_record = MFTRecord(raw_record, self.options)
-        record = mft_record.parse()
-        if record is not None:
-            self._parse_object_id(record)
-            self._check_usec_zero(record)
-        return record
+
+        try:
+
+            if raw_record is None:
+                self.logger.error("Received None as raw_record")
+                return None
+
+            mft_record = MFTRecord(raw_record, self.options)
+            record = mft_record.parse()
+
+            if record is not None:
+                self._parse_object_id(record)
+                self._check_usec_zero(record)
+                self.logger.debug(f"Parsed record {record['recordnum']}: filename={record.get('filename', 'N/A')}")
+                
+            return record
+
+        except Exception as e:
+
+            self.logger.error(f"Error parsing record: {str(e)}")
+            return None
 
     def _check_usec_zero(self, record):
         if 'si' in record:

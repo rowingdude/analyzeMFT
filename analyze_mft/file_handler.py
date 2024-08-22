@@ -57,4 +57,8 @@ class FileHandler:
             sys.exit(1)
 
     def read_mft_record(self):
-        return self.file_mft.read(1024)
+        
+        raw_record = self.file_mft.read(1024) 
+        if not raw_record:
+            return None
+        return raw_record

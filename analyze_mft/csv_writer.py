@@ -117,13 +117,17 @@ class CSVWriter:
 
         # Additional filenames and timestamps (for Filename #2, #3, #4)
         for i in range(1, 4):
-            if record['fncnt'] > i:
+            if record['fncnt'] > 0 and 'si' in record:
                 csv_record.extend([
-                    record['fn', i]['name'],
-                    record['fn', i]['crtime'].dtstr,
-                    record['fn', i]['mtime'].dtstr,
-                    record['fn', i]['atime'].dtstr,
-                    record['fn', i]['ctime'].dtstr
+                    record['filename'],
+                    str(record['si']['crtime']),
+                    str(record['si']['mtime']),
+                    str(record['si']['atime']),
+                    str(record['si']['ctime']),
+                    str(record['fn', 0]['crtime']),
+                    str(record['fn', 0]['mtime']),
+                    str(record['fn', 0]['atime']),
+                    str(record['fn', 0]['ctime'])
                 ])
             else:
                 csv_record.extend(['', '', '', '', ''])
@@ -214,10 +218,10 @@ class CSVWriter:
         # Add timestamps (if available)
         if 'si' in record:
             l2t_record.extend([
-                record['si']['crtime'].dt.strftime(date_format),
-                record['si']['mtime'].dt.strftime(date_format),
-                record['si']['atime'].dt.strftime(date_format),
-                record['si']['ctime'].dt.strftime(date_format)
+                str(record['si']['crtime']),
+                str(record['si']['mtime']),
+                str(record['si']['atime']),
+                str(record['si']['ctime'])
             ])
         else:
             l2t_record.extend(['', '', '', ''])

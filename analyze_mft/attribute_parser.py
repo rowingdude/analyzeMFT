@@ -101,10 +101,10 @@ class AttributeParser:
 
         d = {}
         d['par_ref'] = struct.unpack("<Q", s[:8])[0]
-        d['crtime'] = WindowsTime(struct.unpack("<Q", s[8:16])[0], self.options.localtz)
-        d['mtime'] = WindowsTime(struct.unpack("<Q", s[16:24])[0], self.options.localtz)
-        d['ctime'] = WindowsTime(struct.unpack("<Q", s[24:32])[0], self.options.localtz)
-        d['atime'] = WindowsTime(struct.unpack("<Q", s[32:40])[0], self.options.localtz)
+        d['crtime'] = WindowsTime(struct.unpack("<Q", s[:8])[0], self.options.localtz)
+        d['mtime'] = WindowsTime(struct.unpack("<Q", s[8:16])[0], self.options.localtz)
+        d['ctime'] = WindowsTime(struct.unpack("<Q", s[16:24])[0], self.options.localtz)
+        d['atime'] = WindowsTime(struct.unpack("<Q", s[24:32])[0], self.options.localtz)
         d['alloc_fsize'] = struct.unpack("<Q", s[40:48])[0]
         d['real_fsize'] = struct.unpack("<Q", s[48:56])[0]
         d['flags'] = struct.unpack("<I", s[56:60])[0]

@@ -37,7 +37,7 @@ class MFTParser:
                 futures = [executor.submit(self._parse_single_record, raw_record) for raw_record in raw_records]
                 for future in concurrent.futures.as_completed(futures):
                     record = future.result()
-                    if record:
+                    if record is not None:
                         self.mft[self.num_records] = record
                         self.num_records += 1
                         if self.num_records % 1000 == 0:
@@ -45,7 +45,7 @@ class MFTParser:
         else:
             for raw_record in raw_records:
                 record = self._parse_single_record(raw_record)
-                if record:
+                if record is not None:
                     self.mft[self.num_records] = record
                     self.num_records += 1
                     if self.num_records % 1000 == 0:
@@ -65,8 +65,9 @@ class MFTParser:
     def _parse_single_record(self, raw_record):
         mft_record = MFTRecord(raw_record, self.options)
         record = mft_record.parse()
-        self._parse_object_id(record)
-        self._check_usec_zero(record)
+        if record is not None:
+            self._parse_object_id(record)
+            self._check_usec_zero(record)
         return record
 
     def _check_usec_zero(self, record):

@@ -23,20 +23,17 @@ class AttributeParser:
 
     def decode_attribute_header(self):
         
-        if len(self.raw_data) < 16:  
-        
-            raise ValueError("Insufficient data for decoding attribute header")
-        
-        d = {}
-
-        d['type'] = struct.unpack("<I", self.raw_data[:4])[0]
-        
-        if d['type'] == 0xffffffff:
-            return d
-        
-        if len(self.raw_data) < 24: 
+        if len(self.raw_data) < 24:
+            if len(self.raw_data) < 4:
+                raise ValueError("Insufficient data for parsing attribute")
+            d = {'type': struct.unpack("<I", self.raw_data[:4])[0]}
+            if d['type'] == 0xffffffff:
+                return d
             raise ValueError("Insufficient data for full attribute header")
-        
+    
+        d = {}
+        d['type'] = struct.unpack("<I", self.raw_data[:4])[0]
+            
         d['len'] = struct.unpack("<I", self.raw_data[4:8])[0]
         d['res'] = struct.unpack("B", self.raw_data[8:9])[0]
         d['name_off'] = struct.unpack("<H", self.raw_data[10:12])[0]

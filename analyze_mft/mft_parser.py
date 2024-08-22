@@ -92,7 +92,15 @@ class MFTParser:
                     self.mft[i]['filename'] = 'NoFNRecord'
         self.logger.verbose("Finished generating file paths.")
 
-    def get_folder_path(self, seqnum):
+    def get_folder_path(self, seqnum, visited=None):
+        if visited is None:
+            visited = set()
+        
+        if seqnum in visited:
+            return 'Circular_Reference'
+        
+        visited.add(seqnum)
+        
         if seqnum not in self.mft:
             return 'Orphan'
 
@@ -111,7 +119,7 @@ class MFTParser:
             self.mft[seqnum]['filename'] = 'ORPHAN/' + self.mft[seqnum]['fn', self.mft[seqnum]['fncnt'] - 1]['name']
             return self.mft[seqnum]['filename']
 
-        parentpath = self.get_folder_path(self.mft[seqnum]['fn', 0]['par_ref'])
+        parentpath = self.get_folder_path(self.mft[seqnum]['fn', 0]['par_ref'], visited)
         self.mft[seqnum]['filename'] = parentpath + '/' + self.mft[seqnum]['fn', self.mft[seqnum]['fncnt'] - 1]['name']
 
         return self.mft[seqnum]['filename']

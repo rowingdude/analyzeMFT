@@ -69,13 +69,11 @@ class AttributeParser:
         
         s = self.raw_data[header['soff']:]
 
-        if len(s) < 72: 
+        if len(s) < 72:
             raise ValueError("Insufficient data for parsing standard information")
 
         d = {}
-        
-        s = self.raw_data[self.decode_attribute_header()['soff']:]
-        
+
         d['crtime'] = WindowsTime(struct.unpack("<Q", s[:8])[0], self.options.localtz)
         d['mtime'] = WindowsTime(struct.unpack("<Q", s[8:16])[0], self.options.localtz)
         d['ctime'] = WindowsTime(struct.unpack("<Q", s[16:24])[0], self.options.localtz)
@@ -88,27 +86,21 @@ class AttributeParser:
         d['sec_id'] = struct.unpack("<I", s[52:56])[0]
         d['quota'] = struct.unpack("<Q", s[56:64])[0]
         d['usn'] = struct.unpack("<Q", s[64:72])[0]
-        
+
         return d
 
     def parse_file_name(self, record):
 
         header = self.decode_attribute_header()
-        
         if 'soff' not in header:
             raise ValueError("Invalid attribute header for file name")
         
         s = self.raw_data[header['soff']:]
-
         if len(s) < 66:
             raise ValueError("Insufficient data for parsing file name")
 
         d = {}
-
-        s = self.raw_data[self.decode_attribute_header()['soff']:]
-
-        d['par_ref'] = struct.unpack("<Q", s[:6])[0]
-        d['par_seq'] = struct.unpack("<H", s[6:8])[0]
+        d['par_ref'] = struct.unpack("<Q", s[:8])[0]
         d['crtime'] = WindowsTime(struct.unpack("<Q", s[8:16])[0], self.options.localtz)
         d['mtime'] = WindowsTime(struct.unpack("<Q", s[16:24])[0], self.options.localtz)
         d['ctime'] = WindowsTime(struct.unpack("<Q", s[24:32])[0], self.options.localtz)
@@ -118,10 +110,10 @@ class AttributeParser:
         d['flags'] = struct.unpack("<I", s[56:60])[0]
         d['nlen'] = struct.unpack("B", s[64:65])[0]
         d['nspace'] = struct.unpack("B", s[65:66])[0]
-            
+
         bytes_left = d['nlen']*2
         if len(s) < 66 + bytes_left:
             raise ValueError("Insufficient data for filename")
         d['name'] = s[66:66+bytes_left].decode('utf-16-le')
 
-    return d
+        return d

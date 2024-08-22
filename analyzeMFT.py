@@ -19,17 +19,17 @@ def main():
     options = options_parser.parse_options()
 
     logger = Logger(options)
-    logger.verbose(f"Starting analyzeMFT-v{VERSION}")
+    logger.info(f"Starting analyzeMFT-v{VERSION}")
 
     file_handler = FileHandler(options)
     file_handler.open_files()
     
-    logger.verbose("Opened input and output files successfully.")
+    logger.info("Opened input and output files successfully.")
 
     csv_writer = CSVWriter(options, file_handler)
 
     with ThreadManager(options.thread_count) as thread_manager:
-        
+
         logger.info("Initializing the MFT parsing object...")
         mft_parser = MFTParser(options, file_handler, csv_writer)
         

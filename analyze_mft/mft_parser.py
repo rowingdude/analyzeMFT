@@ -1,4 +1,5 @@
 import concurrent.futures
+import logging
 from collections import deque
 from functools import lru_cache
 from typing import List, Dict, Any, Optional
@@ -17,7 +18,7 @@ class MFTParser:
         self.csv_writer = csv_writer
         self.json_writer = json_writer
         self.thread_manager = thread_manager
-        self.logger = Logger(options)
+        self.logger = logging.getLogger('analyzeMFT')
         self.mft: Dict[int, Dict[str, Any]] = {}
         self.folders: Dict[int, str] = {}
         self.record_queue = deque(maxlen=10000)
@@ -58,7 +59,7 @@ class MFTParser:
 
     def _parse_single_record(self, raw_record: bytes) -> Optional[Dict[str, Any]]:
         try:
-            mft_record = MFTRecord(raw_record, self.options, self.logger)
+            mft_record = MFTRecord(raw_record, self.options)
             record = mft_record.parse()
 
             if record is not None:
@@ -71,6 +72,7 @@ class MFTParser:
         except Exception as e:
             self.logger.error(f"Error parsing record: {str(e)}")
             return None
+
 
     def _process_record_queue(self):
         while self.record_queue:

@@ -1,4 +1,5 @@
 import struct
+import logging
 from .windows_time import WindowsTime
 
 
@@ -13,7 +14,7 @@ class AttributeParser:
 
         self.raw_data = raw_data
         self.options = options
-        self.logger = logger
+        self.logger = logging.getLogger('analyzeMFT')
 
 
     def parse(self):

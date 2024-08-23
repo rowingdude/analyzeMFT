@@ -2,7 +2,9 @@ from datetime import datetime, timezone
 import logging
 
 class WindowsTime:
-    def __init__(self, *args):
+    
+    def __init__(self, *args: Union[Tuple[int, int, int, bool], Tuple[int, bool]]):
+
         self.logger = logging.getLogger('analyzeMFT')
         
         if len(args) == 4:  # low, high, timestamp, localtz
@@ -19,7 +21,13 @@ class WindowsTime:
         self.unixtime = 0
         self._parse_time()
 
-    def _validate_inputs(self):
+    def get_datetime(self) -> datetime:
+        return self.dt
+    
+    def format(self, fmt: str = "%Y-%m-%d %H:%M:%S") -> str:
+        return self.dt.strftime(fmt) if self.dt else self.dtstr
+
+    def _validate_inputs(self) -> None:
         if self.low is not None and (not isinstance(self.low, int) or not isinstance(self.high, int)):
             raise ValueError("Low and high values must be integers")
         if not isinstance(self.timestamp, int):
@@ -27,7 +35,7 @@ class WindowsTime:
         if not isinstance(self.localtz, bool):
             raise ValueError("localtz must be a boolean value")
 
-    def _parse_time(self):
+    def _parse_time(self) -> None:
         if self.timestamp == 0:
             self.dtstr = "Never"
             self.logger.debug("Zero timestamp encountered")
@@ -47,19 +55,19 @@ class WindowsTime:
             self.unixtime = 0
             self.logger.warning(f"Invalid timestamp encountered: {e}")
 
-    def _calculate_unixtime(self):
+    def _calculate_unixtime(self) -> float:
         if self.low is not None and self.high is not None:
             return self.get_unix_time()
         else:
             return (self.timestamp / 10000000) - 11644473600
 
-    def _create_datetime(self):
+    def _create_datetime(self) -> datetime:
         if self.localtz:
             return datetime.fromtimestamp(self.unixtime).astimezone()
         else:
             return datetime.fromtimestamp(self.unixtime, tz=timezone.utc)
 
-    def get_unix_time(self):
+    def get_unix_time(self) -> float:
         if self.low is None or self.high is None:
             raise ValueError("Low and high values are not set")
         t = float(self.high) * 2**32 + self.low

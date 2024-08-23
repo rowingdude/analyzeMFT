@@ -1,10 +1,12 @@
+import logging
 import struct
+from typing import Dict, Any, Optional
 from .attribute_parser import AttributeParser
 from .windows_time import WindowsTime
 
 class MFTRecord:
-    def __init__(self, raw_record, options):
-
+    def __init__(self, raw_record: bytes, options: Dict[str, Any], logger: Optional[logging.Logger] = None):
+    
         if not raw_record:
             raise ValueError("No raw record data provided to MFTRecord")
         if not options:
@@ -12,6 +14,7 @@ class MFTRecord:
 
         self.raw_record = raw_record
         self.options = options
+        self.logger = logger or logging.getLogger('analyzeMFT')
         self.record = {
             'filename': '',
             'notes': '',
@@ -50,7 +53,7 @@ class MFTRecord:
         self.record['f1'] = self.raw_record[42:44]
         self.record['recordnum'] = struct.unpack("<I", self.raw_record[44:48])[0]
 
-    def parse(self):
+    def parse(self) -> Optional[Dict[str, Any]]:
 
         if len(self.raw_record) < 48:  
             raise ValueError(f"Invalid MFT record size: Expected at least 48 bytes, got {len(self.raw_record)}")
@@ -97,3 +100,11 @@ class MFTRecord:
             return None
 
         return self.record
+
+    @property
+    def record_number(self) -> int:
+        return self.record['recordnum']
+
+    @property
+    def filename(self) -> str:
+        return self.record.get('filename', '')

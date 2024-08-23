@@ -15,6 +15,7 @@ class MFTParser:
         self.logger = Logger(options)
         self.thread_manager = ThreadManager(options.thread_count)
         self.json_writer = JSONWriter(options, file_handler)
+        self.num_records = 0
 
     def parse_mft_file(self):
 
@@ -62,13 +63,6 @@ class MFTParser:
 
         try:
             mft_record = MFTRecord(raw_record, self.options, self.logger)
-            record = mft_record.parse()
-
-            if raw_record is None:
-                self.logger.error("Received None as raw_record")
-                return None
-
-            mft_record = MFTRecord(raw_record, self.options)
             record = mft_record.parse()
 
             if record is not None:

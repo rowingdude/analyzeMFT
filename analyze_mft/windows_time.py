@@ -73,6 +73,9 @@ class WindowsTime:
             self.logger.warning("Low and high values are not set")
         t = float(self.high) * 2**32 + self.low
         return (t * 1e-7 - 11644473600)
+    
+    def timestamp(self):
+        return int((self.unixtime + self.SECONDS_TO_UNIX_EPOCH) * self.WINDOWS_TICK)
 
     def __str__(self):
         return self.dtstr

@@ -68,14 +68,15 @@ class AttributeParser:
     def parse_standard_information(self):
 
         header = self.decode_attribute_header()
-
-        if 'soff' not in header:
+        if not header or 'soff' not in header:
             self.logger.warning("Invalid attribute header for standard information")
+            return None
         
         s = self.raw_data[header['soff']:]
 
         if len(s) < 72:
             self.logger.warning("Insufficient data for parsing standard information")
+            return None
 
         d = {}
 

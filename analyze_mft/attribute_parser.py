@@ -93,7 +93,7 @@ class AttributeParser:
         d['quota'] = struct.unpack("<Q", s[56:64])[0]
         d['usn'] = struct.unpack("<Q", s[64:72])[0]
 
-        self.logger.debug(f"Parsed SI timestamps: crtime={d['crtime']}, mtime={d['mtime']}, atime={d['atime']}, ctime={d['ctime']}")
+        self.logger.debug(f"Creation timestamp: {d['crtime'].timestamp()}")
         return d
 
     def parse_file_name(self, record):

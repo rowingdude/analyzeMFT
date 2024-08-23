@@ -65,8 +65,10 @@ class MFTParser:
             if record is not None:
                 self._parse_object_id(record)
                 self._check_usec_zero(record)
+                self._log_parsed_record(record)
                 self.logger.debug(f"Parsed record {record['recordnum']}: filename={record.get('filename', 'N/A')}")
-            
+            else:
+                self.logger.warning("MFTRecord.parse() returned None")
             return record
 
         except Exception as e:

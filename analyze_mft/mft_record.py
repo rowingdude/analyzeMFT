@@ -15,6 +15,7 @@ class MFTRecord:
         self.raw_record = raw_record
         self.options = options
         self.logger = logging.getLogger('analyzeMFT')
+        self.timestamp = WindowsTime.timestamp
         self.record = {
             'filename': '',
             'notes': '',

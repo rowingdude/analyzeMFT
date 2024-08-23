@@ -82,14 +82,36 @@ class MFTParser:
             if self.num_records % 1000 == 0:
                 self.logger.info(f"Parsed {self.num_records} records...")
 
+
     def _parse_object_id(self, record: Dict[str, Any]):
         if 'objid' in record:
-            # Parse object ID data
-            # This is a placeholder. Implement the actual parsing logic
-            record['birth_volume_id'] = ''
-            record['birth_object_id'] = ''
-            record['birth_domain_id'] = ''
+            objid_data = record['objid']
+            
+            if len(objid_data) >= 16:
+                # Parse Object ID
+                object_id = uuid.UUID(bytes_le=objid_data[:16])
+                record['object_id'] = str(object_id)
 
+                if len(objid_data) >= 32:
+                    # Parse Birth Volume ID
+                    birth_volume_id = uuid.UUID(bytes_le=objid_data[16:32])
+                    record['birth_volume_id'] = str(birth_volume_id)
+
+                    if len(objid_data) >= 48:
+                        # Parse Birth Object ID
+                        birth_object_id = uuid.UUID(bytes_le=objid_data[32:48])
+                        record['birth_object_id'] = str(birth_object_id)
+
+                        if len(objid_data) >= 64:
+                            # Parse Birth Domain ID
+                            birth_domain_id = uuid.UUID(bytes_le=objid_data[48:64])
+                            record['birth_domain_id'] = str(birth_domain_id)
+            
+            self.logger.debug(f"Parsed Object ID for record {record['recordnum']}: "
+                              f"Object ID: {record.get('object_id', 'N/A')}, "
+                              f"Birth Volume ID: {record.get('birth_volume_id', 'N/A')}, "
+                              f"Birth Object ID: {record.get('birth_object_id', 'N/A')}, "
+                              f"Birth Domain ID: {record.get('birth_domain_id', 'N/A')}")
     def _check_usec_zero(self, record: Dict[str, Any]):
         if 'si' in record:
             si_times = [record['si']['crtime'], record['si']['mtime'], record['si']['atime'], record['si']['ctime']]

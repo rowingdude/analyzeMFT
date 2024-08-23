@@ -76,12 +76,6 @@ class AttributeParser:
         if len(s) < 72:
             raise ValueError("Insufficient data for parsing standard information")
 
-        try:
-            windows_time = WindowsTime(timestamp, self.options.localtz)
-        except ValueError as e:
-            self.logger.warning(f"Invalid timestamp encountered: {e}")
-            windows_time = WindowsTime(0, self.options.localtz)  
-
         d = {}
 
         d['crtime'] = WindowsTime(struct.unpack("<Q", s[:8])[0], self.options.localtz)

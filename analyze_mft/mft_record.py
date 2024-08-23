@@ -54,23 +54,32 @@ class MFTRecord:
             if self.read_ptr + 8 > len(self.raw_record): 
                 break
 
-            attr_parser = AttributeParser(self.raw_record[self.read_ptr:], self.options)
-            attr_record = attr_parser.parse()
-            
-            if attr_record['type'] == 0xffffffff:
-                break
-
-            if attr_record['type'] == 0x10:  # Standard Information
-                self.record['si'] = attr_parser.parse_standard_information()
+            try:
+                attr_parser = AttributeParser(self.raw_record[self.read_ptr:], self.options)
+                attr_record = attr_parser.parse()
                 
-            elif attr_record['type'] == 0x30:  # File Name
-                fn_record = attr_parser.parse_file_name(self.record)
-                self.record['fn', self.record['fncnt']] = fn_record
-                self.record['fncnt'] += 1
+                if attr_record is None:
+                    self.logger.warning(f"Attribute parsing returned None at offset {self.read_ptr}")
+                    break
 
-            if attr_record['len'] > 0:
-                self.read_ptr += attr_record['len']
-            else:
+                if attr_record['type'] == 0xffffffff:
+                    break
+
+                if attr_record['type'] == 0x10:  # Standard Information
+                    self.record['si'] = attr_parser.parse_standard_information()
+                    
+                elif attr_record['type'] == 0x30:  # File Name
+                    fn_record = attr_parser.parse_file_name()
+                    if fn_record:
+                        self.record[('fn', self.record['fncnt'])] = fn_record
+                        self.record['fncnt'] += 1
+
+                if 'len' in attr_record and attr_record['len'] > 0:
+                    self.read_ptr += attr_record['len']
+                else:
+                    break
+            except Exception as e:
+                self.logger.error(f"Error parsing attribute at offset {self.read_ptr}: {str(e)}")
                 break
             
     def decode_mft_header(self):

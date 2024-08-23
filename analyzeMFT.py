@@ -13,6 +13,7 @@ try:
     from analyze_mft.logger import Logger
     from analyze_mft.thread_manager import ThreadManager
     from analyze_mft.json_writer import JSONWriter
+    
 except ImportError as e:
     print(f"Error: Failed to import required modules. {e}")
     sys.exit(1)

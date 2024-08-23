@@ -1,8 +1,10 @@
-import logging
 from datetime import datetime, timezone
+import logging
 
 class WindowsTime:
     def __init__(self, *args):
+        self.logger = logging.getLogger('analyzeMFT')
+        
         if len(args) == 4:  # low, high, timestamp, localtz
             self.low, self.high, self.timestamp, self.localtz = args
         elif len(args) == 2:  # timestamp, localtz
@@ -16,7 +18,6 @@ class WindowsTime:
         self.dtstr = "Not defined"
         self.unixtime = 0
         self._parse_time()
-        self.logger = logging.getLogger('analyzeMFT')
 
     def _validate_inputs(self):
         if self.low is not None and (not isinstance(self.low, int) or not isinstance(self.high, int)):
@@ -29,7 +30,7 @@ class WindowsTime:
     def _parse_time(self):
         if self.timestamp == 0:
             self.dtstr = "Never"
-            self.logger.debug(f"Zero timestamp encountered")
+            self.logger.debug("Zero timestamp encountered")
             return
 
         try:
@@ -69,5 +70,3 @@ class WindowsTime:
 
     def __repr__(self):
         return f"WindowsTime(timestamp={self.timestamp}, localtz={self.localtz}, dtstr='{self.dtstr}')"
-
-    __all__ = ['WindowsTime']

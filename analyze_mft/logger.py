@@ -1,20 +1,28 @@
 import logging
+from typing import Any, Optional
+from dataclasses import dataclass
+from pathlib import Path
 from .constants import VERSION
 
-class Logger:
-    def __init__(self, options):
-        self.options = options
-        self.logger = self.setup_logging()
+@dataclass
+class LoggerOptions:
+    debug: bool
+    verbose: bool
+    log_file: Optional[Path] = None
 
-    def setup_logging(self):
-        log_level = logging.DEBUG if self.options.debug else logging.INFO
+class Logger:
+    def __init__(self, options: LoggerOptions):
+        self.options = options
+        self.logger = self._setup_logging()
+
+    def _setup_logging(self) -> logging.Logger:
         logger = logging.getLogger('analyzeMFT')
-        logger.setLevel(log_level)
+        logger.setLevel(logging.DEBUG if self.options.debug else logging.INFO)
 
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-        if self.options.debug:
-            file_handler = logging.FileHandler('analyzeMFT_debug.log')
+        if self.options.debug and self.options.log_file:
+            file_handler = logging.FileHandler(self.options.log_file)
             file_handler.setLevel(logging.DEBUG)
             file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)
@@ -27,17 +35,24 @@ class Logger:
 
         return logger
 
-    def debug(self, message):
-        self.logger.debug(message)
+    def _log(self, level: int, message: str, *args: Any, **kwargs: Any) -> None:
+        self.logger.log(level, message, *args, **kwargs)
 
-    def info(self, message):
-        self.logger.info(message)
+    def debug(self, message: str, *args: Any, **kwargs: Any) -> None:
+        self._log(logging.DEBUG, message, *args, **kwargs)
 
-    def warning(self, message):
-        self.logger.warning(message)
+    def info(self, message: str, *args: Any, **kwargs: Any) -> None:
+        self._log(logging.INFO, message, *args, **kwargs)
 
-    def error(self, message):
-        self.logger.error(message)
+    def warning(self, message: str, *args: Any, **kwargs: Any) -> None:
+        self._log(logging.WARNING, message, *args, **kwargs)
 
-    def critical(self, message):
-        self.logger.critical(message)
+    def error(self, message: str, *args: Any, **kwargs: Any) -> None:
+        self._log(logging.ERROR, message, *args, **kwargs)
+
+    def critical(self, message: str, *args: Any, **kwargs: Any) -> None:
+        self._log(logging.CRITICAL, message, *args, **kwargs)
+
+    @classmethod
+    def get_version(cls) -> str:
+        return VERSION

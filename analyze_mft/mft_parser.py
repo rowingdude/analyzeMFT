@@ -1,27 +1,29 @@
+import concurrent.futures
+from collections import deque
+from functools import lru_cache
+from typing import List, Dict, Any, Optional
+
 from .mft_record import MFTRecord
 from .logger import Logger
 from .json_writer import JSONWriter
-from concurrent.futures import ProcessPoolExecutor
-from functools import lru_cache
-import concurrent.futures
-from collections import deque
-
+from .thread_manager import ThreadManager
+from .csv_writer import CSVWriter
+from .file_handler import FileHandler
 
 class MFTParser:
-    def __init__(self, options, file_handler, csv_writer):
+    def __init__(self, options: Dict[str, Any], file_handler: FileHandler, csv_writer: CSVWriter, json_writer: JSONWriter, thread_manager: ThreadManager):
         self.options = options
         self.file_handler = file_handler
         self.csv_writer = csv_writer
-        self.mft = {}
-        self.folders = {}
+        self.json_writer = json_writer
+        self.thread_manager = thread_manager
         self.logger = Logger(options)
-        #self.thread_manager = ThreadManager(options.thread_count) # Moved to ProcessPoolExec instead of using threadmanager.
-        self.json_writer = JSONWriter(options, file_handler)
-        self.num_records = 0
+        self.mft: Dict[int, Dict[str, Any]] = {}
+        self.folders: Dict[int, str] = {}
         self.record_queue = deque(maxlen=10000)
+        self.num_records = 0
 
     def parse_mft_file(self):
-
         self.logger.info("Starting to parse MFT file...")
 
         if self.options.output is not None:
@@ -30,7 +32,20 @@ class MFTParser:
         raw_records = self._read_all_records()
         self.logger.info(f"Read {len(raw_records)} raw records from MFT file.")
 
-        with ProcessPoolExecutor(max_workers=self.options.thread_count) as executor:
+        self._process_records(raw_records)
+
+        self.logger.info(f"Finished parsing MFT file. Total records: {self.num_records}")
+
+    def _read_all_records(self) -> List[bytes]:
+        raw_records = []
+        raw_record = self.file_handler.read_mft_record()
+        while raw_record:
+            raw_records.append(raw_record)
+            raw_record = self.file_handler.read_mft_record()
+        return raw_records
+
+    def _process_records(self, raw_records: List[bytes]):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.options.thread_count) as executor:
             futures = [executor.submit(self._parse_single_record, raw_record) for raw_record in raw_records]
             for future in concurrent.futures.as_completed(futures):
                 record = future.result()
@@ -39,21 +54,9 @@ class MFTParser:
                     if len(self.record_queue) == self.record_queue.maxlen:
                         self._process_record_queue()
 
-        self._process_record_queue()
-        self.logger.info(f"Finished parsing MFT file. Total records: {self.num_records}")
+        self._process_record_queue()  # Process any remaining records
 
-
-
-    def _read_all_records(self):
-        raw_records = []
-        raw_record = self.file_handler.read_mft_record()
-        while raw_record:
-            raw_records.append(raw_record)
-            raw_record = self.file_handler.read_mft_record()
-        return raw_records
-
-    def _parse_single_record(self, raw_record):
-
+    def _parse_single_record(self, raw_record: bytes) -> Optional[Dict[str, Any]]:
         try:
             mft_record = MFTRecord(raw_record, self.options, self.logger)
             record = mft_record.parse()
@@ -62,28 +65,35 @@ class MFTParser:
                 self._parse_object_id(record)
                 self._check_usec_zero(record)
                 self.logger.debug(f"Parsed record {record['recordnum']}: filename={record.get('filename', 'N/A')}")
-                
+            
             return record
 
         except Exception as e:
-
             self.logger.error(f"Error parsing record: {str(e)}")
             return None
 
-    def _check_usec_zero(self, record):
+    def _process_record_queue(self):
+        while self.record_queue:
+            record = self.record_queue.popleft()
+            self.mft[self.num_records] = record
+            self.num_records += 1
+            if self.num_records % 1000 == 0:
+                self.logger.info(f"Parsed {self.num_records} records...")
+
+    def _parse_object_id(self, record: Dict[str, Any]):
+        if 'objid' in record:
+            # Parse object ID data
+            # This is a placeholder. Implement the actual parsing logic
+            record['birth_volume_id'] = ''
+            record['birth_object_id'] = ''
+            record['birth_domain_id'] = ''
+
+    def _check_usec_zero(self, record: Dict[str, Any]):
         if 'si' in record:
             si_times = [record['si']['crtime'], record['si']['mtime'], record['si']['atime'], record['si']['ctime']]
             record['usec-zero'] = all(time.unixtime % 1 == 0 for time in si_times)
             self.logger.debug(f"Record {record['recordnum']} usec-zero: {record['usec-zero']}")
 
-    def _parse_object_id(self, record):
-        if 'objid' in record:
-            # Parse object ID data
-            # This is a placeholder. You'll need to implement the actual parsing logic
-            record['birth_volume_id'] = ''
-            record['birth_object_id'] = ''
-            record['birth_domain_id'] = ''
-    
     def generate_filepaths(self):
         self.logger.info("Generating file paths...")
         for i in self.mft:
@@ -95,7 +105,7 @@ class MFTParser:
         self.logger.info("Finished generating file paths.")
 
     @lru_cache(maxsize=1000)
-    def get_folder_path(self, seqnum: int) -> str:
+    def get_folder_path(self, seqnum: int, visited: Optional[set] = None) -> str:
         if visited is None:
             visited = set()
         
@@ -139,16 +149,7 @@ class MFTParser:
             if self.options.jsonfile is not None:
                 self.json_writer.write_json_record(self.mft[i])
 
-        # This writes the entire file, in the loop, we write (stage) records.
         if self.options.jsonfile is not None:
             self.json_writer.write_json_file()
         
         self.logger.info("Finished writing records to output files.")
-
-    def _process_record_queue(self):
-        while self.record_queue:
-            record = self.record_queue.popleft()
-            self.mft[self.num_records] = record
-            self.num_records += 1
-            if self.num_records % 1000 == 0:
-                self.logger.verbose(f"Parsed {self.num_records} records...")

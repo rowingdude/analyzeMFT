@@ -13,14 +13,16 @@ class OptionsParser:
         
         # Group 1: Output options
         output_group = OptionGroup(self.parser, "Output Options")
-        output_group.add_option("-o", "--output"     , dest="output",
-                                help="Write results to CSV FILE"         , metavar="FILE")
-        output_group.add_option("-b", "--bodyfile"   , dest="bodyfile",
-                                help="Write MAC information to bodyfile" , metavar="FILE")
-        output_group.add_option("-c", "--csvtimefile", dest="csvtimefile",
-                                help="Write CSV format timeline file"    , metavar="FILE")
-        output_group.add_option("-j", "--json", dest="jsonfile",
-                        help="Write results to JSON FILE", metavar="FILE")
+        self.parser.add_argument("-f", "--file", dest="filename", required=True,
+                                 help="Read MFT from FILE", metavar="FILE")
+        self.parser.add_argument("-o", "--output", dest="output",
+                                 help="Write results to CSV FILE", metavar="FILE")
+        self.parser.add_argument("-b", "--bodyfile", dest="bodyfile",
+                                 help="Write MAC information to bodyfile", metavar="FILE")
+        self.parser.add_argument("-c", "--csvtimefile", dest="csvtimefile",
+                                 help="Write CSV format timeline file", metavar="FILE")
+        self.parser.add_argument("-j", "--json", dest="jsonfile",
+                                 help="Write results to JSON FILE", metavar="FILE")
         self.parser.add_option_group(output_group)
 
         #  Group 2: Body file options
@@ -50,8 +52,8 @@ class OptionsParser:
         self.parser.add_option_group(performance_group)
 
     def parse_options(self):
-        options, args = self.parser.parse_args()
-        self._validate_options(options, args)
+        options = self.parser.parse_args()
+        self._validate_options(options)
         return options
 
     def _validate_options(self, options, args):

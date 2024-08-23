@@ -1,8 +1,10 @@
 from .mft_record import MFTRecord
 from .logger import Logger
 from .json_writer import JSONWriter
-from .thread_manager   import ThreadManager
+from concurrent.futures import ProcessPoolExecutor
+from functools import lru_cache
 import concurrent.futures
+from collections import deque
 
 
 class MFTParser:
@@ -13,9 +15,10 @@ class MFTParser:
         self.mft = {}
         self.folders = {}
         self.logger = Logger(options)
-        self.thread_manager = ThreadManager(options.thread_count)
+        #self.thread_manager = ThreadManager(options.thread_count) # Moved to ProcessPoolExec instead of using threadmanager.
         self.json_writer = JSONWriter(options, file_handler)
         self.num_records = 0
+        self.record_queue = deque(maxlen=10000)
 
     def parse_mft_file(self):
 
@@ -27,26 +30,16 @@ class MFTParser:
         raw_records = self._read_all_records()
         self.logger.info(f"Read {len(raw_records)} raw records from MFT file.")
 
-        if self.options.thread_count > 1:
-            self.logger.verbose(f"Using {self.options.thread_count} threads for parsing.")
-            with concurrent.futures.ThreadPoolExecutor(max_workers=self.options.thread_count) as executor:
-                futures = [executor.submit(self._parse_single_record, raw_record) for raw_record in raw_records]
-                for future in concurrent.futures.as_completed(futures):
-                    record = future.result()
-                    if record:
-                        self.mft[self.num_records] = record
-                        self.num_records += 1
-                        if self.num_records % 1000 == 0:
-                            self.logger.verbose(f"Parsed {self.num_records} records...")
-        else:
-            for raw_record in raw_records:
-                record = self._parse_single_record(raw_record)
+        with ProcessPoolExecutor(max_workers=self.options.thread_count) as executor:
+            futures = [executor.submit(self._parse_single_record, raw_record) for raw_record in raw_records]
+            for future in concurrent.futures.as_completed(futures):
+                record = future.result()
                 if record:
-                    self.mft[self.num_records] = record
-                    self.num_records += 1
-                    if self.num_records % 1000 == 0:
-                        self.logger.verbose(f"Parsed {self.num_records} records...")
+                    self.record_queue.append(record)
+                    if len(self.record_queue) == self.record_queue.maxlen:
+                        self._process_record_queue()
 
+        self._process_record_queue()
         self.logger.info(f"Finished parsing MFT file. Total records: {self.num_records}")
 
 
@@ -101,7 +94,8 @@ class MFTParser:
                     self.mft[i]['filename'] = 'NoFNRecord'
         self.logger.info("Finished generating file paths.")
 
-    def get_folder_path(self, seqnum, visited=None):
+    @lru_cache(maxsize=1000)
+    def get_folder_path(self, seqnum: int) -> str:
         if visited is None:
             visited = set()
         
@@ -151,3 +145,10 @@ class MFTParser:
         
         self.logger.info("Finished writing records to output files.")
 
+    def _process_record_queue(self):
+        while self.record_queue:
+            record = self.record_queue.popleft()
+            self.mft[self.num_records] = record
+            self.num_records += 1
+            if self.num_records % 1000 == 0:
+                self.logger.verbose(f"Parsed {self.num_records} records...")

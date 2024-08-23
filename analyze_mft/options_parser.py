@@ -1,92 +1,103 @@
-from optparse import OptionParser, OptionGroup
+import argparse
 import os
+from functools import wraps
 from .constants import VERSION
+
+def log_call(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        print(f"Calling {func.__name__}")
+        result = func(*args, **kwargs)
+        print(f"Finished {func.__name__}")
+        return result
+    return wrapper
 
 class OptionsParser:
     def __init__(self):
-        self.parser = OptionParser(usage="usage: %prog [options] filename")
+        self.parser = argparse.ArgumentParser(description="Analyze MFT files")
         self._set_options()
 
+    @log_call
     def _set_options(self):
-        self.parser.add_option("-f", "--file", dest="filename",
-                               help="Read MFT from FILE", metavar="FILE")
-        
-        # Group 1: Output options
-        output_group = OptionGroup(self.parser, "Output Options")
+        self._add_main_options()
+        self._add_output_options()
+        self._add_body_file_options()
+        self._add_misc_options()
+        self._add_performance_options()
+
+    def _add_main_options(self):
         self.parser.add_argument("-f", "--file", dest="filename", required=True,
                                  help="Read MFT from FILE", metavar="FILE")
-        self.parser.add_argument("-o", "--output", dest="output",
-                                 help="Write results to CSV FILE", metavar="FILE")
-        self.parser.add_argument("-b", "--bodyfile", dest="bodyfile",
-                                 help="Write MAC information to bodyfile", metavar="FILE")
-        self.parser.add_argument("-c", "--csvtimefile", dest="csvtimefile",
-                                 help="Write CSV format timeline file", metavar="FILE")
-        self.parser.add_argument("-j", "--json", dest="jsonfile",
-                                 help="Write results to JSON FILE", metavar="FILE")
-        self.parser.add_option_group(output_group)
 
-        #  Group 2: Body file options
-        body_group = OptionGroup(self.parser, "Body File Options")
-        body_group.add_option("--bodystd" , action="store_true", dest="bodystd",
-                              help="Use STD_INFO timestamps for body file rather than FN timestamps")
-        body_group.add_option("--bodyfull", action="store_true", dest="bodyfull",
-                              help="Use full path name + filename rather than just filename")
-        self.parser.add_option_group(body_group)
+    def _add_output_options(self):
+        group = self.parser.add_argument_group('Output Options')
+        group.add_argument("-o", "--output", dest="output",
+                           help="Write results to CSV FILE", metavar="FILE")
+        group.add_argument("-b", "--bodyfile", dest="bodyfile",
+                           help="Write MAC information to bodyfile", metavar="FILE")
+        group.add_argument("-c", "--csvtimefile", dest="csvtimefile",
+                           help="Write CSV format timeline file", metavar="FILE")
+        group.add_argument("-j", "--json", dest="jsonfile",
+                           help="Write results to JSON FILE", metavar="FILE")
 
-        #  Group 3: Misc options
-        self.parser.add_option("-a", "--anomaly", action="store_true"  , dest="anomaly",
-                               help="Turn on anomaly detection")
-        self.parser.add_option("-l", "--localtz", action="store_true"  , dest="localtz",
-                               help="Report times using local timezone")
-        self.parser.add_option("-d", "--debug"  , action="store_true"  , dest="debug",
-                               help="Turn on debugging output")
-        self.parser.add_option("-v", "--version", action="store_true"  , dest="version",
-                               help="Report version and exit")
-        self.parser.add_option("-V", "--verbose", action="store_true"  , dest="verbose",
+    def _add_body_file_options(self):
+        group = self.parser.add_argument_group('Body File Options')
+        group.add_argument("--bodystd", action="store_true", dest="bodystd",
+                           help="Use STD_INFO timestamps for body file rather than FN timestamps")
+        group.add_argument("--bodyfull", action="store_true", dest="bodyfull",
+                           help="Use full path name + filename rather than just filename")
+
+    def _add_misc_options(self):
+        group = self.parser.add_argument_group('Miscellaneous Options')
+        group.add_argument("-a", "--anomaly", action="store_true", dest="anomaly",
+                           help="Turn on anomaly detection")
+        group.add_argument("-l", "--localtz", action="store_true", dest="localtz",
+                           help="Report times using local timezone")
+        group.add_argument("-d", "--debug", action="store_true", dest="debug",
+                           help="Turn on debugging output")
+        group.add_argument("-v", "--version", action="store_true", dest="version",
+                           help="Report version and exit")
+        group.add_argument("-V", "--verbose", action="store_true", dest="verbose",
                            help="Enable verbose output")
 
-        #  Group 4: Performance options
-        performance_group = OptionGroup(self.parser, "Performance Options")
-        performance_group.add_option("--threads", type="int", dest="thread_count", default=1,
-                                     help="Number of threads to use for parsing (default: 1)")
-        self.parser.add_option_group(performance_group)
+    def _add_performance_options(self):
+        group = self.parser.add_argument_group('Performance Options')
+        group.add_argument("--threads", type=int, dest="thread_count", default=1,
+                           help="Number of threads to use for parsing (default: 1)")
 
+    @log_call
     def parse_options(self):
         options = self.parser.parse_args()
         self._validate_options(options)
         return options
 
-    def _validate_options(self, options, args):
+    @log_call
+    def _validate_options(self, options):
+        self._check_version(options)
+        self._check_file_exists(options)
+        self._check_output_options(options)
+        self._check_body_file_options(options)
+        self._check_thread_count(options)
+        return options
+
+    def _check_version(self, options):
         if options.version:
             print(f"Version is: {VERSION}")
-            sys.exit(0)
+            exit(0)
 
-        if not args and not options.filename:
-            self.parser.error("A filename is required.")
-
-        if not options.filename:
-            options.filename = args[0]
-
+    def _check_file_exists(self, options):
         if not os.path.exists(options.filename):
             self.parser.error(f"The specified file does not exist: {options.filename}")
 
+    def _check_output_options(self, options):
         output_options = [options.output, options.bodyfile, options.csvtimefile, options.jsonfile]
         if not any(output_options):
             self.parser.error("At least one output option (-o, -b, -j, or -c) is required.")
 
-        if options.bodystd or options.bodyfull:
-            if not options.bodyfile:
-                self.parser.error("--bodystd and --bodyfull options require -b/--bodyfile option.")
+    def _check_body_file_options(self, options):
+        if (options.bodystd or options.bodyfull) and not options.bodyfile:
+            self.parser.error("--bodystd and --bodyfull options require -b/--bodyfile option.")
 
+    def _check_thread_count(self, options):
         if options.thread_count < 1:
             self.parser.error("Thread count must be at least 1")
-
-        if options.thread_count > os.cpu_count():
-            print(f"Warning: Specified thread count ({options.thread_count}) exceeds available CPU cores ({os.cpu_count()})")
-
-        for output_file in [options.output, options.bodyfile, options.csvtimefile, options.jsonfile]:
-            if output_file and os.path.exists(output_file):
-                print(f"Warning: Output file already exists and will be overwritten: {output_file}")
-
-
-        return options

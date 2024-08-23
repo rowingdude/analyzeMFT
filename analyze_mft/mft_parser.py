@@ -112,11 +112,13 @@ class MFTParser:
                               f"Birth Volume ID: {record.get('birth_volume_id', 'N/A')}, "
                               f"Birth Object ID: {record.get('birth_object_id', 'N/A')}, "
                               f"Birth Domain ID: {record.get('birth_domain_id', 'N/A')}")
+
     def _check_usec_zero(self, record: Dict[str, Any]):
         if 'si' in record:
             si_times = [record['si']['crtime'], record['si']['mtime'], record['si']['atime'], record['si']['ctime']]
-            record['usec-zero'] = all(time.unixtime % 1 == 0 for time in si_times)
+            record['usec-zero'] = all(isinstance(time, WindowsTime) and time.unixtime % 1 == 0 for time in si_times)
             self.logger.debug(f"Record {record['recordnum']} usec-zero: {record['usec-zero']}")
+
 
     def generate_filepaths(self):
         self.logger.info("Generating file paths...")
@@ -177,3 +179,13 @@ class MFTParser:
             self.json_writer.write_json_file()
         
         self.logger.info("Finished writing records to output files.")
+
+    def _log_parsed_record(self, record: Dict[str, Any]):
+        self.logger.debug(f"Parsed record {record['recordnum']}:")
+        self.logger.debug(f"Filename: {record.get('filename', 'N/A')}")
+        if 'si' in record:
+            self.logger.debug("Standard Information timestamps:")
+            self.logger.debug(f"  Creation time: {record['si']['crtime']}")
+            self.logger.debug(f"  Modification time: {record['si']['mtime']}")
+            self.logger.debug(f"  Access time: {record['si']['atime']}")
+            self.logger.debug(f"  Entry modification time: {record['si']['ctime']}")

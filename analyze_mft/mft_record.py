@@ -8,9 +8,9 @@ class MFTRecord:
     def __init__(self, raw_record: bytes, options: Dict[str, Any], logger: Optional[logging.Logger] = None):
     
         if not raw_record:
-            raise ValueError("No raw record data provided to MFTRecord")
+            self.logger.warning("No raw record data provided to MFTRecord")
         if not options:
-            raise ValueError("No options provided to MFTRecord")
+            self.logger.warning("No options provided to MFTRecord")
 
         self.raw_record = raw_record
         self.options = options
@@ -35,23 +35,6 @@ class MFTRecord:
             'usec-zero': False
         }
         self.read_ptr = 0
-
-    def decode_mft_header(self):
-        self.record['magic'] = struct.unpack("<I", self.raw_record[:4])[0]
-        self.record['upd_off'] = struct.unpack("<H", self.raw_record[4:6])[0]
-        self.record['upd_cnt'] = struct.unpack("<H", self.raw_record[6:8])[0]
-        self.record['lsn'] = struct.unpack("<d", self.raw_record[8:16])[0]
-        self.record['seq'] = struct.unpack("<H", self.raw_record[16:18])[0]
-        self.record['link'] = struct.unpack("<H", self.raw_record[18:20])[0]
-        self.record['attr_off'] = struct.unpack("<H", self.raw_record[20:22])[0]
-        self.record['flags'] = struct.unpack("<H", self.raw_record[22:24])[0]
-        self.record['size'] = struct.unpack("<I", self.raw_record[24:28])[0]
-        self.record['alloc_sizef'] = struct.unpack("<I", self.raw_record[28:32])[0]
-        self.record['base_ref'] = struct.unpack("<Lxx", self.raw_record[32:38])[0]
-        self.record['base_seq'] = struct.unpack("<H", self.raw_record[38:40])[0]
-        self.record['next_attrid'] = struct.unpack("<H", self.raw_record[40:42])[0]
-        self.record['f1'] = self.raw_record[42:44]
-        self.record['recordnum'] = struct.unpack("<I", self.raw_record[44:48])[0]
 
     def parse(self):
         try:
@@ -88,6 +71,26 @@ class MFTRecord:
                 self.read_ptr += attr_record['len']
             else:
                 break
+            
+    def decode_mft_header(self):
+        self.record['magic'] = struct.unpack("<I", self.raw_record[:4])[0]
+        self.record['upd_off'] = struct.unpack("<H", self.raw_record[4:6])[0]
+        self.record['upd_cnt'] = struct.unpack("<H", self.raw_record[6:8])[0]
+        self.record['lsn'] = struct.unpack("<d", self.raw_record[8:16])[0]
+        self.record['seq'] = struct.unpack("<H", self.raw_record[16:18])[0]
+        self.record['link'] = struct.unpack("<H", self.raw_record[18:20])[0]
+        self.record['attr_off'] = struct.unpack("<H", self.raw_record[20:22])[0]
+        self.record['flags'] = struct.unpack("<H", self.raw_record[22:24])[0]
+        self.record['size'] = struct.unpack("<I", self.raw_record[24:28])[0]
+        self.record['alloc_sizef'] = struct.unpack("<I", self.raw_record[28:32])[0]
+        self.record['base_ref'] = struct.unpack("<Lxx", self.raw_record[32:38])[0]
+        self.record['base_seq'] = struct.unpack("<H", self.raw_record[38:40])[0]
+        self.record['next_attrid'] = struct.unpack("<H", self.raw_record[40:42])[0]
+        self.record['f1'] = self.raw_record[42:44]
+        self.record['recordnum'] = struct.unpack("<I", self.raw_record[44:48])[0]
+
+
+
 
     @property
     def record_number(self) -> int:

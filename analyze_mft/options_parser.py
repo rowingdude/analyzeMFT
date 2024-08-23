@@ -52,7 +52,7 @@ class OptionsParser:
         group.add_argument("-a", "--anomaly", action="store_true", dest="anomaly",
                            help="Turn on anomaly detection")
         group.add_argument("-l", "--localtz", action="store_true", dest="localtz",
-                           help="Report times using local timezone")
+                           help="Report times using local timezone",default=True)
         group.add_argument("-d", "--debug", action="store_true", dest="debug",
                            help="Turn on debugging output")
         group.add_argument("-v", "--version", action="store_true", dest="version",

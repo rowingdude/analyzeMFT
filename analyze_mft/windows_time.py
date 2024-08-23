@@ -14,7 +14,7 @@ class WindowsTime:
             self.timestamp, self.localtz = args
             self.low = self.high = None
         else:
-            raise ValueError("Invalid number of arguments")
+            self.logger.warning("Invalid number of arguments")
 
         self._validate_inputs()
         self.dt = None
@@ -30,11 +30,11 @@ class WindowsTime:
 
     def _validate_inputs(self) -> None:
         if self.low is not None and (not isinstance(self.low, int) or not isinstance(self.high, int)):
-            raise ValueError("Low and high values must be integers")
+            self.logger.warning("Low and high values must be integers")
         if not isinstance(self.timestamp, int):
-            raise ValueError("Timestamp must be an integer")
+            self.logger.warning("Timestamp must be an integer")
         if not isinstance(self.localtz, bool):
-            raise ValueError("localtz must be a boolean value")
+            self.logger.warning("localtz must be a boolean value")
 
     def _parse_time(self) -> None:
         if self.timestamp == 0:
@@ -45,7 +45,7 @@ class WindowsTime:
         try:
             self.unixtime = self._calculate_unixtime()
             if self.unixtime < 0:
-                raise ValueError("Negative Unix time calculated")
+                self.logger.warning("Negative Unix time calculated")
 
             self.dt = self._create_datetime()
             self.dtstr = self.dt.isoformat()
@@ -70,7 +70,7 @@ class WindowsTime:
 
     def get_unix_time(self) -> float:
         if self.low is None or self.high is None:
-            raise ValueError("Low and high values are not set")
+            self.logger.warning("Low and high values are not set")
         t = float(self.high) * 2**32 + self.low
         return (t * 1e-7 - 11644473600)
 

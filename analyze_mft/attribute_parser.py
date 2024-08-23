@@ -7,10 +7,10 @@ class AttributeParser:
     def __init__(self, raw_data, options):
 
         if not raw_data:
-            raise ValueError("No raw data provided to AttributeParser")
+            self.logger.warning("No raw data provided to AttributeParser")
 
         if not options:
-            raise ValueError("No options provided to AttributeParser")
+            self.logger.warning("No options provided to AttributeParser")
 
         self.raw_data = raw_data
         self.options = options
@@ -21,7 +21,8 @@ class AttributeParser:
 
         if len(self.raw_data) < 4:  
         
-            raise ValueError("Insufficient data for parsing attribute")
+            self.logger.warning("Insufficient data for parsing attribute")
+            return None
         
         return self.decode_attribute_header()
 
@@ -29,11 +30,11 @@ class AttributeParser:
         
         if len(self.raw_data) < 24:
             if len(self.raw_data) < 4:
-                raise ValueError("Insufficient data for parsing attribute")
+                self.logger.warning("Insufficient data for parsing attribute")
             d = {'type': struct.unpack("<I", self.raw_data[:4])[0]}
             if d['type'] == 0xffffffff:
                 return d
-            raise ValueError("Insufficient data for full attribute header")
+            self.logger.warning("Insufficient data for full attribute header")
     
         d = {}
         d['type'] = struct.unpack("<I", self.raw_data[:4])[0]
@@ -51,7 +52,7 @@ class AttributeParser:
         
         else:
             if len(self.raw_data) < 64:
-                raise ValueError("Insufficient data for non-resident attribute")
+                self.logger.warning("Insufficient data for non-resident attribute")
 
             d['start_vcn'] = struct.unpack("<Q", self.raw_data[16:24])[0]
             d['last_vcn'] = struct.unpack("<Q", self.raw_data[24:32])[0]
@@ -69,12 +70,12 @@ class AttributeParser:
         header = self.decode_attribute_header()
 
         if 'soff' not in header:
-            raise ValueError("Invalid attribute header for standard information")
+            self.logger.warning("Invalid attribute header for standard information")
         
         s = self.raw_data[header['soff']:]
 
         if len(s) < 72:
-            raise ValueError("Insufficient data for parsing standard information")
+            self.logger.warning("Insufficient data for parsing standard information")
 
         d = {}
 
@@ -97,12 +98,14 @@ class AttributeParser:
     def parse_file_name(self, record):
 
         header = self.decode_attribute_header()
-        if 'soff' not in header:
-            raise ValueError("Invalid attribute header for file name")
+        if not header or 'soff' not in header:
+            self.logger.warning("Invalid attribute header for standard information")
+            return None
+        
         
         s = self.raw_data[header['soff']:]
         if len(s) < 66:
-            raise ValueError("Insufficient data for parsing file name")
+            self.logger.warning("Insufficient data for parsing file name")
         try:
             windows_time = WindowsTime(timestamp, self.options.localtz)
         except ValueError as e:
@@ -123,7 +126,7 @@ class AttributeParser:
 
         bytes_left = d['nlen']*2
         if len(s) < 66 + bytes_left:
-            raise ValueError("Insufficient data for filename")
+            self.logger.warning("Insufficient data for filename")
         d['name'] = s[66:66+bytes_left].decode('utf-16-le')
 
         self.logger.debug(f"Parsed FN timestamps: crtime={d['crtime']}, mtime={d['mtime']}, atime={d['atime']}, ctime={d['ctime']}")

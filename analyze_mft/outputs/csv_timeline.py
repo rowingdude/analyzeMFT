@@ -1,11 +1,13 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
 from io import StringIO
 import csv
+from analyze_mft.utilities.logger import Logger
 
 class CSVTimelineWriter:
-    def __init__(self, options: Any, file_handler: Any):
+    def __init__(self, options: Any, file_handler: Any, logger: Logger):
         self.options = options
         self.file_handler = file_handler
+        self.logger = logger
 
     async def write_records(self, mft: Dict[int, Dict[str, Any]]):
         for record in mft.values():

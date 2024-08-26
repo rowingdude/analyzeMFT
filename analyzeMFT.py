@@ -36,7 +36,7 @@ async def main() -> NoReturn:
         logger.info("Starting analyzeMFT")
         logger.info("Opened input and output files successfully.")
    
-        mft_parser = MFTParser(options, file_handler, csv_writer, json_writer)
+        mft_parser = MFTParser(options, file_handler, csv_writer, json_writer, logger)
         logger.info("Initializing the MFT parsing object...")
        
         await mft_parser.parse_mft_file()

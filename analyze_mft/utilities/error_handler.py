@@ -11,3 +11,5 @@ def error_handler(func):
             logging.error(f"An error occurred in {func.__name__}: {str(e)}")
             sys.exit(1)
     return wrapper
+
+    

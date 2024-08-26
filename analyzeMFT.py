@@ -23,25 +23,16 @@ async def run_with_timeout(coro: Coroutine, timeout_duration: int = 300) -> Any:
     except asyncio.TimeoutError:
         raise TimeoutError(f"Function call timed out after {timeout_duration} seconds")
 
-def error_handler(func):
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
-        try:
-            return await func(*args, **kwargs)
-        except Exception as e:
-            logging.error(f"An error occurred in {func.__name__}: {str(e)}")
-            sys.exit(1)
-    return wrapper
-
 @error_handler
 async def initialize_components(options):
     logger = Logger(options)
-    file_handler = await FileHandler(options).__aenter__()
-    csv_writer = CSVWriter(options, file_handler)
-    json_writer = JSONWriter(options, file_handler)
-    thread_manager = ThreadManager(options.thread_count)
+    file_handler = FileHandler(options)
+    async with file_handler as fh:
+        csv_writer = CSVWriter(options, fh)
+        json_writer = JSONWriter(options, fh)
+        thread_manager = ThreadManager(options.thread_count)
    
-    return logger, file_handler, csv_writer, json_writer, thread_manager
+        return logger, fh, csv_writer, json_writer, thread_manager
 
 @error_handler
 async def parse_mft(mft_parser: MFTParser, progress_callback: Callable[[int], None]) -> None:
@@ -70,14 +61,14 @@ async def main() -> NoReturn:
             async def update_progress(records_processed):
                 await pbar.update(records_processed - pbar.n)
            
-        try:
-            await run_with_timeout(parse_mft(mft_parser, update_progress), timeout_duration=3600)  # 1 hour timeout
-        except TimeoutError:
-            logger.error("MFT parsing timed out after 1 hour")
-            sys.exit(1)
-        except Exception as e:
-            logger.error(f"An error occurred during MFT parsing: {str(e)}")
-            sys.exit(1)
+            try:
+                await run_with_timeout(parse_mft(mft_parser, update_progress), timeout_duration=3600)  # 1 hour timeout
+            except TimeoutError:
+                logger.error("MFT parsing timed out after 1 hour")
+                sys.exit(1)
+            except Exception as e:
+                logger.error(f"An error occurred during MFT parsing: {str(e)}")
+                sys.exit(1)
        
         end_time = time.time()
         logger.info(f"MFT parsing completed in {end_time - start_time:.2f} seconds")

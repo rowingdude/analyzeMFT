@@ -4,6 +4,11 @@ from dataclasses import dataclass
 from typing import Dict, Any, Optional
 from analyze_mft.parsers.attribute_parser import AttributeParser
 from analyze_mft.utilities.windows_time import WindowsTime
+from analyze_mft.constants.constants import (
+    STANDARD_INFORMATION, ATTRIBUTE_LIST, FILE_NAME, OBJECT_ID,
+    VOLUME_NAME, VOLUME_INFORMATION, DATA, INDEX_ROOT,
+    INDEX_ALLOCATION, BITMAP, REPARSE_POINT, LOGGED_UTILITY_STREAM
+)
 
 @dataclass
 class MFTHeader:
@@ -72,11 +77,19 @@ class MFTRecord:
         attribute_parser = AttributeParser(self.raw_record, self.options)
         
         while offset < len(self.raw_record):
+
             try:
+
+                if attr_type == STANDARD_INFORMATION:
+                    self.attributes['STANDARD_INFORMATION'] = await attribute_parser.parse_standard_information(content_offset)
+                elif attr_type == FILE_NAME:
+                    self.attributes['FILE_NAME'] = await attribute_parser.parse_file_name(content_offset)
+                
                 attr_type = struct.unpack("<I", self.raw_record[offset:offset+4])[0]
                 if attr_type == 0xFFFFFFFF:
                     self.logger.debug("Reached end of attributes marker")
                     break
+            
                 attr_len = struct.unpack("<I", self.raw_record[offset+4:offset+8])[0]
                 self.logger.debug(f"Found attribute type: {attr_type:X}, length: {attr_len}")
                 if attr_len == 0:
@@ -89,6 +102,7 @@ class MFTRecord:
                     self.attributes[attr_type] = parsed_attr
                 
                 offset += attr_len
+            
             except struct.error:
                 self.logger.warning(f"Error parsing attribute at offset {offset}")
                 break

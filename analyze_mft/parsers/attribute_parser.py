@@ -145,8 +145,48 @@ class AttributeParser:
         }
 
     def parse_index_allocation(self, offset):
-        # Implement index allocation parsing logic here
-        pass
+        data = self.raw_data[offset:]
+        if len(data) < 24:
+            return None
+
+        index_allocation = {
+            'magic': struct.unpack("<I", data[:4])[0],
+            'update_sequence_offset': struct.unpack("<H", data[4:6])[0],
+            'update_sequence_size': struct.unpack("<H", data[6:8])[0],
+            'lsn': struct.unpack("<Q", data[8:16])[0],
+            'vcn': struct.unpack("<Q", data[16:24])[0],
+            'entries': []
+        }
+
+        # Parse index entries
+        entries_offset = 24
+        while entries_offset < len(data) - 16:
+            entry = self.parse_index_entry(data[entries_offset:])
+            if entry is None:
+                break
+            index_allocation['entries'].append(entry)
+            entries_offset += entry['length']
+
+        return index_allocation
+
+    def parse_index_entry(self, data):
+        if len(data) < 16:
+            return None
+
+        entry = {
+            'file_reference': struct.unpack("<Q", data[:8])[0],
+            'length': struct.unpack("<H", data[8:10])[0],
+            'attribute_length': struct.unpack("<H", data[10:12])[0],
+            'flags': struct.unpack("<I", data[12:16])[0]
+        }
+
+        if entry['length'] == 0:
+            return None
+
+        if entry['flags'] & 0x01:  # Has child node
+            entry['subnode_vcn'] = struct.unpack("<Q", data[entry['length']-8:entry['length']])[0]
+
+        return entry
 
     def parse_bitmap(self, offset, size):
         return self.raw_data[offset:offset + size]
@@ -174,9 +214,32 @@ class AttributeParser:
             'unpacked_ea_size': struct.unpack("<I", data[4:8])[0]
         }
 
+
     def parse_ea(self, offset):
-        # Implement EA parsing logic here
-        pass
+        data = self.raw_data[offset:]
+        eas = []
+
+        while len(data) >= 8:
+            ea = {
+                'next_entry_offset': struct.unpack("<I", data[:4])[0],
+                'flags': struct.unpack("B", data[4:5])[0],
+                'name_length': struct.unpack("B", data[5:6])[0],
+                'value_length': struct.unpack("<H", data[6:8])[0]
+            }
+
+            name_offset = 8
+            ea['name'] = data[name_offset:name_offset + ea['name_length']].decode('ascii')
+
+            value_offset = name_offset + ea['name_length'] + 1  # +1 for null terminator
+            ea['value'] = data[value_offset:value_offset + ea['value_length']]
+
+            eas.append(ea)
+
+            if ea['next_entry_offset'] == 0:
+                break
+            data = data[ea['next_entry_offset']:]
+
+        return eas
 
     def parse_logged_utility_stream(self, offset, size):
         return self.raw_data[offset:offset + size]

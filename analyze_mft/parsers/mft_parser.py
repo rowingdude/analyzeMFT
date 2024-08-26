@@ -7,14 +7,18 @@ from analyze_mft.utilities.mft_record import MFTRecord
 from analyze_mft.parsers.attribute_parser import AttributeParser
 from analyze_mft.constants.constants import *
 from analyze_mft.utilities.windows_time import WindowsTime
+from analyze_mft.outputs.csv_writer import CSVWriter
+from analyze_mft.outputs.json_writer import JSONWriter
 
 class MFTParser:
-    def __init__(self, raw_record: bytes, options: Any):
-        self.raw_record = raw_record
+    def __init__(self, file_handler: FileHandler, options: Any):
+        self.file_handler = file_handler
         self.options = options
         self.logger = logging.getLogger('analyzeMFT')
-        self.record = {}
-
+        self.mft = {}
+        self.num_records = 0
+        self.csv_writer = CSVWriter(options, file_handler)
+        self.json_writer = JSONWriter(options, file_handler)
 
     async def parse_mft_file(self):
         if self.options.output:

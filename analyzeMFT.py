@@ -1,14 +1,13 @@
 import asyncio
-import logging
 import sys
 from typing import NoReturn
 
 from analyze_mft.parsers.mft_parser import MFTParser
-from analyze_mft.utilities.file_handler import FileHandler, FileHandlerOptions
-from analyze_mft.outputs.csv_writer import CSVWriter
 from analyze_mft.parsers.options_parser import OptionsParser
+from analyze_mft.utilities.file_handler import FileHandler, FileHandlerOptions
 from analyze_mft.utilities.logger import Logger, LoggerOptions
 from analyze_mft.utilities.thread_manager import ThreadManager
+from analyze_mft.outputs.csv_writer import CSVWriter
 from analyze_mft.outputs.json_writer import JSONWriter
 from analyze_mft.outputs.body_writer import BodyFileWriter
 from analyze_mft.outputs.csv_timeline import CSVTimelineWriter

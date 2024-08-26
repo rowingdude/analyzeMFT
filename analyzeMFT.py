@@ -2,17 +2,17 @@ import asyncio
 import logging
 import sys
 import time
-from functools import wraps
 from tqdm import tqdm
 from typing import NoReturn, Callable, Any, Coroutine
 
-from analyze_mft.parsers.mft_parser import MFTParser
+from analyze_mft.parsers.mft_parser import MFTParser, parse_mft
 from analyze_mft.utilities.file_handler import FileHandler
 from analyze_mft.outputs.csv_writer import CSVWriter
 from analyze_mft.parsers.options_parser import OptionsParser
 from analyze_mft.utilities.logger import Logger
 from analyze_mft.utilities.thread_manager import ThreadManager
 from analyze_mft.outputs.json_writer import JSONWriter
+from analyze_mft.utilities.error_handler import error_handler
 
 class TimeoutError(Exception):
     pass
@@ -70,14 +70,14 @@ async def main() -> NoReturn:
             async def update_progress(records_processed):
                 await pbar.update(records_processed - pbar.n)
            
-            try:
-                await run_with_timeout(parse_mft(mft_parser, update_progress), timeout_duration=3600)  # 1 hour timeout
-            except TimeoutError:
-                logger.error("MFT parsing timed out after 1 hour")
-                sys.exit(1)
-            except Exception as e:
-                logger.error(f"An error occurred during MFT parsing: {str(e)}")
-                sys.exit(1)
+        try:
+            await run_with_timeout(parse_mft(mft_parser, update_progress), timeout_duration=3600)  # 1 hour timeout
+        except TimeoutError:
+            logger.error("MFT parsing timed out after 1 hour")
+            sys.exit(1)
+        except Exception as e:
+            logger.error(f"An error occurred during MFT parsing: {str(e)}")
+            sys.exit(1)
        
         end_time = time.time()
         logger.info(f"MFT parsing completed in {end_time - start_time:.2f} seconds")

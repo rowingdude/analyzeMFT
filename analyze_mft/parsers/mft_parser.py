@@ -2,7 +2,7 @@ import concurrent.futures
 import logging
 from collections import deque
 from functools import lru_cache
-from typing import List, Dict, Any, Optional, Iterable
+from typing import List, Dict, Any, Optional, Callable, Iterable
 from dataclasses import dataclass
 import uuid
 
@@ -13,6 +13,7 @@ from analyze_mft.utilities.thread_manager import ThreadManager
 from analyze_mft.outputs.csv_writer import CSVWriter
 from analyze_mft.utilities.file_handler import FileHandler
 from analyze_mft.utilities.windows_time import WindowsTime
+from analyze_mft.utilities.error_handler import error_handler
 
 @dataclass
 class ParserOptions:
@@ -23,7 +24,7 @@ class ParserOptions:
     thread_count: int
 
 class MFTParser:
-    def __init__(self, options: ParserOptions, file_handler: FileHandler, csv_writer: CSVWriter, json_writer: JSONWriter, thread_manager: ThreadManager):
+    def __init__(self, options, file_handler, csv_writer, json_writer, thread_manager):
         self.options = options
         self.file_handler = file_handler
         self.csv_writer = csv_writer
@@ -36,7 +37,7 @@ class MFTParser:
         self.num_records = 0
         self.progress_callback = None
 
-    async def parse_mft_file(self, progress_callback=None):
+    async def parse_mft_file(self):
         self.logger.info("Starting to parse MFT file...")
         self.progress_callback = progress_callback
 
@@ -195,8 +196,8 @@ class MFTParser:
     def get_total_records(self) -> int:
         return self.file_handler.estimate_total_records()
 
-    @error_handler
-    async def parse_mft(mft_parser: MFTParser, progress_callback: Callable[[int], None]) -> None:
-        await mft_parser.parse_mft_file(progress_callback)
-        await mft_parser.generate_filepaths()
-        await mft_parser.print_records()
+@error_handler
+async def parse_mft(mft_parser: Any, progress_callback: Callable[[int], None]) -> None:
+    await mft_parser.parse_mft_file(progress_callback)
+    await mft_parser.generate_filepaths()
+    await mft_parser.print_records()

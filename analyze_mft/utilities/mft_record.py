@@ -5,7 +5,6 @@ from typing import Dict, Any, Optional
 from analyze_mft.parsers.attribute_parser import AttributeParser
 from analyze_mft.utilities.windows_time import WindowsTime
 
-
 @dataclass
 class MFTHeader:
     magic: int
@@ -25,7 +24,6 @@ class MFTHeader:
     recordnum: int
 
 class MFTRecord:
-
     def __init__(self, raw_record: bytes, options: Dict[str, Any]):
         self.raw_record = raw_record
         self.options = options
@@ -33,16 +31,16 @@ class MFTRecord:
         self.header: Optional[MFTHeader] = None
         self.attributes: Dict[str, Any] = {}
 
-    def parse(self) -> Optional[Dict[str, Any]]:
+    async def parse(self) -> Optional[Dict[str, Any]]:
         try:
-            self._parse_header()
-            self._parse_attributes()
-            return self._create_record_dict()
+            await self._parse_header()
+            await self._parse_attributes()
+            return await self._create_record_dict()
         except struct.error as e:
             self.logger.error(f"Error parsing MFT record: {str(e)}")
             return None
 
-    def _parse_header(self) -> None:
+    async def _parse_header(self) -> None:
         if len(self.raw_record) < 56:
             raise ValueError(f"Insufficient data for MFT header: {len(self.raw_record)} bytes")
         
@@ -57,19 +55,21 @@ class MFTRecord:
             flags=struct.unpack("<H", self.raw_record[22:24])[0],
             size=struct.unpack("<I", self.raw_record[24:28])[0],
             alloc_sizef=struct.unpack("<I", self.raw_record[28:32])[0],
-            base_ref=struct.unpack("<Q", self.raw_record[32:40])[0],  # Changed to 64-bit
+            base_ref=struct.unpack("<Q", self.raw_record[32:40])[0],
             base_seq=struct.unpack("<H", self.raw_record[40:42])[0],
             next_attrid=struct.unpack("<H", self.raw_record[42:44])[0],
             f1=self.raw_record[44:46],
             recordnum=struct.unpack("<I", self.raw_record[46:50])[0]
         )
 
-    def _parse_attributes(self) -> None:
+    async def _parse_attributes(self) -> None:
         if not self.header:
             raise ValueError("Header must be parsed before attributes")
         
         offset = self.header.attr_off
         self.logger.debug(f"Starting attribute parsing at offset: {offset}")
+        
+        attribute_parser = AttributeParser(self.raw_record, self.options)
         
         while offset < len(self.raw_record):
             try:
@@ -82,7 +82,12 @@ class MFTRecord:
                 if attr_len == 0:
                     self.logger.warning(f"Invalid attribute length of 0 at offset {offset}")
                     break
-                self.attributes[attr_type] = self.raw_record[offset:offset+attr_len]
+                
+                attr_data = self.raw_record[offset:offset+attr_len]
+                parsed_attr = await self._parse_attribute(attr_type, attr_data, attribute_parser)
+                if parsed_attr:
+                    self.attributes[attr_type] = parsed_attr
+                
                 offset += attr_len
             except struct.error:
                 self.logger.warning(f"Error parsing attribute at offset {offset}")
@@ -91,42 +96,54 @@ class MFTRecord:
         if not self.attributes:
             self.logger.warning(f"No attributes found. Last checked offset: {offset}")
 
-    def _create_record_dict(self) -> Dict[str, Any]:
+    async def _parse_attribute(self, attr_type: int, attr_data: bytes, attribute_parser: AttributeParser) -> Optional[Dict[str, Any]]:
+        attr_header = await attribute_parser.parse_attribute_header()
+        if not attr_header:
+            self.logger.warning(f"Failed to parse attribute header for type {attr_type}")
+            return None
+
+        content_offset = attr_header.get('content_offset')
+        if content_offset is None:
+            content_offset = attr_header.get('data_runs_offset', 0)
+
+        try:
+            if attr_type == STANDARD_INFORMATION:
+                return await attribute_parser.parse_standard_information(content_offset)
+            elif attr_type == FILE_NAME:
+                return await attribute_parser.parse_file_name(content_offset)
+            elif attr_type == OBJECT_ID:
+                return await attribute_parser.parse_object_id(content_offset)
+            elif attr_type == DATA:
+                return {'present': True}
+            elif attr_type == INDEX_ROOT:
+                return await attribute_parser.parse_index_root(content_offset)
+            elif attr_type == INDEX_ALLOCATION:
+                return await attribute_parser.parse_index_allocation(content_offset)
+            elif attr_type == BITMAP:
+                return {'present': True}
+            elif attr_type == LOGGED_UTILITY_STREAM:
+                return {'present': True}
+            else:
+                return {'type': attr_type, 'data': attr_data}
+        except Exception as e:
+            self.logger.error(f"Error parsing attribute {attr_type}: {str(e)}")
+            return None
+
+    async def _create_record_dict(self) -> Dict[str, Any]:
         return {
             'recordnum': self.header.recordnum,
             'seq': self.header.seq,
             'flags': self.header.flags,
             'attributes': self.attributes
         }
-"""   
-    def decode_mft_header(self):
 
-            if len(self.raw_record) < 48:
-                raise ValueError(f"Insufficient data for MFT header: {len(self.raw_record)} bytes")
+    @property
+    def record_number(self) -> int:
+        return self.header.recordnum if self.header else -1
 
-            self.record['magic'] = struct.unpack("<I", self.raw_record[:4])[0]
-            self.record['upd_off'] = struct.unpack("<H", self.raw_record[4:6])[0]
-            self.record['upd_cnt'] = struct.unpack("<H", self.raw_record[6:8])[0]
-            self.record['lsn'] = struct.unpack("<d", self.raw_record[8:16])[0]
-            self.record['seq'] = struct.unpack("<H", self.raw_record[16:18])[0]
-            self.record['link'] = struct.unpack("<H", self.raw_record[18:20])[0]
-            self.record['attr_off'] = struct.unpack("<H", self.raw_record[20:22])[0]
-            self.record['flags'] = struct.unpack("<H", self.raw_record[22:24])[0]
-            self.record['size'] = struct.unpack("<I", self.raw_record[24:28])[0]
-            self.record['alloc_sizef'] = struct.unpack("<I", self.raw_record[28:32])[0]
-            self.record['base_ref'] = struct.unpack("<Lxx", self.raw_record[32:38])[0]
-            self.record['base_seq'] = struct.unpack("<H", self.raw_record[38:40])[0]
-            self.record['next_attrid'] = struct.unpack("<H", self.raw_record[40:42])[0]
-            self.record['f1'] = self.raw_record[42:44]
-            self.record['recordnum'] = struct.unpack("<I", self.raw_record[44:48])[0]
-
-
-
-
-        @property
-        def record_number(self) -> int:
-            return self.record['recordnum']
-
-        @property
-        def filename(self) -> str:
-            return self.record.get('filename', '') """
+    @property
+    def filename(self) -> str:
+        for attr_type, attr_data in self.attributes.items():
+            if attr_type == FILE_NAME:
+                return attr_data.get('name', '')
+        return ''

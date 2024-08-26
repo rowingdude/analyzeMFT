@@ -107,3 +107,16 @@ class FileHandler:
             raise FileOpenError("CSV time file is not open.")
         await self.file_csv_time.write(data)
         await self.file_csv_time.flush()
+
+
+    async def write_bodyfile(self, data: str):
+        if not self.file_body:
+            raise FileOpenError("Body file is not open.")
+        await self.file_body.write(data)
+        await self.file_body.flush()
+
+    async def write_csvtime(self, data: str):
+        if not self.file_csv_time:
+            raise FileOpenError("CSV time file is not open.")
+        await self.file_csv_time.write(data)
+        await self.file_csv_time.flush()

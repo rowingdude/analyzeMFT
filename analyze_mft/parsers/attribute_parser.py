@@ -1,5 +1,5 @@
 import struct
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from analyze_mft.utilities.windows_time import WindowsTime
 from analyze_mft.constants.constants import *
 

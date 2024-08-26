@@ -35,7 +35,8 @@ class MFTRecord:
     async def parse(self) -> Optional[Dict[str, Any]]:
         try:
             self.logger.debug("Starting MFTRecord parse")
-            await self._parse_header()
+            if not await self._parse_header():
+                return None
             await self._parse_attributes()
             return {
                 'recordnum': self.header.recordnum if self.header else 0,
@@ -49,61 +50,39 @@ class MFTRecord:
             self.logger.error(traceback.format_exc())
             return None
 
-    async def _parse_header(self) -> None:
-        if len(self.raw_record) < 56:
-            raise ValueError(f"Insufficient data for MFT header: {len(self.raw_record)} bytes")
-        
-        self.header = MFTHeader(
-            magic=struct.unpack("<I", self.raw_record[:4])[0],
-            upd_off=struct.unpack("<H", self.raw_record[4:6])[0],
-            upd_cnt=struct.unpack("<H", self.raw_record[6:8])[0],
-            lsn=struct.unpack("<d", self.raw_record[8:16])[0],
-            seq=struct.unpack("<H", self.raw_record[16:18])[0],
-            link=struct.unpack("<H", self.raw_record[18:20])[0],
-            attr_off=struct.unpack("<H", self.raw_record[20:22])[0],
-            flags=struct.unpack("<H", self.raw_record[22:24])[0],
-            size=struct.unpack("<I", self.raw_record[24:28])[0],
-            alloc_sizef=struct.unpack("<I", self.raw_record[28:32])[0],
-            base_ref=struct.unpack("<Q", self.raw_record[32:40])[0],
-            base_seq=struct.unpack("<H", self.raw_record[40:42])[0],
-            next_attrid=struct.unpack("<H", self.raw_record[42:44])[0],
-            f1=self.raw_record[44:46],
-            recordnum=struct.unpack("<I", self.raw_record[46:50])[0]
-        )
+    async def _parse_header(self) -> bool:
+        try:
+            if len(self.raw_record) < 48:
+                self.logger.error(f"Insufficient data for MFT header: {len(self.raw_record)} bytes")
+                return False
 
-    async def _parse_attributes(self) -> None:
-        if not self.header:
-            raise ValueError("Header must be parsed before attributes")
-        
-        offset = self.header.attr_off
-        self.logger.debug(f"Starting attribute parsing at offset: {offset}")
-        
-        while offset < len(self.raw_record):
-            try:
-                attr_type = struct.unpack("<I", self.raw_record[offset:offset+4])[0]
-                if attr_type == 0xFFFFFFFF:
-                    self.logger.debug("Reached end of attributes marker")
-                    break
-                
-                attr_len = struct.unpack("<I", self.raw_record[offset+4:offset+8])[0]
-                self.logger.debug(f"Found attribute type: {attr_type:X}, length: {attr_len}")
-                
-                if attr_len == 0:
-                    self.logger.warning(f"Invalid attribute length of 0 at offset {offset}")
-                    break
-                
-                attr_data = self.raw_record[offset:offset+attr_len]
-                self.attributes.append({
-                    'type': attr_type,
-                    'data': attr_data
-                })
-                
-                offset += attr_len
-            except struct.error:
-                self.logger.warning(f"Error parsing attribute at offset {offset}")
-                break
-        
-        self.logger.debug(f"Parsed {len(self.attributes)} attributes")
+            magic = struct.unpack("<I", self.raw_record[:4])[0]
+            if magic != 0x454C4946:  # 'FILE' in little-endian
+                self.logger.error(f"Invalid MFT record magic number: {magic:X}")
+                return False
+
+            self.header = MFTHeader(
+                magic=magic,
+                upd_off=struct.unpack("<H", self.raw_record[4:6])[0],
+                upd_cnt=struct.unpack("<H", self.raw_record[6:8])[0],
+                lsn=struct.unpack("<d", self.raw_record[8:16])[0],
+                seq=struct.unpack("<H", self.raw_record[16:18])[0],
+                link=struct.unpack("<H", self.raw_record[18:20])[0],
+                attr_off=struct.unpack("<H", self.raw_record[20:22])[0],
+                flags=struct.unpack("<H", self.raw_record[22:24])[0],
+                size=struct.unpack("<I", self.raw_record[24:28])[0],
+                alloc_sizef=struct.unpack("<I", self.raw_record[28:32])[0],
+                base_ref=struct.unpack("<Q", self.raw_record[32:40])[0],
+                base_seq=struct.unpack("<H", self.raw_record[40:42])[0],
+                next_attrid=struct.unpack("<H", self.raw_record[42:44])[0],
+                f1=self.raw_record[44:46],
+                recordnum=struct.unpack("<I", self.raw_record[44:48])[0]
+            )
+            return True
+        except struct.error as e:
+            self.logger.error(f"Error parsing MFT header: {str(e)}")
+            return False
+
 
     async def _parse_attribute(self, attr_type: int, attr_data: bytes, attribute_parser: AttributeParser) -> Optional[Dict[str, Any]]:
         attr_header = await attribute_parser.parse_attribute_header()
@@ -137,6 +116,38 @@ class MFTRecord:
         except Exception as e:
             self.logger.error(f"Error parsing attribute {attr_type}: {str(e)}")
             return None
+            
+    async def _parse_attributes(self) -> None:
+        if not self.header:
+            self.logger.error("Header must be parsed before attributes")
+            return
+
+        offset = self.header.attr_off
+        self.logger.debug(f"Starting attribute parsing at offset: {offset}")
+        
+        while offset < len(self.raw_record):
+            try:
+                attr_type = struct.unpack("<I", self.raw_record[offset:offset+4])[0]
+                if attr_type == 0xFFFFFFFF:
+                    self.logger.debug("Reached end of attributes marker")
+                    break
+                attr_len = struct.unpack("<I", self.raw_record[offset+4:offset+8])[0]
+                self.logger.debug(f"Found attribute type: {attr_type:X}, length: {attr_len}")
+                if attr_len == 0:
+                    self.logger.warning(f"Invalid attribute length of 0 at offset {offset}")
+                    break
+                
+                self.attributes.append({
+                    'type': attr_type,
+                    'data': self.raw_record[offset:offset+attr_len]
+                })
+                
+                offset += attr_len
+            except struct.error:
+                self.logger.warning(f"Error parsing attribute at offset {offset}")
+                break
+        
+        self.logger.debug(f"Parsed {len(self.attributes)} attributes")
 
     async def _create_record_dict(self) -> Dict[str, Any]:
         return {

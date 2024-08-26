@@ -1,19 +1,19 @@
+import logging
 import struct
 from typing import Optional, Dict, Any, List
 from analyze_mft.utilities.windows_time import WindowsTime
-from analyze_mft.utilities.logger import get_logger
 from analyze_mft.constants.constants import *
 
 class AttributeParser:
     def __init__(self, raw_data: bytes, options: Any):
         self.raw_data = raw_data
         self.options = options
-        self.logger = get_logger()
+        self.logger = logging.getLogger('analyzeMFT')
+
 
     async def parse_attribute_header(self) -> Optional[Dict[str, Any]]:
         try:
             if len(self.raw_data) < 16:
-                self.logger.warning(f"Insufficient data for attribute header: {len(self.raw_data)} bytes")
                 return None
 
             header = {
@@ -26,14 +26,10 @@ class AttributeParser:
                 'id': struct.unpack("<H", self.raw_data[14:16])[0]
             }
 
-            self.logger.debug(f"Parsed attribute header: {header}")
-
             if header['non_resident'] == 0:
                 if len(self.raw_data) >= 24:
                     header['content_size'] = struct.unpack("<I", self.raw_data[16:20])[0]
                     header['content_offset'] = struct.unpack("<H", self.raw_data[20:22])[0]
-                else:
-                    self.logger.warning("Resident attribute with insufficient data")
             else:
                 if len(self.raw_data) >= 64:
                     header['starting_vcn'] = struct.unpack("<Q", self.raw_data[16:24])[0]
@@ -43,8 +39,6 @@ class AttributeParser:
                     header['allocated_size'] = struct.unpack("<Q", self.raw_data[40:48])[0]
                     header['real_size'] = struct.unpack("<Q", self.raw_data[48:56])[0]
                     header['initialized_size'] = struct.unpack("<Q", self.raw_data[56:64])[0]
-                else:
-                    self.logger.warning("Non-resident attribute with insufficient data")
 
             return header
 
@@ -55,8 +49,32 @@ class AttributeParser:
             self.logger.error(f"Unexpected error in parse_attribute_header: {str(e)}")
             return None
 
-    async def parse_standard_information(self, offset: int) -> Optional[Dict[str, Any]]:
-        data = self.raw_data[offset:]
+    async def parse_attribute(self, attr_type: int, attr_data: bytes) -> Optional[Dict[str, Any]]:
+        try:
+            if attr_type == STANDARD_INFORMATION:
+                return await self.parse_standard_information(attr_data)
+            elif attr_type == FILE_NAME:
+                return await self.parse_file_name(attr_data)
+            elif attr_type == OBJECT_ID:
+                return await self.parse_object_id(attr_data)
+            elif attr_type == DATA:
+                return {'present': True}
+            elif attr_type == INDEX_ROOT:
+                return await self.parse_index_root(attr_data)
+            elif attr_type == INDEX_ALLOCATION:
+                return await self.parse_index_allocation(attr_data)
+            elif attr_type == BITMAP:
+                return {'present': True}
+            elif attr_type == LOGGED_UTILITY_STREAM:
+                return {'present': True}
+            else:
+                return {'type': attr_type, 'data': attr_data}
+        except Exception as e:
+            self.logger.error(f"Error parsing attribute {attr_type}: {str(e)}")
+            return None
+
+
+    async def parse_standard_information(self, data: bytes) -> Optional[Dict[str, Any]]:
         if len(data) < 72:
             return None
 

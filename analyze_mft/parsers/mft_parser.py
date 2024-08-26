@@ -82,14 +82,13 @@ class MFTParser:
 
 
     async def _parse_single_record(self, raw_record: bytes) -> Optional[Dict[str, Any]]:
-
         try:
             self.logger.debug("Starting _parse_single_record")
             mft_record = MFTRecord(raw_record, self.options)
             parsed_record = await mft_record.parse()
 
             if not parsed_record:
-                current_offset = await self.file_handler.file_mft.tell() 
+                current_offset = await self.file_handler.tell()
                 self.logger.warning(f"Failed to parse record at offset {current_offset - len(raw_record)}")
                 return None
 
@@ -104,65 +103,47 @@ class MFTParser:
 
             self.logger.debug(f"Parsed record header: {record}")
 
-            if 'attributes' not in parsed_record or not parsed_record['attributes']:
-                self.logger.warning(f"No attributes found in record {record['recordnum']}")
-                return record
-
             attribute_parser = AttributeParser(raw_record, self.options)
 
-            self.logger.debug(f"Number of attributes: {len(parsed_record['attributes'])}")
-            for index, attr in enumerate(parsed_record['attributes']):
-                try:
-                    self.logger.debug(f"Processing attribute {index}")
-                    
-                    for attr in parsed_record['attributes']:
-                        attr_type = attr['type']
-                        attr_data = attr['data']
-
-                    self.logger.debug(f"Attribute {index} type: {attr_type}")
-                    
-                    await self._parse_attribute(record, attr_type, attr_data, attribute_parser)
-                except Exception as e:
-                    self.logger.error(f"Error parsing attribute {index}: {str(e)}")
-                    import traceback
-                    self.logger.error(traceback.format_exc())
-                    record['notes'] += f"Error parsing attribute {index}: {str(e)} | "
+            for attr in parsed_record['attributes']:
+                attr_type = attr['type']
+                attr_data = attr['data']
+                await self._parse_attribute(record, attr_type, attr_data, attribute_parser)
 
             await self._check_usec_zero(record)
             return record
         except Exception as e:
-            self.logger.error(f"Unhandled exception in _parse_single_record: {str(e)}")
-            import traceback
-            self.logger.error(traceback.format_exc())
+            self.logger.error(f"Error processing record: {str(e)}")
+            self.logger.debug(f"Raw record data: {raw_record.hex()[:100]}...")
             return None
 
     async def _parse_attribute(self, record: Dict[str, Any], attr_type: int, attr_data: bytes, attribute_parser: AttributeParser):
         try:
-            if attr_type == STANDARD_INFORMATION:
-                record['si'] = await attribute_parser.parse_standard_information(attr_data)
-            elif attr_type == FILE_NAME:
-                fn = await attribute_parser.parse_file_name(attr_data)
-                if fn:
-                    record[f'fn{record["fncnt"]}'] = fn
+            parsed_attr = await attribute_parser.parse_attribute(attr_type, attr_data)
+            if parsed_attr:
+                if attr_type == STANDARD_INFORMATION:
+                    record['si'] = parsed_attr
+                elif attr_type == FILE_NAME:
+                    record[f'fn{record["fncnt"]}'] = parsed_attr
                     record['fncnt'] += 1
                     if record['fncnt'] == 1:
-                        record['filename'] = fn['name']
-            elif attr_type == OBJECT_ID:
-                record['objid'] = await attribute_parser.parse_object_id(attr_data)
-            elif attr_type == DATA:
-                record['data'] = True
-            elif attr_type == INDEX_ROOT:
-                record['indexroot'] = True
-            elif attr_type == INDEX_ALLOCATION:
-                record['indexallocation'] = True
-            elif attr_type == BITMAP:
-                record['bitmap'] = True
-            elif attr_type == LOGGED_UTILITY_STREAM:
-                record['loggedutility'] = True
+                        record['filename'] = parsed_attr['name']
+                elif attr_type == OBJECT_ID:
+                    record['objid'] = parsed_attr
+                elif attr_type == DATA:
+                    record['data'] = True
+                elif attr_type == INDEX_ROOT:
+                    record['indexroot'] = True
+                elif attr_type == INDEX_ALLOCATION:
+                    record['indexallocation'] = True
+                elif attr_type == BITMAP:
+                    record['bitmap'] = True
+                elif attr_type == LOGGED_UTILITY_STREAM:
+                    record['loggedutility'] = True
         except Exception as e:
             self.logger.error(f"Error parsing attribute {attr_type}: {str(e)}")
             record['notes'] += f"Error parsing attribute {attr_type}: {str(e)} | "
-
+            
     async def _check_usec_zero(self, record: Dict[str, Any]):
         if 'si' in record:
             si_times = [record['si'][key] for key in ['crtime', 'mtime', 'atime', 'ctime']]

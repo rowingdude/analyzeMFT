@@ -40,7 +40,12 @@ class MFTRecord:
         try:
             await self._parse_header()
             await self._parse_attributes()
-            return await self._create_record_dict()
+            return {
+                'recordnum': self.header.recordnum,
+                'seq': self.header.seq,
+                'flags': self.header.flags,
+                'attributes': list(self.attributes.values())  # Convert dict to list
+            }
         except struct.error as e:
             self.logger.error(f"Error parsing MFT record: {str(e)}")
             return None

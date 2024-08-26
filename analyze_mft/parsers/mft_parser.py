@@ -7,15 +7,15 @@ from analyze_mft.utilities.mft_record import MFTRecord
 from analyze_mft.parsers.attribute_parser import AttributeParser
 from analyze_mft.constants.constants import *
 from analyze_mft.utilities.windows_time import WindowsTime
-from analyze_mft.utilities.logger import Logger
+from analyze_mft.utilities.logger import get_logger
 
 class MFTParser:
-    def __init__(self, options: Any, file_handler: Any, csv_writer: Any, json_writer: Any, logger: Logger):
+    def __init__(self, options: Any, file_handler: Any, csv_writer: Any, json_writer: Any):
         self.options = options
         self.file_handler = file_handler
         self.csv_writer = csv_writer
         self.json_writer = json_writer
-        self.logger = logger
+        self.logger = get_logger()
         self.mft: Dict[int, Dict[str, Any]] = {}
         self.num_records = 0
 
@@ -26,7 +26,7 @@ class MFTParser:
         total_size = await self.file_handler.get_file_size()
         processed_size = 0
         record_count = 0
-        max_records = 1000000  # Safeguard: maximum number of records to process
+        max_records = 1000000  
 
         try:
             with tqdm(total=total_size, unit='B', unit_scale=True, desc="Parsing MFT") as pbar:
@@ -98,16 +98,31 @@ class MFTParser:
             }
 
             self.logger.debug(f"Parsed record header: {record}")
-            self.logger.debug(f"Raw record (first 64 bytes): {raw_record[:64].hex()}")
 
             if 'attributes' not in parsed_record or not parsed_record['attributes']:
-                self.logger.warning(f"No attributes found in record {record['recordnum']}. Raw data: {raw_record[:128].hex()}")
+                self.logger.warning(f"No attributes found in record {record['recordnum']}")
                 return record
 
             attribute_parser = AttributeParser(raw_record, self.options)
 
-            for attr_type, attr_data in parsed_record['attributes'].items():
-                await self._parse_attribute(record, attr_type, attr_data, attribute_parser)
+            for attr_data in parsed_record['attributes']:
+                try:
+                    attr_header = await attribute_parser.parse_attribute_header()
+                    if not attr_header:
+                        self.logger.warning("Failed to parse attribute header")
+                        continue
+
+                    attr_type = attr_header.get('type')
+                    if attr_type is None:
+                        self.logger.warning("Attribute type is None")
+                        continue
+
+                    content_offset = attr_header.get('content_offset', attr_header.get('data_runs_offset', 0))
+
+                    await self._parse_attribute(record, attr_type, attr_data, attribute_parser, content_offset)
+                except Exception as e:
+                    self.logger.error(f"Error parsing attribute: {str(e)}")
+                    record['notes'] += f"Error parsing attribute: {str(e)} | "
 
             await self._check_usec_zero(record)
             return record
@@ -115,17 +130,7 @@ class MFTParser:
             self.logger.error(f"Unhandled exception in _parse_single_record: {str(e)}")
             return None
 
-    async def _parse_attribute(self, record: Dict[str, Any], attr_type: int, attr_data: bytes, attribute_parser: AttributeParser):
-        self.logger.debug(f"Parsing attribute type {attr_type}")
-        attr_header = await attribute_parser.parse_attribute_header()
-        if not attr_header:
-            self.logger.warning(f"Failed to parse attribute header for type {attr_type}")
-            return
-
-        content_offset = attr_header.get('content_offset')
-        if content_offset is None:
-            content_offset = attr_header.get('data_runs_offset', 0)
-
+    async def _parse_attribute(self, record: Dict[str, Any], attr_type: int, attr_data: bytes, attribute_parser: AttributeParser, content_offset: int):
         try:
             if attr_type == STANDARD_INFORMATION:
                 record['si'] = await attribute_parser.parse_standard_information(content_offset)

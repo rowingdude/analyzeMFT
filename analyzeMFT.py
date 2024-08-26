@@ -9,11 +9,11 @@ from analyze_mft.outputs.json_writer import JSONWriter
 from analyze_mft.outputs.body_writer import BodyFileWriter
 from analyze_mft.outputs.csv_timeline import CSVTimelineWriter
 from analyze_mft.parsers.options_parser import OptionsParser
-from analyze_mft.utilities.logger import Logger, LoggerOptions
+from analyze_mft.utilities.logger import setup_logging, LoggerOptions, get_logger
 
 
 async def initialize_components(options):
-    logger = Logger(LoggerOptions(options.debug, options.verbose, options.log_file))
+    logger = setup_logging(LoggerOptions(options.debug, options.verbose, options.log_file))
     file_handler = await FileHandler(FileHandlerOptions(
         options.filename, options.output, options.bodyfile, options.csvtimefile
     )).__aenter__()
@@ -36,7 +36,7 @@ async def main() -> NoReturn:
         logger.info("Starting analyzeMFT")
         logger.info("Opened input and output files successfully.")
    
-        mft_parser = MFTParser(options, file_handler, csv_writer, json_writer, logger)
+        mft_parser = MFTParser(options, file_handler, csv_writer, json_writer)
         logger.info("Initializing the MFT parsing object...")
        
         await mft_parser.parse_mft_file()

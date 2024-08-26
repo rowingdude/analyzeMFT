@@ -53,6 +53,32 @@ class Logger:
     def critical(self, message: str, *args: Any, **kwargs: Any) -> None:
         self._log(logging.CRITICAL, message, *args, **kwargs)
 
+
+
     @classmethod
     def get_version(cls) -> str:
         return VERSION
+
+
+def setup_logging(options: LoggerOptions) -> logging.Logger:
+    logger = logging.getLogger('analyzeMFT')
+    logger.setLevel(logging.DEBUG if options.debug else logging.INFO)
+
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+    if options.debug and options.log_file:
+        file_handler = logging.FileHandler(options.log_file)
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+    if options.verbose:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+    return logger
+
+def get_logger() -> logging.Logger:
+    return logging.getLogger('analyzeMFT')

@@ -6,6 +6,7 @@ from typing import List, Dict, Any, Optional, Callable, Iterable
 from dataclasses import dataclass
 import traceback
 import uuid
+import struct
 
 from analyze_mft.utilities.mft_record import MFTRecord
 from analyze_mft.utilities.logger import Logger
@@ -13,6 +14,7 @@ from analyze_mft.outputs.json_writer import JSONWriter
 from analyze_mft.utilities.thread_manager import ThreadManager
 from analyze_mft.outputs.csv_writer import CSVWriter
 from analyze_mft.utilities.file_handler import FileHandler
+from analyze_mft.parsers.attribute_parser import AttributeParser
 from analyze_mft.utilities.windows_time import WindowsTime
 from analyze_mft.utilities.error_handler import error_handler
 
@@ -37,35 +39,33 @@ class MFTParser:
         self.folders: Dict[int, str] = {}
         self.record_queue = deque(maxlen=10000)
         self.num_records = 0
+        self.attribute_parser = AttributeParser
         
 
     async def parse_mft_file(self):
-        print("Starting to parse MFT file...")
-        self.logger.info("Starting to parse MFT file...")
+        if self.options.output:
+            await self.csv_writer.write_csv_header()
 
-        try:
-            if self.options.output is not None:
-                print("Writing CSV header...")
-                await self.csv_writer.write_csv_header()
-                print("CSV header written")
+        while True:
+            raw_record = await self.file_handler.read_mft_record()
+            if not raw_record:
+                break
+            record = await self._parse_single_record(raw_record)
+            if record:
+                self.mft[self.num_records] = record
+                if self.options.output:
+                    await self.csv_writer.write_csv_record(record)
+                if self.options.jsonfile:
+                    await self.json_writer.write_json_record(record)
+                self.num_records += 1
+                self._update_progress()
 
-            print("Reading raw records...")
-            raw_records = await self._read_all_records()
-            print(f"Read {len(raw_records)} raw records from MFT file.")
-            self.logger.info(f"Read {len(raw_records)} raw records from MFT file.")
+        print(f"\nTotal records processed: {self.num_records}")
+        await self.generate_filepaths()
 
-            if not raw_records:
-                print("No records read from MFT file. Exiting.")
-                return
-
-            print("Processing records...")
-            await self._process_records(raw_records)
-
-            print(f"Finished parsing MFT file. Total records: {self.num_records}")
-            self.logger.info(f"Finished parsing MFT file. Total records: {self.num_records}")
-        except Exception as e:
-            print(f"Error in parse_mft_file: {str(e)}")
-            traceback.print_exc()
+    if self.num_records % 1000 == 0:
+        sys.stdout.write(f"\rProcessed {self.num_records} thousand records")
+        sys.stdout.flush()
 
     async def _read_all_records(self) -> List[bytes]:
         records = []
@@ -94,40 +94,41 @@ class MFTParser:
                         await self._process_record_queue()
                 if i % 10000 == 0:
                     print(f"Processed {i} records")
-            await self._process_record_queue()  # Process any remaining records
+            await self._process_record_queue()  
             print("Finished processing all records")
         except Exception as e:
             print(f"Error in _process_records: {str(e)}")
             traceback.print_exc()
 
-    async def _parse_single_record(self, raw_record: bytes) -> Optional[Dict[str, Any]]:
-        record = {}
-        record['filename'] = ''
-        record['notes'] = ''
-        
-        self._decode_mft_header(record, raw_record)
+        async def _parse_single_record(self, raw_record: bytes) -> Optional[Dict[str, Any]]:
+            record = {}
+            record['filename'] = ''
+            record['notes'] = ''
+            
+            self._decode_mft_header(record, raw_record)
 
-        if record['magic'] == 0x44414142:
-            record['baad'] = True
-            return record
+            if record['magic'] == 0x44414142:
+                record['baad'] = True
+                return record
 
-        if record['magic'] != 0x454c4946:
-            record['corrupt'] = True
-            return record
+            if record['magic'] != 0x454c4946:
+                record['corrupt'] = True
+                return record
 
-        # Parse attributes
-        offset = record['attr_off']
-        while offset < 1024:
-            try:
-                attr_type, attr_len = struct.unpack("<II", raw_record[offset:offset+8])
-                if attr_type == 0xffffffff:
+            # Parse attributes
+            offset = record['attr_off']
+            while offset < 1024:
+                try:
+                    attr_header = self.attribute_parser.parse_attribute_header(raw_record[offset:])
+                    if attr_header['type'] == 0xffffffff:
+                        break
+                    await self._parse_attribute(record, raw_record[offset:], attr_header)
+                    offset += attr_header['len']
+                except Exception as e:
+                    record['notes'] += f"Error parsing attribute at offset {offset}: {str(e)} | "
                     break
-                await self._parse_attribute(record, raw_record[offset:offset+attr_len])
-                offset += attr_len
-            except struct.error:
-                break
 
-        return record
+            return record
 
     async def _process_record_queue(self):
         print(f"Processing record queue with {len(self.record_queue)} records")
@@ -145,6 +146,83 @@ class MFTParser:
                 self.logger.info(f"Parsed {self.num_records} records...")
         print("Finished processing record queue")
 
+    def _decode_mft_header(self, record: Dict[str, Any], raw_record: bytes):
+        record['magic'] = struct.unpack("<I", raw_record[:4])[0]
+        record['upd_off'] = struct.unpack("<H", raw_record[4:6])[0]
+        record['upd_cnt'] = struct.unpack("<H", raw_record[6:8])[0]
+        record['lsn'] = struct.unpack("<d", raw_record[8:16])[0]
+        record['seq'] = struct.unpack("<H", raw_record[16:18])[0]
+        record['link'] = struct.unpack("<H", raw_record[18:20])[0]
+        record['attr_off'] = struct.unpack("<H", raw_record[20:22])[0]
+        record['flags'] = struct.unpack("<H", raw_record[22:24])[0]
+        record['size'] = struct.unpack("<I", raw_record[24:28])[0]
+        record['alloc_sizef'] = struct.unpack("<I", raw_record[28:32])[0]
+        record['base_ref'] = struct.unpack("<Q", raw_record[32:40])[0]
+        record['base_seq'] = struct.unpack("<H", raw_record[40:42])[0]
+        record['next_attrid'] = struct.unpack("<H", raw_record[42:44])[0]
+        record['f1'] = raw_record[44:46]  # Padding
+        record['recordnum'] = struct.unpack("<I", raw_record[44:48])[0]  # Number of this MFT Record
+        record['fncnt'] = 0  # Counter for number of FN attributes
+
+    async def _parse_attribute(self, record: Dict[str, Any], attr_raw: bytes):
+        attr_type = struct.unpack("<I", attr_raw[:4])[0]
+        attr_len = struct.unpack("<I", attr_raw[4:8])[0]
+        
+        if attr_type == 0x10:  
+            await self._parse_standard_information(record, attr_raw[24:])
+        elif attr_type == 0x30:  
+            await self._parse_file_name(record, attr_raw[24:])
+        elif attr_type == 0x80:  
+            record['data'] = True
+        elif attr_type == 0x90:  
+            record['indexroot'] = True
+        elif attr_type == 0xA0:  
+            record['indexallocation'] = True
+        elif attr_type == 0xB0:  
+            record['bitmap'] = True
+        elif attr_type == 0x100: 
+            record['loggedutility'] = True
+        
+
+    async def _parse_standard_information(self, record: Dict[str, Any], attr_content: bytes):
+        record['si'] = {}
+        record['si']['crtime'] = WindowsTime(struct.unpack("<Q", attr_content[:8])[0], self.options.localtz)
+        record['si']['mtime'] = WindowsTime(struct.unpack("<Q", attr_content[8:16])[0], self.options.localtz)
+        record['si']['ctime'] = WindowsTime(struct.unpack("<Q", attr_content[16:24])[0], self.options.localtz)
+        record['si']['atime'] = WindowsTime(struct.unpack("<Q", attr_content[24:32])[0], self.options.localtz)
+        record['si']['dos'] = struct.unpack("<I", attr_content[32:36])[0]
+        record['si']['maxver'] = struct.unpack("<I", attr_content[36:40])[0]
+        record['si']['ver'] = struct.unpack("<I", attr_content[40:44])[0]
+        record['si']['class_id'] = struct.unpack("<I", attr_content[44:48])[0]
+
+    async def _parse_file_name(self, record: Dict[str, Any], attr_content: bytes):
+        fn = {}
+        fn['par_ref'] = struct.unpack("<Q", attr_content[:8])[0]
+        fn['crtime'] = WindowsTime(struct.unpack("<Q", attr_content[8:16])[0], self.options.localtz)
+        fn['mtime'] = WindowsTime(struct.unpack("<Q", attr_content[16:24])[0], self.options.localtz)
+        fn['ctime'] = WindowsTime(struct.unpack("<Q", attr_content[24:32])[0], self.options.localtz)
+        fn['atime'] = WindowsTime(struct.unpack("<Q", attr_content[32:40])[0], self.options.localtz)
+        fn['alloc_fsize'] = struct.unpack("<q", attr_content[40:48])[0]
+        fn['real_fsize'] = struct.unpack("<q", attr_content[48:56])[0]
+        fn['flags'] = struct.unpack("<I", attr_content[56:60])[0]
+        fn['nlen'] = struct.unpack("B", attr_content[64:65])[0]
+        fn['nspace'] = struct.unpack("B", attr_content[65:66])[0]
+
+        bytes_left = fn['nlen'] * 2
+        if len(attr_content) < 66 + bytes_left:
+            record['notes'] += "Filename attribute data incomplete | "
+        else:
+            try:
+                fn['name'] = attr_content[66:66+bytes_left].decode('utf-16-le')
+            except UnicodeDecodeError:
+                fn['name'] = attr_content[66:66+bytes_left].decode('utf-16-le', errors='replace')
+                record['notes'] += "Filename attribute had some invalid Unicode characters | "
+
+        record['fn', record['fncnt']] = fn
+        record['fncnt'] += 1
+
+        if record['fncnt'] == 1:
+            record['filename'] = fn['name']
 
     async def _parse_object_id(self, record: Dict[str, Any]):
         if 'objid' in record:
@@ -167,6 +245,34 @@ class MFTParser:
                               f"Birth Volume ID: {record.get('birth_volume_id', 'N/A')}, "
                               f"Birth Object ID: {record.get('birth_object_id', 'N/A')}, "
                               f"Birth Domain ID: {record.get('birth_domain_id', 'N/A')}")
+
+    async def _parse_attribute(self, record: Dict[str, Any], attr_raw: bytes, attr_header: Dict[str, Any]):
+        attr_type = attr_header['type']
+        
+        if attr_type == 0x10:  # Standard Information
+            record['si'] = self.attribute_parser.parse_standard_information(attr_raw[attr_header['soff']:])
+        elif attr_type == 0x30:  # File Name
+            fn_attr = self.attribute_parser.parse_file_name(attr_raw[attr_header['soff']:])
+            record['fn', record['fncnt']] = fn_attr
+            record['fncnt'] += 1
+            if record['fncnt'] == 1:
+                record['filename'] = fn_attr['name']
+        elif attr_type == 0x20:  # Attribute List
+            record['al'] = self.attribute_parser.parse_attribute_list(attr_raw[attr_header['soff']:])
+        elif attr_type == 0x40:  # Object ID
+            record['objid'] = self.attribute_parser.parse_object_id(attr_raw[attr_header['soff']:])
+        elif attr_type == 0x70:  # Volume Name
+            record['volname'] = True
+        elif attr_type == 0x80:  # Data
+            record['data'] = True
+        elif attr_type == 0x90:  # Index Root
+            record['indexroot'] = True
+        elif attr_type == 0xA0:  # Index Allocation
+            record['indexallocation'] = True
+        elif attr_type == 0xB0:  # Bitmap
+            record['bitmap'] = True
+        elif attr_type == 0x100:  # Logged Utility Stream
+            record['loggedutility'] = True
 
     async def _check_usec_zero(self, record: Dict[str, Any]):
         if 'si' in record:

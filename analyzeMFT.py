@@ -12,8 +12,8 @@ from analyze_mft.parsers.options_parser import OptionsParser
 from analyze_mft.utilities.logger import Logger
 from analyze_mft.utilities.thread_manager import ThreadManager
 from analyze_mft.outputs.json_writer import JSONWriter
-from analyze_mft.outputs.body_file_writer import BodyFileWriter
-from analyze_mft.outputs.csv_timeline_writer import CSVTimelineWriter
+from analyze_mft.outputs.body_writer import BodyFileWriter
+from analyze_mft.outputs.csv_timeline import CSVTimelineWriter
 
 class TimeoutError(Exception):
     pass
@@ -50,15 +50,6 @@ async def main() -> NoReturn:
         logger.info("Initializing the MFT parsing object...")
        
         start_time = time.time()
-        
-        try:
-            await run_with_timeout(mft_parser.parse_mft_file(), timeout_duration=3600)  # 1 hour timeout
-        except TimeoutError:
-            logger.error("MFT parsing timed out after 1 hour")
-            sys.exit(1)
-        except Exception as e:
-            logger.error(f"An error occurred during MFT parsing: {str(e)}")
-            sys.exit(1)
        
         end_time = time.time()
         logger.info(f"MFT parsing completed in {end_time - start_time:.2f} seconds")

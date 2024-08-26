@@ -9,12 +9,11 @@ from analyze_mft.constants.constants import *
 from analyze_mft.utilities.windows_time import WindowsTime
 
 class MFTParser:
-    def __init__(self, options: Any, file_handler: Any, csv_writer: Any, json_writer: Any, thread_manager: Any):
+    def __init__(self, options: Any, file_handler: Any, csv_writer: Any, json_writer: Any):
         self.options = options
         self.file_handler = file_handler
         self.csv_writer = csv_writer
         self.json_writer = json_writer
-        self.thread_manager = thread_manager
         self.logger = logging.getLogger('analyzeMFT')
         self.mft: Dict[int, Dict[str, Any]] = {}
         self.num_records = 0
@@ -44,7 +43,7 @@ class MFTParser:
 
                     if record_count % 1000 == 0:
                         self.logger.info(f"Processed {record_count} records, {processed_size/total_size:.2%} complete")
-                        await asyncio.sleep(0)  # Allow other tasks to run
+                        await asyncio.sleep(0) 
 
         except asyncio.CancelledError:
             self.logger.warning("Parsing was cancelled. Saving progress...")

@@ -10,7 +10,7 @@ from analyze_mft.outputs.body_writer import BodyFileWriter
 from analyze_mft.outputs.csv_timeline import CSVTimelineWriter
 from analyze_mft.parsers.options_parser import OptionsParser
 from analyze_mft.utilities.logger import Logger, LoggerOptions
-from analyze_mft.utilities.thread_manager import ThreadManager
+
 
 async def initialize_components(options):
     logger = Logger(LoggerOptions(options.debug, options.verbose, options.log_file))
@@ -21,22 +21,22 @@ async def initialize_components(options):
     json_writer = JSONWriter(options, file_handler)
     body_writer = BodyFileWriter(options, file_handler) if options.bodyfile else None
     csv_timeline = CSVTimelineWriter(options, file_handler) if options.csvtimefile else None
-    thread_manager = ThreadManager(options.thread_count)
+    
    
-    return logger, file_handler, csv_writer, json_writer, body_writer, csv_timeline, thread_manager
+    return logger, file_handler, csv_writer, json_writer, body_writer, csv_timeline
 
 async def main() -> NoReturn:
     options_parser = OptionsParser()
     options = options_parser.parse_options()
 
-    logger, file_handler, csv_writer, json_writer, body_writer, csv_timeline_writer, thread_manager = \
+    logger, file_handler, csv_writer, json_writer, body_writer, csv_timeline_writer = \
         await initialize_components(options)
 
     try:
         logger.info("Starting analyzeMFT")
         logger.info("Opened input and output files successfully.")
    
-        mft_parser = MFTParser(options, file_handler, csv_writer, json_writer, thread_manager)
+        mft_parser = MFTParser(options, file_handler, csv_writer, json_writer)
         logger.info("Initializing the MFT parsing object...")
        
         await mft_parser.parse_mft_file()
@@ -51,7 +51,6 @@ async def main() -> NoReturn:
         logger.error(f"An error occurred during MFT parsing: {str(e)}")
         sys.exit(1)
     finally:
-        await thread_manager.shutdown()
         await file_handler.__aexit__(None, None, None)
     
     logger.info("analyzeMFT completed successfully.")

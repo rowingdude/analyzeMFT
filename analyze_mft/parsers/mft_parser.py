@@ -83,13 +83,11 @@ class MFTParser:
 
     async def _parse_single_record(self, raw_record: bytes) -> Optional[Dict[str, Any]]:
         try:
-            self.logger.debug("Starting _parse_single_record")
             mft_record = MFTRecord(raw_record, self.options)
             parsed_record = await mft_record.parse()
 
             if not parsed_record:
-                current_offset = await self.file_handler.tell()
-                self.logger.warning(f"Failed to parse record at offset {current_offset - len(raw_record)}")
+                self.logger.warning(f"Failed to parse record at offset {self.file_handler.tell() - len(raw_record)}")
                 return None
 
             record = {
@@ -103,18 +101,22 @@ class MFTParser:
 
             self.logger.debug(f"Parsed record header: {record}")
 
+            if 'attributes' not in parsed_record or not parsed_record['attributes']:
+                self.logger.warning(f"No attributes found in record {record['recordnum']}")
+                return record
+
             attribute_parser = AttributeParser(raw_record, self.options)
 
             for attr in parsed_record['attributes']:
-                attr_type = attr['type']
-                attr_data = attr['data']
-                await self._parse_attribute(record, attr_type, attr_data, attribute_parser)
+                attr_type = attr.get('type')
+                attr_data = attr.get('data')
+                if attr_type is not None and attr_data is not None:
+                    await self._parse_attribute(record, attr_type, attr_data, attribute_parser)
 
             await self._check_usec_zero(record)
             return record
         except Exception as e:
-            self.logger.error(f"Error processing record: {str(e)}")
-            self.logger.debug(f"Raw record data: {raw_record.hex()[:100]}...")
+            self.logger.error(f"Unhandled exception in _parse_single_record: {str(e)}")
             return None
 
     async def _parse_attribute(self, record: Dict[str, Any], attr_type: int, attr_data: bytes, attribute_parser: AttributeParser):
@@ -143,7 +145,7 @@ class MFTParser:
         except Exception as e:
             self.logger.error(f"Error parsing attribute {attr_type}: {str(e)}")
             record['notes'] += f"Error parsing attribute {attr_type}: {str(e)} | "
-            
+
     async def _check_usec_zero(self, record: Dict[str, Any]):
         if 'si' in record:
             si_times = [record['si'][key] for key in ['crtime', 'mtime', 'atime', 'ctime']]

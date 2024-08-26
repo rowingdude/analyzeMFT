@@ -17,30 +17,28 @@ class AttributeParser:
                 return None
 
             header = {
-                'type': struct.unpack("<I", self.raw_data[:4])[0],
-                'len': struct.unpack("<I", self.raw_data[4:8])[0],
-                'non_resident': struct.unpack("B", self.raw_data[8:9])[0],
-                'name_len': struct.unpack("B", self.raw_data[9:10])[0],
-                'name_offset': struct.unpack("<H", self.raw_data[10:12])[0],
-                'flags': struct.unpack("<H", self.raw_data[12:14])[0],
-                'id': struct.unpack("<H", self.raw_data[14:16])[0]
+                'type': int.from_bytes(self.raw_data[:4], byteorder='little'),
+                'len': int.from_bytes(self.raw_data[4:8], byteorder='little'),
+                'non_resident': self.raw_data[8],
+                'name_len': self.raw_data[9],
+                'name_offset': int.from_bytes(self.raw_data[10:12], byteorder='little'),
+                'flags': int.from_bytes(self.raw_data[12:14], byteorder='little'),
+                'id': int.from_bytes(self.raw_data[14:16], byteorder='little')
             }
 
             if header['non_resident'] == 0:
                 if len(self.raw_data) >= 24:
-                    header['content_size'] = struct.unpack("<I", self.raw_data[16:20])[0]
-                    header['content_offset'] = struct.unpack("<H", self.raw_data[20:22])[0]
+                    header['content_size'] = int.from_bytes(self.raw_data[16:20], byteorder='little')
+                    header['content_offset'] = int.from_bytes(self.raw_data[20:22], byteorder='little')
             else:
                 if len(self.raw_data) >= 64:
-                    header['starting_vcn'] = struct.unpack("<Q", self.raw_data[16:24])[0]
-                    header['last_vcn'] = struct.unpack("<Q", self.raw_data[24:32])[0]
-                    header['data_runs_offset'] = struct.unpack("<H", self.raw_data[32:34])[0]
-                    header['compression_unit'] = struct.unpack("<H", self.raw_data[34:36])[0]
-                    header['allocated_size'] = struct.unpack("<Q", self.raw_data[40:48])[0]
-                    header['real_size'] = struct.unpack("<Q", self.raw_data[48:56])[0]
-                    header['initialized_size'] = struct.unpack("<Q", self.raw_data[56:64])[0]
-
-            return header
+                    header['starting_vcn'] = int.from_bytes(self.raw_data[16:24], byteorder='little')
+                    header['last_vcn'] = int.from_bytes(self.raw_data[24:32], byteorder='little')
+                    header['data_runs_offset'] = int.from_bytes(self.raw_data[32:34], byteorder='little')
+                    header['compression_unit'] = int.from_bytes(self.raw_data[34:36], byteorder='little')
+                    header['allocated_size'] = int.from_bytes(self.raw_data[40:48], byteorder='little')
+                    header['real_size'] = int.from_bytes(self.raw_data[48:56], byteorder='little')
+                    header['initialized_size'] = int.from_bytes(self.raw_data[56:64], byteorder='little')
 
         except struct.error as e:
             self.logger.error(f"Error parsing attribute header: {str(e)}")

@@ -24,11 +24,11 @@ class CSVWriter:
             if options.output:
                 print("Warning: CSV output file specified but not opened in file handler.")
 
-    def write_csv_header(self):
-        
+
+    async def write_csv_header(self):
         if not self.csv_writer:
             print("Error: Attempting to write CSV header without a valid CSV writer.")
-            sys.exit(1)
+            return
             
         header = ['Record Number', 'Good', 'Active', 'Record type',
                   'Sequence Number', 'Parent File Rec. #', 'Parent File Rec. Seq. #',
@@ -45,25 +45,28 @@ class CSVWriter:
                   'Index Allocation', 'Bitmap', 'Reparse Point', 'EA Information', 'EA',
                   'Property Set', 'Logged Utility Stream', 'Log/Notes', 'STF FN Shift', 'uSec Zero']
         self.csv_writer.writerow(header)
+        await self.file_handler.file_csv.flush()
 
-    def write_csv_record(self, record):
+    async def write_csv_record(self, record):
+        if not self.csv_writer:
+            print("Error: Attempting to write CSV record without a valid CSV writer.")
+            return
 
-        if self.options.thread_count > 1:
-            self.thread_manager.map(self.write_csv_record, records)
+        csv_record = self._prepare_csv_record(record)
+        self.csv_writer.writerow(csv_record)
+        
+        await self.file_handler.file_csv.flush()
+        print(f"Wrote record {record['recordnum']} to CSV file")
 
-        else:
-            for record in records:
-                self.write_csv_record(record)
-
-    def write_bodyfile(self, record):
+    async def write_bodyfile(self, record):
         bodyfile_record = self._prepare_bodyfile_record(record)
         self.file_handler.file_body.write(bodyfile_record + '\n')
 
-    def write_l2t(self, record):
+    async def write_l2t(self, record):
         l2t_record = self._prepare_l2t_record(record)
         self.file_handler.file_csv_time.write(l2t_record + '\n')
 
-    def _prepare_csv_record(self, record):
+    async def _prepare_csv_record(self, record):
         csv_record = [
             str(record['recordnum']),
             self._decode_mft_magic(record),
@@ -159,7 +162,7 @@ class CSVWriter:
 
         return csv_record
 
-    def _prepare_bodyfile_record(self, record):
+    async def _prepare_bodyfile_record(self, record):
         bodyfile_parts = []
 
         # MD5 (we don't have this information, so we'll use a placeholder)
@@ -208,7 +211,7 @@ class CSVWriter:
 
         return '|'.join(bodyfile_parts)
 
-    def _prepare_l2t_record(self, record):
+    async def _prepare_l2t_record(self, record):
         l2t_record = []
 
         # Date format: MM/DD/YYYY HH:MM:SS
@@ -275,7 +278,7 @@ class CSVWriter:
 
         return '|'.join(l2t_record)
 
-    def _decode_mft_magic(self, record):
+    async def _decode_mft_magic(self, record):
         if record['magic'] == 0x454c4946:
             return "Good"
         elif record['magic'] == 0x44414142:
@@ -285,10 +288,10 @@ class CSVWriter:
         else:
             return 'Unknown'
 
-    def _decode_mft_isactive(self, record):
+    async def _decode_mft_isactive(self, record):
         return 'Active' if record['flags'] & 0x0001 else 'Inactive'
 
-    def _decode_mft_recordtype(self, record):
+    async def _decode_mft_recordtype(self, record):
         flags = int(record['flags'])
         if flags & 0x0002:
             record_type = 'Folder'

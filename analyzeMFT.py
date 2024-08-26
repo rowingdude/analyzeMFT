@@ -2,7 +2,6 @@ import asyncio
 import logging
 import sys
 import time
-from tqdm import tqdm
 from typing import NoReturn, Callable, Any, Coroutine
 
 from analyze_mft.parsers.mft_parser import MFTParser, parse_mft
@@ -35,8 +34,7 @@ async def initialize_components(options):
         return logger, fh, csv_writer, json_writer, thread_manager
 
 @error_handler
-async def parse_mft(mft_parser: MFTParser, progress_callback: Callable[[int], None]) -> None:
-    await mft_parser.parse_mft_file(progress_callback)
+async def parse_mft(mft_parser: MFTParser) -> None:
     await mft_parser.generate_filepaths()
     await mft_parser.print_records()
 
@@ -54,22 +52,21 @@ async def main() -> NoReturn:
        
         logger.info("Initializing the MFT parsing object...")
        
+
         start_time = time.time()
         total_records = await mft_parser.get_total_records()  
-       
-        async with tqdm(total=total_records, desc="Parsing MFT") as pbar:
-            async def update_progress(records_processed):
-                await pbar.update(records_processed - pbar.n)
-           
-            try:
-                await run_with_timeout(parse_mft(mft_parser, update_progress), timeout_duration=3600)  # 1 hour timeout
-            except TimeoutError:
-                logger.error("MFT parsing timed out after 1 hour")
-                sys.exit(1)
-            except Exception as e:
-                logger.error(f"An error occurred during MFT parsing: {str(e)}")
-                sys.exit(1)
-       
+        
+        logger.info(f"Starting to parse {total_records} records...")
+        
+        try:
+            await run_with_timeout(parse_mft(mft_parser), timeout_duration=3600)  # 1 hour timeout
+        except TimeoutError:
+            logger.error("MFT parsing timed out after 1 hour")
+            sys.exit(1)
+        except Exception as e:
+            logger.error(f"An error occurred during MFT parsing: {str(e)}")
+            sys.exit(1)
+        
         end_time = time.time()
         logger.info(f"MFT parsing completed in {end_time - start_time:.2f} seconds")
 

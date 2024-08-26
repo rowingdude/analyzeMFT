@@ -69,17 +69,27 @@ class MFTRecord:
             raise ValueError("Header must be parsed before attributes")
         
         offset = self.header.attr_off
+        self.logger.debug(f"Starting attribute parsing at offset: {offset}")
+        
         while offset < len(self.raw_record):
             try:
                 attr_type = struct.unpack("<I", self.raw_record[offset:offset+4])[0]
                 if attr_type == 0xFFFFFFFF:
+                    self.logger.debug("Reached end of attributes marker")
                     break
                 attr_len = struct.unpack("<I", self.raw_record[offset+4:offset+8])[0]
+                self.logger.debug(f"Found attribute type: {attr_type:X}, length: {attr_len}")
+                if attr_len == 0:
+                    self.logger.warning(f"Invalid attribute length of 0 at offset {offset}")
+                    break
                 self.attributes[attr_type] = self.raw_record[offset:offset+attr_len]
                 offset += attr_len
             except struct.error:
                 self.logger.warning(f"Error parsing attribute at offset {offset}")
                 break
+        
+        if not self.attributes:
+            self.logger.warning(f"No attributes found. Last checked offset: {offset}")
 
     def _create_record_dict(self) -> Dict[str, Any]:
         return {

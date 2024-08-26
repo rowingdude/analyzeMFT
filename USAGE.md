@@ -63,6 +63,14 @@ To analyze an MFT file and output the results to a CSV file:
 2. Bodyfile: A format suitable for timeline analysis tools.
 3. CSV Timeline: A chronological representation of file system events.
 
+## Status Bar
+
+I added a tqdm status bar to the program and then error wrapping around it, so when a corrupted file or entry is discovered, the output becomes:
+
+  No attributes found in record 196610. Raw data: 46494c45300003002431be4a00000000090000003800000040000000000400008d76020000000300010000001b7502000300000000000000ffffffff8279471100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  Parsing MFT:  51%|█████████████████████████████████████████████████████████████▌                                                          | 165M/322M [00:36<00:36, 4.32MB/s]No attributes found. Last checked offset: 56
+
+
 ## Notes
 
 - Ensure you have the necessary permissions to read the MFT file.

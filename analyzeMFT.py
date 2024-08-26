@@ -18,11 +18,11 @@ async def initialize_components(options):
     file_handler = FileHandler(FileHandlerOptions(options.filename, options.output, options.bodyfile, options.csvtimefile))
     csv_writer = CSVWriter(options, file_handler)
     json_writer = JSONWriter(options, file_handler)
-    body_writer = BodyFileWriter(options, file_handler) if options.bodyfile else None
-    csv_timeline_writer = CSVTimelineWriter(options, file_handler) if options.csvtimefile else None
+    body_writer = BodyfileWriter(options, file_handler) if options.bodyfile else None
+    csv_timeline = CSVTimelineWriter(options, file_handler) if options.csvtimefile else None
     thread_manager = ThreadManager(options.thread_count)
    
-    return logger, file_handler, csv_writer, json_writer, body_writer, csv_timeline_writer, thread_manager
+    return logger, file_handler, csv_writer, json_writer, body_writer, csv_timeline, thread_manager
 
 async def main() -> NoReturn:
     options_parser = OptionsParser()
@@ -41,8 +41,8 @@ async def main() -> NoReturn:
 
         if body_writer:
             await body_writer.write_records(mft_parser.mft)
-        if csv_timeline_writer:
-            await csv_timeline_writer.write_records(mft_parser.mft)
+        if csv_timeline:
+            await csv_timeline.write_records(mft_parser.mft)
 
     await thread_manager.shutdown()
     logger.info("analyzeMFT completed successfully.")

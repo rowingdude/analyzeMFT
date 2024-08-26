@@ -1,135 +1,182 @@
 import struct
-import logging
 from analyze_mft.utilities.windows_time import WindowsTime
-
+from analyze_mft.constants.constants import *
 
 class AttributeParser:
     def __init__(self, raw_data, options):
-
-        if not raw_data:
-            self.logger.warning("No raw data provided to AttributeParser")
-
-        if not options:
-            self.logger.warning("No options provided to AttributeParser")
-
         self.raw_data = raw_data
         self.options = options
-        self.logger = logging.getLogger('analyzeMFT')
 
-
-    def parse(self):
-
-        if len(self.raw_data) < 4:  
-        
-            self.logger.warning("Insufficient data for parsing attribute")
+    def parse_attribute_header(self):
+        if len(self.raw_data) < 16:
             return None
-        
-        return self.decode_attribute_header()
 
-    def decode_attribute_header(self):
-        
-        if len(self.raw_data) < 24:
-            if len(self.raw_data) < 4:
-                self.logger.warning("Insufficient data for parsing attribute")
-            d = {'type': struct.unpack("<I", self.raw_data[:4])[0]}
-            if d['type'] == 0xffffffff:
-                return d
-            self.logger.warning("Insufficient data for full attribute header")
-    
-        d = {}
-        d['type'] = struct.unpack("<I", self.raw_data[:4])[0]
-            
-        d['len'] = struct.unpack("<I", self.raw_data[4:8])[0]
-        d['res'] = struct.unpack("B", self.raw_data[8:9])[0]
-        d['name_off'] = struct.unpack("<H", self.raw_data[10:12])[0]
-        d['flags'] = struct.unpack("<H", self.raw_data[12:14])[0]
-        d['id'] = struct.unpack("<H", self.raw_data[14:16])[0]
-        
-        if d['res'] == 0:
-            d['ssize'] = struct.unpack("<L", self.raw_data[16:20])[0]
-            d['soff'] = struct.unpack("<H", self.raw_data[20:22])[0]
-            d['idxflag'] = struct.unpack("<H", self.raw_data[22:24])[0]
-        
+        header = {
+            'type': struct.unpack("<I", self.raw_data[:4])[0],
+            'len': struct.unpack("<I", self.raw_data[4:8])[0],
+            'non_resident': struct.unpack("B", self.raw_data[8:9])[0],
+            'name_len': struct.unpack("B", self.raw_data[9:10])[0],
+            'name_offset': struct.unpack("<H", self.raw_data[10:12])[0],
+            'flags': struct.unpack("<H", self.raw_data[12:14])[0],
+            'id': struct.unpack("<H", self.raw_data[14:16])[0]
+        }
+
+        if header['non_resident'] == 0:
+            header['content_size'] = struct.unpack("<I", self.raw_data[16:20])[0]
+            header['content_offset'] = struct.unpack("<H", self.raw_data[20:22])[0]
         else:
-            if len(self.raw_data) < 64:
-                self.logger.warning("Insufficient data for non-resident attribute")
+            header['starting_vcn'] = struct.unpack("<Q", self.raw_data[16:24])[0]
+            header['last_vcn'] = struct.unpack("<Q", self.raw_data[24:32])[0]
+            header['data_runs_offset'] = struct.unpack("<H", self.raw_data[32:34])[0]
+            header['compression_unit'] = struct.unpack("<H", self.raw_data[34:36])[0]
+            header['allocated_size'] = struct.unpack("<Q", self.raw_data[40:48])[0]
+            header['real_size'] = struct.unpack("<Q", self.raw_data[48:56])[0]
+            header['initialized_size'] = struct.unpack("<Q", self.raw_data[56:64])[0]
 
-            d['start_vcn'] = struct.unpack("<Q", self.raw_data[16:24])[0]
-            d['last_vcn'] = struct.unpack("<Q", self.raw_data[24:32])[0]
-            d['run_off'] = struct.unpack("<H", self.raw_data[32:34])[0]
-            d['compusize'] = struct.unpack("<H", self.raw_data[34:36])[0]
-            d['f1'] = struct.unpack("<I", self.raw_data[36:40])[0]
-            d['alen'] = struct.unpack("<Q", self.raw_data[40:48])[0]
-            d['ssize'] = struct.unpack("<Q", self.raw_data[48:56])[0]
-            d['initsize'] = struct.unpack("<Q", self.raw_data[56:64])[0]
+        return header
 
-        return d
-
-    def parse_standard_information(self):
-
-        header = self.decode_attribute_header()
-        if not header or 'soff' not in header:
-            self.logger.warning("Invalid attribute header for standard information")
-            return None
-        
-        s = self.raw_data[header['soff']:]
-
-        if len(s) < 72:
-            self.logger.warning("Insufficient data for parsing standard information")
+    def parse_standard_information(self, offset):
+        data = self.raw_data[offset:]
+        if len(data) < 72:
             return None
 
-        d = {}
+        return {
+            'crtime': WindowsTime(struct.unpack("<Q", data[:8])[0], self.options.localtz),
+            'mtime': WindowsTime(struct.unpack("<Q", data[8:16])[0], self.options.localtz),
+            'ctime': WindowsTime(struct.unpack("<Q", data[16:24])[0], self.options.localtz),
+            'atime': WindowsTime(struct.unpack("<Q", data[24:32])[0], self.options.localtz),
+            'dos_flags': struct.unpack("<I", data[32:36])[0],
+            'max_versions': struct.unpack("<I", data[36:40])[0],
+            'version': struct.unpack("<I", data[40:44])[0],
+            'class_id': struct.unpack("<I", data[44:48])[0],
+            'owner_id': struct.unpack("<I", data[48:52])[0],
+            'security_id': struct.unpack("<I", data[52:56])[0],
+            'quota_charged': struct.unpack("<Q", data[56:64])[0],
+            'usn': struct.unpack("<Q", data[64:72])[0]
+        }
 
-        d['crtime'] = WindowsTime(struct.unpack("<Q", s[:8])[0], self.options.localtz)
-        d['mtime'] = WindowsTime(struct.unpack("<Q", s[8:16])[0], self.options.localtz)
-        d['ctime'] = WindowsTime(struct.unpack("<Q", s[16:24])[0], self.options.localtz)
-        d['atime'] = WindowsTime(struct.unpack("<Q", s[24:32])[0], self.options.localtz)
-        d['dos'] = struct.unpack("<I", s[32:36])[0]
-        d['maxver'] = struct.unpack("<I", s[36:40])[0]
-        d['ver'] = struct.unpack("<I", s[40:44])[0]
-        d['class_id'] = struct.unpack("<I", s[44:48])[0]
-        d['own_id'] = struct.unpack("<I", s[48:52])[0]
-        d['sec_id'] = struct.unpack("<I", s[52:56])[0]
-        d['quota'] = struct.unpack("<Q", s[56:64])[0]
-        d['usn'] = struct.unpack("<Q", s[64:72])[0]
-
-        self.logger.debug(f"Creation timestamp: {d['crtime'].timestamp()}")
-        return d
-
-    def parse_file_name(self, record):
-
-        header = self.decode_attribute_header()
-        if not header or 'soff' not in header:
-            self.logger.warning("Invalid attribute header for standard information")
+    def parse_file_name(self, offset):
+        data = self.raw_data[offset:]
+        if len(data) < 66:
             return None
-        
-        
-        s = self.raw_data[header['soff']:]
-        if len(s) < 66:
-            self.logger.warning("Insufficient data for parsing file name")
-        try:
-            windows_time = WindowsTime(timestamp, self.options.localtz)
-        except ValueError as e:
-            self.logger.warning(f"Invalid timestamp encountered: {e}")
-            windows_time = WindowsTime(0, self.options.localtz)  
 
-        d = {}
-        d['par_ref'] = struct.unpack("<Q", s[:8])[0]
-        d['crtime'] = WindowsTime(struct.unpack("<Q", s[:8])[0], self.options.localtz)
-        d['mtime'] = WindowsTime(struct.unpack("<Q", s[8:16])[0], self.options.localtz)
-        d['ctime'] = WindowsTime(struct.unpack("<Q", s[16:24])[0], self.options.localtz)
-        d['atime'] = WindowsTime(struct.unpack("<Q", s[24:32])[0], self.options.localtz)
-        d['alloc_fsize'] = struct.unpack("<Q", s[40:48])[0]
-        d['real_fsize'] = struct.unpack("<Q", s[48:56])[0]
-        d['flags'] = struct.unpack("<I", s[56:60])[0]
-        d['nlen'] = struct.unpack("B", s[64:65])[0]
-        d['nspace'] = struct.unpack("B", s[65:66])[0]
+        fn = {
+            'parent_ref': struct.unpack("<Q", data[:8])[0],
+            'crtime': WindowsTime(struct.unpack("<Q", data[8:16])[0], self.options.localtz),
+            'mtime': WindowsTime(struct.unpack("<Q", data[16:24])[0], self.options.localtz),
+            'ctime': WindowsTime(struct.unpack("<Q", data[24:32])[0], self.options.localtz),
+            'atime': WindowsTime(struct.unpack("<Q", data[32:40])[0], self.options.localtz),
+            'alloc_size': struct.unpack("<Q", data[40:48])[0],
+            'real_size': struct.unpack("<Q", data[48:56])[0],
+            'flags': struct.unpack("<I", data[56:60])[0],
+            'reparse': struct.unpack("<I", data[60:64])[0],
+            'name_length': struct.unpack("B", data[64:65])[0],
+            'namespace': struct.unpack("B", data[65:66])[0]
+        }
 
-        bytes_left = d['nlen']*2
-        if len(s) < 66 + bytes_left:
-            self.logger.warning("Insufficient data for filename")
-        d['name'] = s[66:66+bytes_left].decode('utf-16-le')
+        name_offset = 66
+        fn['name'] = data[name_offset:name_offset + fn['name_length'] * 2].decode('utf-16-le')
 
-        self.logger.debug(f"Parsed FN timestamps: crtime={d['crtime']}, mtime={d['mtime']}, atime={d['atime']}, ctime={d['ctime']}")
-        
-        return d
+        return fn
+
+    def parse_attribute_list(self, offset):
+        data = self.raw_data[offset:]
+        attributes = []
+
+        while len(data) >= 26:
+            attr = {
+                'type': struct.unpack("<I", data[:4])[0],
+                'length': struct.unpack("<H", data[4:6])[0],
+                'name_length': struct.unpack("B", data[6:7])[0],
+                'name_offset': struct.unpack("B", data[7:8])[0],
+                'starting_vcn': struct.unpack("<Q", data[8:16])[0],
+                'file_reference': struct.unpack("<Q", data[16:24])[0],
+                'attribute_id': struct.unpack("<H", data[24:26])[0]
+            }
+
+            if attr['name_length'] > 0:
+                name_offset = attr['name_offset']
+                attr['name'] = data[name_offset:name_offset + attr['name_length'] * 2].decode('utf-16-le')
+            else:
+                attr['name'] = ''
+
+            attributes.append(attr)
+            data = data[attr['length']:]
+
+        return attributes
+
+    def parse_object_id(self, offset):
+        data = self.raw_data[offset:]
+        if len(data) < 64:
+            return None
+
+        return {
+            'object_id': data[:16],
+            'birth_volume_id': data[16:32],
+            'birth_object_id': data[32:48],
+            'domain_id': data[48:64]
+        }
+
+    def parse_volume_info(self, offset):
+        data = self.raw_data[offset:]
+        if len(data) < 12:
+            return None
+
+        return {
+            'reserved': struct.unpack("<Q", data[:8])[0],
+            'major_version': struct.unpack("B", data[8:9])[0],
+            'minor_version': struct.unpack("B", data[9:10])[0],
+            'flags': struct.unpack("<H", data[10:12])[0]
+        }
+
+    def parse_data(self, offset, size):
+        return self.raw_data[offset:offset + size]
+
+    def parse_index_root(self, offset):
+        data = self.raw_data[offset:]
+        if len(data) < 16:
+            return None
+
+        return {
+            'attribute_type': struct.unpack("<I", data[:4])[0],
+            'collation_rule': struct.unpack("<I", data[4:8])[0],
+            'index_alloc_size': struct.unpack("<I", data[8:12])[0],
+            'clusters_per_index_record': struct.unpack("B", data[12:13])[0]
+        }
+
+    def parse_index_allocation(self, offset):
+        # Implement index allocation parsing logic here
+        pass
+
+    def parse_bitmap(self, offset, size):
+        return self.raw_data[offset:offset + size]
+
+    def parse_reparse_point(self, offset):
+        data = self.raw_data[offset:]
+        if len(data) < 8:
+            return None
+
+        return {
+            'reparse_tag': struct.unpack("<I", data[:4])[0],
+            'reparse_data_length': struct.unpack("<H", data[4:6])[0],
+            'reserved': struct.unpack("<H", data[6:8])[0],
+            'reparse_data': data[8:]
+        }
+
+    def parse_ea_information(self, offset):
+        data = self.raw_data[offset:]
+        if len(data) < 8:
+            return None
+
+        return {
+            'ea_pack_size': struct.unpack("<H", data[:2])[0],
+            'need_ea_count': struct.unpack("<H", data[2:4])[0],
+            'unpacked_ea_size': struct.unpack("<I", data[4:8])[0]
+        }
+
+    def parse_ea(self, offset):
+        # Implement EA parsing logic here
+        pass
+
+    def parse_logged_utility_stream(self, offset, size):
+        return self.raw_data[offset:offset + size]

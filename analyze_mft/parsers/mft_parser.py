@@ -9,7 +9,7 @@ from analyze_mft.constants.constants import *
 from analyze_mft.utilities.windows_time import WindowsTime
 
 class MFTParser:
-    def __init__(self, options, file_handler, csv_writer, json_writer, thread_manager):
+    def __init__(self, options: Any, file_handler: Any, csv_writer: Any, json_writer: Any, thread_manager: Any):
         self.options = options
         self.file_handler = file_handler
         self.csv_writer = csv_writer
@@ -51,6 +51,8 @@ class MFTParser:
         finally:
             self.logger.info(f"Total records processed: {self.num_records}")
             await self.generate_filepaths()
+            if self.options.jsonfile:
+                await self.json_writer.write_json_file()
 
         self.logger.info("MFT parsing completed or interrupted.")
 

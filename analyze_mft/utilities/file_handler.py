@@ -60,16 +60,19 @@ class FileHandler:
         for file in files_to_close:
             if file:
                 await file.close()
-                
+
     async def read_mft_record(self) -> Optional[bytes]:
         if not self.file_mft:
             raise FileOpenError("MFT file is not open.")
         try:
+            print("Reading MFT record...")
             raw_record = await self.file_mft.read(1024)  # Assuming each record is 1024 bytes
             if not raw_record:
+                print("End of file reached")
                 return None  # End of file
             if len(raw_record) < 1024:
                 print(f"Warning: Incomplete record read. Expected 1024 bytes, got {len(raw_record)}")
+            print(f"Successfully read {len(raw_record)} bytes")
             return raw_record
         except Exception as e:
             print(f"Error reading MFT record: {str(e)}")

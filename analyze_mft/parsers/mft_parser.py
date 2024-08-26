@@ -16,19 +16,6 @@ from analyze_mft.utilities.file_handler import FileHandler
 from analyze_mft.utilities.windows_time import WindowsTime
 from analyze_mft.utilities.error_handler import error_handler
 
-@error_handler
-async def parse_mft(mft_parser: MFTParser) -> None:
-    print("Starting parse_mft function")
-    try:
-        await mft_parser.parse_mft_file()
-        print("Finished parsing MFT file")
-        await mft_parser.generate_filepaths()
-        print("Finished generating filepaths")
-        await mft_parser.print_records()
-        print("Finished printing records")
-    except Exception as e:
-        print(f"Error in parse_mft: {str(e)}")
-        traceback.print_exc()
 
 @dataclass
 class ParserOptions:
@@ -114,22 +101,33 @@ class MFTParser:
             traceback.print_exc()
 
     async def _parse_single_record(self, raw_record: bytes) -> Optional[Dict[str, Any]]:
-        try:
-            mft_record = MFTRecord(raw_record, self.options)
-            record = await mft_record.parse()
+        record = {}
+        record['filename'] = ''
+        record['notes'] = ''
+        
+        self._decode_mft_header(record, raw_record)
 
-            if record is not None:
-                await self._parse_object_id(record)
-                await self._check_usec_zero(record)
-                await self._log_parsed_record(record)
-                self.logger.debug(f"Parsed record {record['recordnum']}: filename={record.get('filename', 'N/A')}")
-            else:
-                self.logger.warning("MFTRecord.parse() returned None")
+        if record['magic'] == 0x44414142:
+            record['baad'] = True
             return record
 
-        except Exception as e:
-            self.logger.error(f"Error parsing record: {str(e)}")
-            return None
+        if record['magic'] != 0x454c4946:
+            record['corrupt'] = True
+            return record
+
+        # Parse attributes
+        offset = record['attr_off']
+        while offset < 1024:
+            try:
+                attr_type, attr_len = struct.unpack("<II", raw_record[offset:offset+8])
+                if attr_type == 0xffffffff:
+                    break
+                await self._parse_attribute(record, raw_record[offset:offset+attr_len])
+                offset += attr_len
+            except struct.error:
+                break
+
+        return record
 
     async def _process_record_queue(self):
         print(f"Processing record queue with {len(self.record_queue)} records")
@@ -177,14 +175,12 @@ class MFTParser:
             self.logger.debug(f"Record {record['recordnum']} usec-zero: {record['usec-zero']}")
 
     async def generate_filepaths(self):
-        self.logger.info("Generating file paths...")
         for i in self.mft:
             if self.mft[i]['filename'] == '':
                 if self.mft[i]['fncnt'] > 0:
                     await self.get_folder_path(i)
                 else:
                     self.mft[i]['filename'] = 'NoFNRecord'
-        self.logger.info("Finished generating file paths.")
 
     @lru_cache(maxsize=1000)
     async def get_folder_path(self, seqnum: int, visited: Optional[set] = None) -> str:
@@ -247,3 +243,16 @@ class MFTParser:
     def get_total_records(self) -> int:
         return self.file_handler.estimate_total_records()
 
+@error_handler
+async def parse_mft(mft_parser: MFTParser) -> None:
+    print("Starting parse_mft function")
+    try:
+        await mft_parser.parse_mft_file()
+        print("Finished parsing MFT file")
+        await mft_parser.generate_filepaths()
+        print("Finished generating filepaths")
+        await mft_parser.print_records()
+        print("Finished printing records")
+    except Exception as e:
+        print(f"Error in parse_mft: {str(e)}")
+        traceback.print_exc()

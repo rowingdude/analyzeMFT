@@ -26,26 +26,25 @@ async def initialize_components(options):
 async def main() -> NoReturn:
     options_parser = OptionsParser()
     options = options_parser.parse_options()
-
     logger, file_handler, csv_writer, json_writer, body_writer, csv_timeline_writer, thread_manager = await initialize_components(options)
-    logger.info("Starting analyzeMFT")
-
-    async with file_handler:
+    
+    try:
+        logger.info("Starting analyzeMFT")
         logger.info("Opened input and output files successfully.")
    
         mft_parser = MFTParser(options, file_handler, csv_writer, json_writer, thread_manager)
         logger.info("Initializing the MFT parsing object...")
        
         await mft_parser.parse_mft_file()
-
         if body_writer:
             await body_writer.write_records(mft_parser.mft)
-        if csv_timeline:
-            await csv_timeline.write_records(mft_parser.mft)
-
-    await thread_manager.shutdown()
+        if csv_timeline_writer:
+            await csv_timeline_writer.write_records(mft_parser.mft)
+    finally:
+        await thread_manager.shutdown()
+        await file_handler.__aexit__(None, None, None)
+    
     logger.info("analyzeMFT completed successfully.")
     sys.exit(0)
-
 if __name__ == "__main__":
     asyncio.run(main())

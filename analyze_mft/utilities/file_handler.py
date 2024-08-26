@@ -39,6 +39,13 @@ class FileHandler:
             if file:
                 await file.close()
 
+    async def get_file_size(self):
+        current_pos = await self.file_mft.tell()
+        await self.file_mft.seek(0, 2)  # Seek to the end of the file
+        size = await self.file_mft.tell()
+        await self.file_mft.seek(current_pos)  # Return to the original position
+        return size
+
     async def read_mft_record(self) -> Optional[bytes]:
         return await self.file_mft.read(1024)  # Assuming each record is 1024 bytes
 

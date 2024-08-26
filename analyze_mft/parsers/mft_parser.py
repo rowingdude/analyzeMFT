@@ -1,4 +1,7 @@
+import asyncio
 import logging
+from tqdm import tqdm
+
 from typing import Dict, Any, Optional
 from analyze_mft.utilities.mft_record import MFTRecord
 from analyze_mft.parsers.attribute_parser import AttributeParser
@@ -17,54 +20,85 @@ class MFTParser:
         self.folders: Dict[int, str] = {}
         self.num_records = 0
 
+
     async def parse_mft_file(self):
+
         if self.options.output:
             await self.csv_writer.write_csv_header()
 
-        while True:
-            raw_record = await self.file_handler.read_mft_record()
-            if not raw_record:
-                break
-            record = await self._parse_single_record(raw_record)
-            if record:
-                self.mft[self.num_records] = record
-                if self.options.output:
-                    await self.csv_writer.write_csv_record(record)
-                if self.options.jsonfile:
-                    await self.json_writer.write_json_record(record)
-                self.num_records += 1
-                await self._update_progress()
+        total_size = await self.file_handler.get_file_size()
+        processed_size = 0
+        record_count = 0
+        max_records = 1000000  # Safeguard: maximum number of records to process
 
+        with tqdm(total=total_size, unit='B', unit_scale=True, desc="Parsing MFT") as pbar:
+            while processed_size < total_size and record_count < max_records:
+                try:
+                    raw_record = await self.file_handler.read_mft_record()
+                    if not raw_record:
+                        self.logger.info("Reached end of file")
+                        break
+
+                    processed_size += len(raw_record)
+                    record_count += 1
+
+                    self.logger.debug(f"Processing record {record_count} at offset {processed_size}")
+
+                    record = await self._parse_single_record(raw_record)
+                    if record:
+                        self.mft[self.num_records] = record
+                        if self.options.output:
+                            await self.csv_writer.write_csv_record(record)
+                        if self.options.jsonfile:
+                            await self.json_writer.write_json_record(record)
+                        self.num_records += 1
+
+                    pbar.update(len(raw_record))
+
+                    if record_count % 1000 == 0:
+                        self.logger.info(f"Processed {record_count} records, {processed_size/total_size:.2%} complete")
+                        await asyncio.sleep(0)  # Allow other tasks to run
+
+                except Exception as e:
+                    self.logger.error(f"Error processing record {record_count}: {str(e)}")
+                    self.logger.error(f"Raw record data: {raw_record.hex()[:100]}...") 
         self.logger.info(f"Total records processed: {self.num_records}")
         await self.generate_filepaths()
 
     async def _parse_single_record(self, raw_record: bytes) -> Optional[Dict[str, Any]]:
-        mft_record = MFTRecord(raw_record, self.options)
-        parsed_record = mft_record.parse()
+        try:
+            mft_record = MFTRecord(raw_record, self.options)
+            parsed_record = mft_record.parse()
 
-        if not parsed_record:
-            return None
+            if not parsed_record:
+                self.logger.warning(f"Failed to parse record at offset {self.file_handler.file_mft.tell() - len(raw_record)}")
+                return None
 
-        record = {
-            'recordnum': parsed_record['recordnum'],
-            'seq': parsed_record['seq'],
-            'flags': parsed_record['flags'],
-            'filename': '',
-            'fncnt': 0,
-            'notes': ''
-        }
+            record = {
+                'recordnum': parsed_record.get('recordnum', 0),
+                'seq': parsed_record.get('seq', 0),
+                'flags': parsed_record.get('flags', 0),
+                'filename': '',
+                'fncnt': 0,
+                'notes': ''
+            }
 
-        attribute_parser = AttributeParser(raw_record, self.options)
+            attribute_parser = AttributeParser(raw_record, self.options)
 
+            if 'attributes' not in parsed_record or not parsed_record['attributes']:
+                self.logger.warning(f"No attributes found in record {record['recordnum']}")
+                return record
 
-        for attr_type, attr_data in parsed_record['attributes'].items():
-            attr_header = attribute_parser.parse_attribute_header()
-            if not attr_header:
-                continue
+            for attr_type, attr_data in parsed_record['attributes'].items():
+                self.logger.debug(f"Parsing attribute type {attr_type}")
+                attr_header = attribute_parser.parse_attribute_header()
+                if not attr_header:
+                    self.logger.warning(f"Failed to parse attribute header for type {attr_type}")
+                    continue
 
-            content_offset = attr_header.get('content_offset')
-            if content_offset is None:
-                content_offset = attr_header.get('data_runs_offset', 0)
+                content_offset = attr_header.get('content_offset')
+                if content_offset is None:
+                    content_offset = attr_header.get('data_runs_offset', 0)
 
             try:
                 if attr_type == STANDARD_INFORMATION:
@@ -93,8 +127,16 @@ class MFTParser:
             except Exception as e:
                 record['notes'] += f"Error parsing attribute {attr_type}: {str(e)} | "
 
-        await self._check_usec_zero(record)
-        return record
+            await self._check_usec_zero(record)
+            return record
+
+        except KeyboardInterrupt:
+            self.logger.warning("Parsing interrupted by user. Saving progress...")
+        except asyncio.CancelledError:
+            self.logger.warning("Parsing was cancelled. Saving progress...")
+        finally:
+            self.logger.info(f"Total records processed: {self.num_records}")
+            await self.generate_filepaths()
 
     async def _check_usec_zero(self, record: Dict[str, Any]):
         if 'si' in record:

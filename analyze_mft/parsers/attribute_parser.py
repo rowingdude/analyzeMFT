@@ -1,6 +1,6 @@
 import struct
 import logging
-from .windows_time import WindowsTime
+from analyze_mft.utilities.windows_time import WindowsTime
 
 
 class AttributeParser:

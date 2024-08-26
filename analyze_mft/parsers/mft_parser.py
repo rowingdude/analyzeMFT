@@ -6,13 +6,13 @@ from typing import List, Dict, Any, Optional, Iterable
 from dataclasses import dataclass
 import uuid
 
-from .mft_record import MFTRecord
-from .logger import Logger
-from .json_writer import JSONWriter
-from .thread_manager import ThreadManager
-from .csv_writer import CSVWriter
-from .file_handler import FileHandler
-from .windows_time import WindowsTime
+from analyze_mft.utilities.mft_record import MFTRecord
+from analyze_mft.utilities.logger import Logger
+from analyze_mft.outputs.json_writer import JSONWriter
+from analyze_mft.utilities.thread_manager import ThreadManager
+from analyze_mft.outputs.csv_writer import CSVWriter
+from analyze_mft.utilities.file_handler import FileHandler
+from analyze_mft.utilities.windows_time import WindowsTime
 
 @dataclass
 class ParserOptions:

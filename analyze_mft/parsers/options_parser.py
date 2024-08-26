@@ -1,7 +1,7 @@
 import argparse
 import os
 from functools import wraps
-from .constants import VERSION
+from analyze_mft.constants.constants import VERSION
 
 def log_call(func):
     @wraps(func)

@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 from typing import Optional, BinaryIO, TextIO
 from dataclasses import dataclass
+from analyze_mft.utilities.windows_time import WindowsTime
 
 @dataclass
 class FileHandlerOptions:

@@ -2,7 +2,7 @@ import logging
 from typing import Any, Optional
 from dataclasses import dataclass
 from pathlib import Path
-from .constants import VERSION
+from analyze_mft.constants.constants import VERSION
 
 @dataclass
 class LoggerOptions:

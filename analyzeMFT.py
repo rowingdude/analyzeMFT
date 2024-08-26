@@ -34,13 +34,13 @@ async def run_with_timeout(coro: Coroutine, timeout_duration: int = 300) -> Any:
         raise result[0]
     return result[0] if result else None
 try:
-    from analyze_mft.mft_parser import MFTParser
-    from analyze_mft.file_handler import FileHandler
-    from analyze_mft.csv_writer import CSVWriter
-    from analyze_mft.options_parser import OptionsParser
-    from analyze_mft.logger import Logger
-    from analyze_mft.thread_manager import ThreadManager
-    from analyze_mft.json_writer import JSONWriter
+    from analyze_mft.parsers.mft_parser import MFTParser
+    from analyze_mft.utilities.file_handler import FileHandler
+    from analyze_mft.outputs.csv_writer import CSVWriter
+    from analyze_mft.parsers.options_parser import OptionsParser
+    from analyze_mft.utilities.logger import Logger
+    from analyze_mft.utilities.thread_manager import ThreadManager
+    from analyze_mft.outputs.json_writer import JSONWriter
 except ImportError as e:
     print(f"Error: Failed to import required modules. {e}")
     sys.exit(1)

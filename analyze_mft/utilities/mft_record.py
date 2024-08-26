@@ -2,8 +2,8 @@ import logging
 import struct
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
-from .attribute_parser import AttributeParser
-from .windows_time import WindowsTime
+from analyze_mft.parsers.attribute_parser import AttributeParser
+from analyze_mft.utilities.windows_time import WindowsTime
 
 
 @dataclass

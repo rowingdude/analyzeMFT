@@ -1,6 +1,6 @@
 import csv
 import os
-from .windows_time import WindowsTime
+from analyze_mft.utilities.windows_time import WindowsTime
 
 class CSVWriter:
     def __init__(self, options, file_handler):

@@ -59,6 +59,8 @@ class OptionsParser:
                            help="Report version and exit")
         group.add_argument("-V", "--verbose", action="store_true", dest="verbose",
                            help="Enable verbose output")
+        group.add_argument("--log", dest="log_file",
+                           help="Write debugging information to LOG_FILE", metavar="LOG_FILE")
 
     def _add_performance_options(self):
         group = self.parser.add_argument_group('Performance Options')

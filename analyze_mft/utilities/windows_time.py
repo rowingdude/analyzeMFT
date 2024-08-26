@@ -1,81 +1,43 @@
-from typing import Union, Tuple
-from datetime import datetime, timezone
-import logging
+from datetime import datetime, timezone, timedelta
 
 class WindowsTime:
-    
-    def __init__(self, *args: Union[Tuple[int, int, int, bool], Tuple[int, bool]]):
+    WINDOWS_TICK = 10000000
+    SECONDS_TO_UNIX_EPOCH = 11644473600
 
-        self.logger = logging.getLogger('analyzeMFT')
-        
-        if len(args) == 4:  # low, high, timestamp, localtz
-            self.low, self.high, self.timestamp, self.localtz = args
-        elif len(args) == 2:  # timestamp, localtz
-            self.timestamp, self.localtz = args
-            self.low = self.high = None
-        else:
-            self.logger.warning("Invalid number of arguments")
-
-        self._validate_inputs()
+    def __init__(self, timestamp, localtz):
+        self.timestamp = timestamp
+        self.localtz = localtz
         self.dt = None
         self.dtstr = "Not defined"
         self.unixtime = 0
         self._parse_time()
 
-    def get_datetime(self) -> datetime:
-        return self.dt
-    
-    def format(self, fmt: str = "%Y-%m-%d %H:%M:%S") -> str:
-        return self.dt.strftime(fmt) if self.dt else self.dtstr
-
-    def _validate_inputs(self) -> None:
-        if self.low is not None and (not isinstance(self.low, int) or not isinstance(self.high, int)):
-            self.logger.warning("Low and high values must be integers")
-        if not isinstance(self.timestamp, int):
-            self.logger.warning("Timestamp must be an integer")
-        if not isinstance(self.localtz, bool):
-            self.logger.warning("localtz must be a boolean value")
-
-    def _parse_time(self) -> None:
+    def _parse_time(self):
         if self.timestamp == 0:
             self.dtstr = "Never"
-            self.logger.debug("Zero timestamp encountered")
             return
 
         try:
             self.unixtime = self._calculate_unixtime()
-            if self.unixtime < 0:
-                self.logger.warning("Negative Unix time calculated")
-
             self.dt = self._create_datetime()
             self.dtstr = self.dt.isoformat()
-            self.logger.debug(f"Parsed Windows time: {self.dtstr}")
-
-        except (ValueError, OverflowError) as e:
+        except (ValueError, OSError) as e:
             self.dtstr = f"Invalid timestamp: {e}"
             self.unixtime = 0
-            self.logger.warning(f"Invalid timestamp encountered: {e}")
 
-    def _calculate_unixtime(self) -> float:
-        if self.low is not None and self.high is not None:
-            return self.get_unix_time()
+    def _calculate_unixtime(self):
+        return (self.timestamp / self.WINDOWS_TICK) - self.SECONDS_TO_UNIX_EPOCH
+
+    def _create_datetime(self):
+        if self.unixtime < 0:
+            # Handle dates before Unix epoch
+            unix_epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+            return unix_epoch + timedelta(seconds=self.unixtime)
         else:
-            return (self.timestamp / 10000000) - 11644473600
-
-    def _create_datetime(self) -> datetime:
-        if self.localtz:
-            return datetime.fromtimestamp(self.unixtime).astimezone()
-        else:
-            return datetime.fromtimestamp(self.unixtime, tz=timezone.utc)
-
-    def get_unix_time(self) -> float:
-        if self.low is None or self.high is None:
-            self.logger.warning("Low and high values are not set")
-        t = float(self.high) * 2**32 + self.low
-        return (t * 1e-7 - 11644473600)
-    
-    def timestamp(self):
-        return int((self.unixtime + self.SECONDS_TO_UNIX_EPOCH) * self.WINDOWS_TICK)
+            if self.localtz:
+                return datetime.fromtimestamp(self.unixtime).astimezone()
+            else:
+                return datetime.fromtimestamp(self.unixtime, tz=timezone.utc)
 
     def __str__(self):
         return self.dtstr

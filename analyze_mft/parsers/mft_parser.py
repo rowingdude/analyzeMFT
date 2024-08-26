@@ -56,32 +56,42 @@ class MFTParser:
 
         attribute_parser = AttributeParser(raw_record, self.options)
 
+
         for attr_type, attr_data in parsed_record['attributes'].items():
             attr_header = attribute_parser.parse_attribute_header()
             if not attr_header:
                 continue
 
-            if attr_type == STANDARD_INFORMATION:
-                record['si'] = attribute_parser.parse_standard_information(attr_header['content_offset'])
-            elif attr_type == FILE_NAME:
-                fn = attribute_parser.parse_file_name(attr_header['content_offset'])
-                if fn:
-                    record[f'fn{record["fncnt"]}'] = fn
-                    record['fncnt'] += 1
-                    if record['fncnt'] == 1:
-                        record['filename'] = fn['name']
-            elif attr_type == OBJECT_ID:
-                record['objid'] = attribute_parser.parse_object_id(attr_header['content_offset'])
-            elif attr_type == DATA:
-                record['data'] = True
-            elif attr_type == INDEX_ROOT:
-                record['indexroot'] = True
-            elif attr_type == INDEX_ALLOCATION:
-                record['indexallocation'] = True
-            elif attr_type == BITMAP:
-                record['bitmap'] = True
-            elif attr_type == LOGGED_UTILITY_STREAM:
-                record['loggedutility'] = True
+            content_offset = attr_header.get('content_offset')
+            if content_offset is None:
+                content_offset = attr_header.get('data_runs_offset', 0)
+
+            try:
+                if attr_type == STANDARD_INFORMATION:
+                    record['si'] = attribute_parser.parse_standard_information(content_offset)
+                elif attr_type == FILE_NAME:
+                    fn = attribute_parser.parse_file_name(content_offset)
+                    if fn:
+                        record[f'fn{record["fncnt"]}'] = fn
+                        record['fncnt'] += 1
+                        if record['fncnt'] == 1:
+                            record['filename'] = fn['name']
+
+                elif attr_type == OBJECT_ID:
+                    record['objid'] = attribute_parser.parse_object_id(content_offset)
+                elif attr_type == DATA:
+                    record['data'] = True
+                elif attr_type == INDEX_ROOT:
+                    record['indexroot'] = True
+                elif attr_type == INDEX_ALLOCATION:
+                    record['indexallocation'] = True
+                elif attr_type == BITMAP:
+                    record['bitmap'] = True
+                elif attr_type == LOGGED_UTILITY_STREAM:
+                    record['loggedutility'] = True
+                
+            except Exception as e:
+                record['notes'] += f"Error parsing attribute {attr_type}: {str(e)} | "
 
         await self._check_usec_zero(record)
         return record

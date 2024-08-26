@@ -35,6 +35,10 @@ class Logger:
 
         return logger
 
+    async def initialize_components(options):
+        logger = Logger(LoggerOptions(options.debug, options.verbose, 
+                        Path(options.log_file) if options.log_file else None))
+
     def _log(self, level: int, message: str, *args: Any, **kwargs: Any) -> None:
         self.logger.log(level, message, *args, **kwargs)
 

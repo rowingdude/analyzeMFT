@@ -22,16 +22,18 @@ class AttributeParser:
         }
 
         if header['non_resident'] == 0:
-            header['content_size'] = struct.unpack("<I", self.raw_data[16:20])[0]
-            header['content_offset'] = struct.unpack("<H", self.raw_data[20:22])[0]
+            if len(self.raw_data) >= 24:
+                header['content_size'] = struct.unpack("<I", self.raw_data[16:20])[0]
+                header['content_offset'] = struct.unpack("<H", self.raw_data[20:22])[0]
         else:
-            header['starting_vcn'] = struct.unpack("<Q", self.raw_data[16:24])[0]
-            header['last_vcn'] = struct.unpack("<Q", self.raw_data[24:32])[0]
-            header['data_runs_offset'] = struct.unpack("<H", self.raw_data[32:34])[0]
-            header['compression_unit'] = struct.unpack("<H", self.raw_data[34:36])[0]
-            header['allocated_size'] = struct.unpack("<Q", self.raw_data[40:48])[0]
-            header['real_size'] = struct.unpack("<Q", self.raw_data[48:56])[0]
-            header['initialized_size'] = struct.unpack("<Q", self.raw_data[56:64])[0]
+            if len(self.raw_data) >= 64:
+                header['starting_vcn'] = struct.unpack("<Q", self.raw_data[16:24])[0]
+                header['last_vcn'] = struct.unpack("<Q", self.raw_data[24:32])[0]
+                header['data_runs_offset'] = struct.unpack("<H", self.raw_data[32:34])[0]
+                header['compression_unit'] = struct.unpack("<H", self.raw_data[34:36])[0]
+                header['allocated_size'] = struct.unpack("<Q", self.raw_data[40:48])[0]
+                header['real_size'] = struct.unpack("<Q", self.raw_data[48:56])[0]
+                header['initialized_size'] = struct.unpack("<Q", self.raw_data[56:64])[0]
 
         return header
 

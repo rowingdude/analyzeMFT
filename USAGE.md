@@ -67,9 +67,16 @@ To analyze an MFT file and output the results to a CSV file:
 
 I added a tqdm status bar to the program and then error wrapping around it, so when a corrupted file or entry is discovered, the output becomes:
 
-  No attributes found in record 196610. Raw data: 46494c45300003002431be4a00000000090000003800000040000000000400008d76020000000300010000001b7502000300000000000000ffffffff8279471100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-  Parsing MFT:  51%|█████████████████████████████████████████████████████████████▌                                                          | 165M/322M [00:36<00:36, 4.32MB/s]No attributes found. Last checked offset: 56
+  No attributes found. Last checked offset: 56
+  No attributes found in record 196610. Raw data:
+      46494c45300003002431be4a00000000090000003800000040000000000400008d76020000000300010000001b7502000300000000000000ffffffff8279471100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  Parsing MFT:  51%|█████████████████████████████████████████████████████████████▌                                                          | 165M/322M [00:36<00:36, 4.32MB/s]
 
+
+If you interrupt it (Ctrl+C), it will now save progress and exit:
+
+  Parsing MFT:   1%|█▎                                                                                                                             | 3.30M/322M [00:00<01:32, 3.43MB/s] 
+  Parsing was cancelled. Saving progress...
 
 ## Notes
 

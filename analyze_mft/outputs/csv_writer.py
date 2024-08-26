@@ -1,28 +1,11 @@
 import csv
-import os
-from analyze_mft.utilities.windows_time import WindowsTime
+from io import StringIO
 
 class CSVWriter:
     def __init__(self, options, file_handler):
-
-        if not file_handler:
-        
-            print("Error: File handler not provided to CSVWriter.")
-            sys.exit(1)
-        
         self.options = options
         self.file_handler = file_handler
-        
-        if file_handler.file_csv:
-        
-            self.csv_writer = csv.writer(file_handler.file_csv, quoting=csv.QUOTE_ALL)
-        
-        else:
-        
-            self.csv_writer = None
-
-            if options.output:
-                print("Warning: CSV output file specified but not opened in file handler.")
+        self.csv_writer = csv.writer(StringIO(), quoting=csv.QUOTE_ALL)
 
 
     async def write_csv_header(self):
@@ -48,16 +31,14 @@ class CSVWriter:
         await self.file_handler.file_csv.flush()
 
     async def write_csv_record(self, record):
-        if not self.csv_writer:
-            print("Error: Attempting to write CSV record without a valid CSV writer.")
-            return
-
         csv_record = self._prepare_csv_record(record)
-        self.csv_writer.writerow(csv_record)
-        
-        await self.file_handler.file_csv.flush()
-        print(f"Wrote record {record['recordnum']} to CSV file")
+        await self._write_csv_row(csv_record)
 
+    async def _write_csv_row(self, row):
+        output = StringIO()
+        csv.writer(output, quoting=csv.QUOTE_ALL).writerow(row)
+        await self.file_handler.write_csv(output.getvalue())
+        
     async def write_bodyfile(self, record):
         bodyfile_record = self._prepare_bodyfile_record(record)
         self.file_handler.file_body.write(bodyfile_record + '\n')

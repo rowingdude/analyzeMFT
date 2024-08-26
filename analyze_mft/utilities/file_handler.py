@@ -1,3 +1,4 @@
+import aiofiles
 import sys
 from pathlib import Path
 from typing import Optional, BinaryIO, TextIO
@@ -30,16 +31,16 @@ class FileHandler:
 
     async def open_files(self):
         try:
-            self.file_mft = await self._open_file(self.options.filename, 'rb')
+            self.file_mft = await aiofiles.open(self.options.filename, 'rb')
             
             if self.options.output:
-                self.file_csv = await self._open_file(self.options.output, 'w', newline='', encoding='utf-8')
+                self.file_csv = await aiofiles.open(self.options.output, 'w', newline='', encoding='utf-8')
             
             if self.options.bodyfile:
-                self.file_body = await self._open_file(self.options.bodyfile, 'w', encoding='utf-8')
+                self.file_body = await aiofiles.open(self.options.bodyfile, 'w', encoding='utf-8')
             
             if self.options.csvtimefile:
-                self.file_csv_time = await self._open_file(self.options.csvtimefile, 'w', encoding='utf-8')
+                self.file_csv_time = await aiofiles.open(self.options.csvtimefile, 'w', encoding='utf-8')
             
             if not self.file_mft:
                 raise FileOpenError("MFT file not opened successfully.")
@@ -48,28 +49,41 @@ class FileHandler:
             print(f"Error: {str(e)}")
             sys.exit(1)
 
-    async def _open_file(self, filename: Path, mode: str, **kwargs) -> BinaryIO | TextIO:
-        try:
-            return open(filename, mode, **kwargs)
-        except IOError as e:
-            raise FileOpenError(f"Unable to open file: {filename}. {e}")
-
     async def close_files(self):
-        for file in [self.file_mft, self.file_csv, self.file_body, self.file_csv_time]:
+        files_to_close = [self.file_mft, self.file_csv, self.file_body, self.file_csv_time]
+        for file in files_to_close:
             if file:
-                file.close()
+                await file.close()
 
     async def read_mft_record(self) -> Optional[bytes]:
         if not self.file_mft:
             raise FileOpenError("MFT file is not open.")
-        raw_record = self.file_mft.read(1024)
+        raw_record = await self.file_mft.read(1024)
         return raw_record if raw_record else None
 
     async def estimate_total_records(self) -> int:
         if not self.file_mft:
             raise FileOpenError("MFT file is not open.")
-        current_position = self.file_mft.tell()
-        self.file_mft.seek(0, 2) 
-        file_size = self.file_mft.tell()
-        self.file_mft.seek(current_position) 
+        current_position = await self.file_mft.tell()
+        await self.file_mft.seek(0, 2) 
+        file_size = await self.file_mft.tell()
+        await self.file_mft.seek(current_position) 
         return file_size // 1024  
+
+    async def write_csv(self, data: str):
+        if not self.file_csv:
+            raise FileOpenError("CSV file is not open.")
+        await self.file_csv.write(data)
+        await self.file_csv.flush()
+
+    async def write_bodyfile(self, data: str):
+        if not self.file_body:
+            raise FileOpenError("Body file is not open.")
+        await self.file_body.write(data)
+        await self.file_body.flush()
+
+    async def write_csvtime(self, data: str):
+        if not self.file_csv_time:
+            raise FileOpenError("CSV time file is not open.")
+        await self.file_csv_time.write(data)
+        await self.file_csv_time.flush()

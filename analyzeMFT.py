@@ -45,8 +45,8 @@ async def main() -> NoReturn:
     logger, file_handler, csv_writer, json_writer, thread_manager = await initialize_components(options)
     logger.info("Starting analyzeMFT")
 
-    async with file_handler:
-        logger.info("Opened input and output files successfully.")
+    async with FileHandler(options) as file_handler:
+        csv_writer = CSVWriter(options, file_handler)
    
         mft_parser = MFTParser(options, file_handler, csv_writer, json_writer, thread_manager)
        
@@ -59,7 +59,7 @@ async def main() -> NoReturn:
         logger.info(f"Starting to parse {total_records} records...")
         
         try:
-            await run_with_timeout(parse_mft(mft_parser), timeout_duration=3600)  # 1 hour timeout
+            await run_with_timeout(parse_mft(mft_parser), timeout_duration=600)  
         except TimeoutError:
             logger.error("MFT parsing timed out after 1 hour")
             sys.exit(1)

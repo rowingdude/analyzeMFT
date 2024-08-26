@@ -79,9 +79,11 @@ class FileHandler:
     async def write_csv(self, data: str):
         if not self.file_csv:
             raise FileOpenError("CSV file is not open.")
+        print(f"Writing {len(data)} bytes to CSV file")
         await self.file_csv.write(data)
         await self.file_csv.flush()
-
+        print("Finished writing to CSV file")
+        
     async def write_bodyfile(self, data: str):
         if not self.file_body:
             raise FileOpenError("Body file is not open.")

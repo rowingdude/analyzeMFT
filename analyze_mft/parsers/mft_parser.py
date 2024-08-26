@@ -61,15 +61,17 @@ class MFTParser:
         return [record async for record in self.file_handler.read_mft_records()]
 
     async def _process_records(self, raw_records: List[bytes]):
-
-        for raw_record in raw_records:
+        print(f"Processing {len(raw_records)} records")
+        for i, raw_record in enumerate(raw_records):
             record = await self._parse_single_record(raw_record)
             if record:
                 self.record_queue.append(record)
                 if len(self.record_queue) == self.record_queue.maxlen:
                     await self._process_record_queue()
-
-        await self._process_record_queue()  
+            if i % 10000 == 0:
+                print(f"Processed {i} records")
+        await self._process_record_queue()  # Process any remaining records
+        print("Finished processing all records")
 
     async def _parse_single_record(self, raw_record: bytes) -> Optional[Dict[str, Any]]:
         try:
@@ -90,17 +92,20 @@ class MFTParser:
             return None
 
     async def _process_record_queue(self):
-
+        print(f"Processing record queue with {len(self.record_queue)} records")
         while self.record_queue:
             record = self.record_queue.popleft()
             self.mft[self.num_records] = record
             
             if self.options.output is not None:
+                print(f"Writing record {record['recordnum']} to CSV")
                 await self.csv_writer.write_csv_record(record)
             
             self.num_records += 1
             if self.num_records % 1000 == 0:
+                print(f"Processed {self.num_records} records")
                 self.logger.info(f"Parsed {self.num_records} records...")
+        print("Finished processing record queue")
 
 
     async def _parse_object_id(self, record: Dict[str, Any]):

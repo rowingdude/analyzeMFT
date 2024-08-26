@@ -31,14 +31,17 @@ class CSVWriter:
         await self.file_handler.file_csv.flush()
 
     async def write_csv_record(self, record):
+        print(f"Writing CSV record for record number {record['recordnum']}")
         csv_record = self._prepare_csv_record(record)
         await self._write_csv_row(csv_record)
+        print(f"Finished writing CSV record for record number {record['recordnum']}")
 
     async def _write_csv_row(self, row):
         output = StringIO()
         csv.writer(output, quoting=csv.QUOTE_ALL).writerow(row)
         await self.file_handler.write_csv(output.getvalue())
-        
+        print("CSV row written to file")
+
     async def write_bodyfile(self, record):
         bodyfile_record = self._prepare_bodyfile_record(record)
         self.file_handler.file_body.write(bodyfile_record + '\n')

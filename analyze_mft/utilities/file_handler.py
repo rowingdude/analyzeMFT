@@ -24,6 +24,9 @@ class FileHandler:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close_files()
 
+    async def tell(self) -> int:
+        return await self.file_mft.tell()
+        
     async def open_files(self):
         self.file_mft = await aiofiles.open(self.options.filename, 'rb')
         if self.options.output:

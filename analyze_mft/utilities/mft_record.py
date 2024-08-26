@@ -1,14 +1,10 @@
 import logging
 import struct
 from dataclasses import dataclass
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from analyze_mft.parsers.attribute_parser import AttributeParser
 from analyze_mft.utilities.windows_time import WindowsTime
-from analyze_mft.constants.constants import (
-    STANDARD_INFORMATION, ATTRIBUTE_LIST, FILE_NAME, OBJECT_ID,
-    VOLUME_NAME, VOLUME_INFORMATION, DATA, INDEX_ROOT,
-    INDEX_ALLOCATION, BITMAP, REPARSE_POINT, LOGGED_UTILITY_STREAM
-)
+from analyze_mft.constants.constants import *
 
 @dataclass
 class MFTHeader:
@@ -34,20 +30,23 @@ class MFTRecord:
         self.options = options
         self.logger = logging.getLogger('analyzeMFT')
         self.header: Optional[MFTHeader] = None
-        self.attributes: Dict[str, Any] = {}
+        self.attributes: List[Dict[str, Any]] = []
 
     async def parse(self) -> Optional[Dict[str, Any]]:
         try:
+            self.logger.debug("Starting MFTRecord parse")
             await self._parse_header()
             await self._parse_attributes()
             return {
-                'recordnum': self.header.recordnum,
-                'seq': self.header.seq,
-                'flags': self.header.flags,
-                'attributes': list(self.attributes.values())  # Convert dict to list
+                'recordnum': self.header.recordnum if self.header else 0,
+                'seq': self.header.seq if self.header else 0,
+                'flags': self.header.flags if self.header else 0,
+                'attributes': self.attributes
             }
-        except struct.error as e:
+        except Exception as e:
             self.logger.error(f"Error parsing MFT record: {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             return None
 
     async def _parse_header(self) -> None:
@@ -79,41 +78,32 @@ class MFTRecord:
         offset = self.header.attr_off
         self.logger.debug(f"Starting attribute parsing at offset: {offset}")
         
-        attribute_parser = AttributeParser(self.raw_record, self.options)
-        
         while offset < len(self.raw_record):
-
             try:
-
-                if attr_type == STANDARD_INFORMATION:
-                    self.attributes['STANDARD_INFORMATION'] = await attribute_parser.parse_standard_information(content_offset)
-                elif attr_type == FILE_NAME:
-                    self.attributes['FILE_NAME'] = await attribute_parser.parse_file_name(content_offset)
-                
                 attr_type = struct.unpack("<I", self.raw_record[offset:offset+4])[0]
                 if attr_type == 0xFFFFFFFF:
                     self.logger.debug("Reached end of attributes marker")
                     break
-            
+                
                 attr_len = struct.unpack("<I", self.raw_record[offset+4:offset+8])[0]
                 self.logger.debug(f"Found attribute type: {attr_type:X}, length: {attr_len}")
+                
                 if attr_len == 0:
                     self.logger.warning(f"Invalid attribute length of 0 at offset {offset}")
                     break
                 
                 attr_data = self.raw_record[offset:offset+attr_len]
-                parsed_attr = await self._parse_attribute(attr_type, attr_data, attribute_parser)
-                if parsed_attr:
-                    self.attributes[attr_type] = parsed_attr
+                self.attributes.append({
+                    'type': attr_type,
+                    'data': attr_data
+                })
                 
                 offset += attr_len
-            
             except struct.error:
                 self.logger.warning(f"Error parsing attribute at offset {offset}")
                 break
         
-        if not self.attributes:
-            self.logger.warning(f"No attributes found. Last checked offset: {offset}")
+        self.logger.debug(f"Parsed {len(self.attributes)} attributes")
 
     async def _parse_attribute(self, attr_type: int, attr_data: bytes, attribute_parser: AttributeParser) -> Optional[Dict[str, Any]]:
         attr_header = await attribute_parser.parse_attribute_header()

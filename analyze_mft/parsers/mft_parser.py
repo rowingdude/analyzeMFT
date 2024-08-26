@@ -1,6 +1,8 @@
 import asyncio
-import logging
 from tqdm import tqdm
+import logging
+
+import traceback
 
 from typing import Dict, Any, Optional
 from analyze_mft.utilities.mft_record import MFTRecord
@@ -26,7 +28,7 @@ class MFTParser:
         total_size = await self.file_handler.get_file_size()
         processed_size = 0
         record_count = 0
-        max_records = 1000000  
+        max_records = 1000000  # Safeguard: maximum number of records to process
 
         try:
             with tqdm(total=total_size, unit='B', unit_scale=True, desc="Parsing MFT") as pbar:
@@ -43,16 +45,15 @@ class MFTParser:
                     pbar.update(len(raw_record))
 
                     if record_count % 1000 == 0:
-                        self.logger.info(f"Processed {record_count} records, {processed_size/total_size:.2%} complete")
-                        await asyncio.sleep(0) 
+                        current_offset = await self.file_handler.tell()
+                        self.logger.info(f"Processed {record_count} records, {current_offset/total_size:.2%} complete")
+                        await asyncio.sleep(0)  # Allow other tasks to run
 
         except asyncio.CancelledError:
             self.logger.warning("Parsing was cancelled. Saving progress...")
         finally:
             self.logger.info(f"Total records processed: {self.num_records}")
             await self.generate_filepaths()
-            if self.options.jsonfile:
-                await self.json_writer.write_json_file()
 
         self.logger.info("MFT parsing completed or interrupted.")
 
@@ -79,13 +80,17 @@ class MFTParser:
             self.logger.error(f"Error processing record {record_count}: {str(e)}")
             self.logger.error(f"Raw record data: {raw_record.hex()[:100]}...")  # Log first 100 bytes of the record
 
+
     async def _parse_single_record(self, raw_record: bytes) -> Optional[Dict[str, Any]]:
+
         try:
+            self.logger.debug("Starting _parse_single_record")
             mft_record = MFTRecord(raw_record, self.options)
             parsed_record = await mft_record.parse()
 
             if not parsed_record:
-                self.logger.warning(f"Failed to parse record at offset {self.file_handler.file_mft.tell() - len(raw_record)}")
+                current_offset = await self.file_handler.file_mft.tell() 
+                self.logger.warning(f"Failed to parse record at offset {current_offset - len(raw_record)}")
                 return None
 
             record = {
@@ -105,44 +110,45 @@ class MFTParser:
 
             attribute_parser = AttributeParser(raw_record, self.options)
 
-            for attr_data in parsed_record['attributes']:
+            self.logger.debug(f"Number of attributes: {len(parsed_record['attributes'])}")
+            for index, attr in enumerate(parsed_record['attributes']):
                 try:
-                    attr_header = await attribute_parser.parse_attribute_header()
-                    if not attr_header:
-                        self.logger.warning("Failed to parse attribute header")
-                        continue
+                    self.logger.debug(f"Processing attribute {index}")
+                    
+                    for attr in parsed_record['attributes']:
+                        attr_type = attr['type']
+                        attr_data = attr['data']
 
-                    attr_type = attr_header.get('type')
-                    if attr_type is None:
-                        self.logger.warning("Attribute type is None")
-                        continue
-
-                    content_offset = attr_header.get('content_offset', attr_header.get('data_runs_offset', 0))
-
-                    await self._parse_attribute(record, attr_type, attr_data, attribute_parser, content_offset)
+                    self.logger.debug(f"Attribute {index} type: {attr_type}")
+                    
+                    await self._parse_attribute(record, attr_type, attr_data, attribute_parser)
                 except Exception as e:
-                    self.logger.error(f"Error parsing attribute: {str(e)}")
-                    record['notes'] += f"Error parsing attribute: {str(e)} | "
+                    self.logger.error(f"Error parsing attribute {index}: {str(e)}")
+                    import traceback
+                    self.logger.error(traceback.format_exc())
+                    record['notes'] += f"Error parsing attribute {index}: {str(e)} | "
 
             await self._check_usec_zero(record)
             return record
         except Exception as e:
             self.logger.error(f"Unhandled exception in _parse_single_record: {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             return None
 
-    async def _parse_attribute(self, record: Dict[str, Any], attr_type: int, attr_data: bytes, attribute_parser: AttributeParser, content_offset: int):
+    async def _parse_attribute(self, record: Dict[str, Any], attr_type: int, attr_data: bytes, attribute_parser: AttributeParser):
         try:
             if attr_type == STANDARD_INFORMATION:
-                record['si'] = await attribute_parser.parse_standard_information(content_offset)
+                record['si'] = await attribute_parser.parse_standard_information(attr_data)
             elif attr_type == FILE_NAME:
-                fn = await attribute_parser.parse_file_name(content_offset)
+                fn = await attribute_parser.parse_file_name(attr_data)
                 if fn:
                     record[f'fn{record["fncnt"]}'] = fn
                     record['fncnt'] += 1
                     if record['fncnt'] == 1:
                         record['filename'] = fn['name']
             elif attr_type == OBJECT_ID:
-                record['objid'] = await attribute_parser.parse_object_id(content_offset)
+                record['objid'] = await attribute_parser.parse_object_id(attr_data)
             elif attr_type == DATA:
                 record['data'] = True
             elif attr_type == INDEX_ROOT:

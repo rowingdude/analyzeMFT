@@ -14,10 +14,10 @@ from analyze_mft.outputs.csv_timeline import CSVTimelineWriter
 
 async def initialize_components(options):
     logger = Logger(LoggerOptions(options.debug, options.verbose, options.log_file))
-    file_handler = FileHandler(FileHandlerOptions(options.filename, options.output, options.bodyfile, options.csvtimefile))
+    file_handler = await FileHandler(FileHandlerOptions(options.filename, options.output, options.bodyfile, options.csvtimefile)).__aenter__()
     csv_writer = CSVWriter(options, file_handler)
     json_writer = JSONWriter(options, file_handler)
-    body_writer = BodyfileWriter(options, file_handler) if options.bodyfile else None
+    body_writer = BodyFileWriter(options, file_handler) if options.bodyfile else None
     csv_timeline = CSVTimelineWriter(options, file_handler) if options.csvtimefile else None
     thread_manager = ThreadManager(options.thread_count)
    

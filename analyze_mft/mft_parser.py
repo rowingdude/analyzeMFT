@@ -48,8 +48,8 @@ class MFTParser:
 
         await self._process_records(raw_records)
 
-        if self.progress_callback:
-            self.progress_callback(self.num_records)
+        if progress_callback:
+            progress_callback(self.num_records)
 
         self.logger.info(f"Finished parsing MFT file. Total records: {self.num_records}")
 
@@ -195,7 +195,8 @@ class MFTParser:
     def get_total_records(self) -> int:
         return self.file_handler.estimate_total_records()
 
-async def parse_mft(mft_parser: MFTParser, progress_callback=None) -> None:
-    await mft_parser.parse_mft_file(progress_callback)
-    await mft_parser.generate_filepaths()
-    await mft_parser.print_records()
+    @error_handler
+    async def parse_mft(mft_parser: MFTParser, progress_callback: Callable[[int], None]) -> None:
+        await mft_parser.parse_mft_file(progress_callback)
+        await mft_parser.generate_filepaths()
+        await mft_parser.print_records()

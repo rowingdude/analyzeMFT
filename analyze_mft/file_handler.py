@@ -21,12 +21,13 @@ class FileHandler:
         self.file_body: Optional[TextIO] = None
         self.file_csv_time: Optional[TextIO] = None
 
-    def __enter__(self):
-        self.open_files()
+    async def __aenter__(self):
+        await self.open_files()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close_files()
+    async def __aenter__(self):
+        await self.open_files()
+        return self
 
     def open_files(self):
         try:

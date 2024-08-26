@@ -1,32 +1,21 @@
 import asyncio
 import logging
 import sys
-import time
-from functools import wraps
-from typing import NoReturn, Any
+from typing import NoReturn
 
 from analyze_mft.parsers.mft_parser import MFTParser
-from analyze_mft.utilities.file_handler import FileHandler
+from analyze_mft.utilities.file_handler import FileHandler, FileHandlerOptions
 from analyze_mft.outputs.csv_writer import CSVWriter
 from analyze_mft.parsers.options_parser import OptionsParser
-from analyze_mft.utilities.logger import Logger
+from analyze_mft.utilities.logger import Logger, LoggerOptions
 from analyze_mft.utilities.thread_manager import ThreadManager
 from analyze_mft.outputs.json_writer import JSONWriter
 from analyze_mft.outputs.body_writer import BodyFileWriter
 from analyze_mft.outputs.csv_timeline import CSVTimelineWriter
 
-class TimeoutError(Exception):
-    pass
-
-async def run_with_timeout(coro, timeout_duration: int = 3600):
-    try:
-        return await asyncio.wait_for(coro, timeout=timeout_duration)
-    except asyncio.TimeoutError:
-        raise TimeoutError(f"Function call timed out after {timeout_duration} seconds")
-
 async def initialize_components(options):
-    logger = Logger(options)
-    file_handler = FileHandler(options)
+    logger = Logger(LoggerOptions(options.debug, options.verbose, options.log_file))
+    file_handler = FileHandler(FileHandlerOptions(options.filename, options.output, options.bodyfile, options.csvtimefile))
     csv_writer = CSVWriter(options, file_handler)
     json_writer = JSONWriter(options, file_handler)
     body_writer = BodyFileWriter(options, file_handler) if options.bodyfile else None
@@ -46,19 +35,16 @@ async def main() -> NoReturn:
         logger.info("Opened input and output files successfully.")
    
         mft_parser = MFTParser(options, file_handler, csv_writer, json_writer, thread_manager)
-       
         logger.info("Initializing the MFT parsing object...")
        
-        start_time = time.time()
-       
-        end_time = time.time()
-        logger.info(f"MFT parsing completed in {end_time - start_time:.2f} seconds")
+        await mft_parser.parse_mft_file()
 
         if body_writer:
             await body_writer.write_records(mft_parser.mft)
         if csv_timeline_writer:
             await csv_timeline_writer.write_records(mft_parser.mft)
 
+    await thread_manager.shutdown()
     logger.info("analyzeMFT completed successfully.")
     sys.exit(0)
 

@@ -38,16 +38,23 @@ class MFTParser:
         
 
     async def parse_mft_file(self):
+        print("Starting to parse MFT file...")
         self.logger.info("Starting to parse MFT file...")
 
         if self.options.output is not None:
-            await self.csv_writer.write_csv_header(record)
+            print("Writing CSV header...")
+            await self.csv_writer.write_csv_header()
+            print("CSV header written")
 
+        print("Reading raw records...")
         raw_records = await self._read_all_records()
+        print(f"Read {len(raw_records)} raw records from MFT file.")
         self.logger.info(f"Read {len(raw_records)} raw records from MFT file.")
 
+        print("Processing records...")
         await self._process_records(raw_records)
 
+        print(f"Finished parsing MFT file. Total records: {self.num_records}")
         self.logger.info(f"Finished parsing MFT file. Total records: {self.num_records}")
 
     async def _read_all_records(self) -> List[bytes]:

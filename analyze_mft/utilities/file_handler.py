@@ -31,11 +31,16 @@ class FileHandler:
 
     async def open_files(self):
         try:
+            print(f"Opening MFT file: {self.options.filename}")
             self.file_mft = await aiofiles.open(self.options.filename, 'rb')
+            print("MFT file opened successfully")
             
             if self.options.output:
+                print(f"Opening CSV output file: {self.options.output}")
                 self.file_csv = await aiofiles.open(self.options.output, 'w', newline='', encoding='utf-8')
+                print("CSV output file opened successfully")
             
+            # Leaving the rest alone until CSV works correctly           
             if self.options.bodyfile:
                 self.file_body = await aiofiles.open(self.options.bodyfile, 'w', encoding='utf-8')
             
@@ -45,8 +50,9 @@ class FileHandler:
             if not self.file_mft:
                 raise FileOpenError("MFT file not opened successfully.")
         
-        except FileOpenError as e:
-            print(f"Error: {str(e)}")
+        except Exception as e:
+            print(f"Error opening files: {str(e)}")
+            traceback.print_exc()
             sys.exit(1)
 
     async def close_files(self):

@@ -7,8 +7,6 @@ from analyze_mft.utilities.mft_record import MFTRecord
 from analyze_mft.parsers.attribute_parser import AttributeParser
 from analyze_mft.constants.constants import *
 from analyze_mft.utilities.windows_time import WindowsTime
-from analyze_mft.outputs.csv_writer import CSVWriter
-from analyze_mft.outputs.json_writer import JSONWriter
 
 class MFTParser:
     def __init__(self, file_handler: FileHandler, options: Any):

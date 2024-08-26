@@ -69,8 +69,15 @@ async def main() -> NoReturn:
             logger.info(f"Total records: {total_records}")
             print(f"Total records: {total_records}")
 
+            print("Starting MFT parsing...")
+            parse_start_time = time.time()
+            await parse_mft(mft_parser)
+            parse_end_time = time.time()
+            print(f"MFT parsing completed in {parse_end_time - parse_start_time:.2f} seconds")
+
             try:
                 await run_with_timeout(parse_mft(mft_parser), timeout_duration=3600)  # 1 hour timeout
+                
             except TimeoutError:
                 logger.error("MFT parsing timed out after 1 hour")
                 sys.exit(1)
@@ -81,10 +88,12 @@ async def main() -> NoReturn:
 
         end_time = time.time()
         logger.info(f"MFT parsing completed in {end_time - start_time:.2f} seconds")
-        print("MFT parsing completed")
+        print(f"MFT parsing completed in {end_time - start_time:.2f} seconds")
 
         logger.info("analyzeMFT completed successfully.")
         print("analyzeMFT completed successfully")
+
+
     except Exception as e:
         print(f"An unexpected error occurred: {str(e)}")
         traceback.print_exc()

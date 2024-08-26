@@ -60,12 +60,21 @@ class FileHandler:
         for file in files_to_close:
             if file:
                 await file.close()
-
+                
     async def read_mft_record(self) -> Optional[bytes]:
         if not self.file_mft:
             raise FileOpenError("MFT file is not open.")
-        raw_record = await self.file_mft.read(1024)
-        return raw_record if raw_record else None
+        try:
+            raw_record = await self.file_mft.read(1024)  # Assuming each record is 1024 bytes
+            if not raw_record:
+                return None  # End of file
+            if len(raw_record) < 1024:
+                print(f"Warning: Incomplete record read. Expected 1024 bytes, got {len(raw_record)}")
+            return raw_record
+        except Exception as e:
+            print(f"Error reading MFT record: {str(e)}")
+            traceback.print_exc()
+            return None
 
     async def estimate_total_records(self) -> int:
         if not self.file_mft:
@@ -83,7 +92,7 @@ class FileHandler:
         await self.file_csv.write(data)
         await self.file_csv.flush()
         print("Finished writing to CSV file")
-        
+
     async def write_bodyfile(self, data: str):
         if not self.file_body:
             raise FileOpenError("Body file is not open.")

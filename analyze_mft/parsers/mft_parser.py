@@ -4,6 +4,7 @@ from collections import deque
 from functools import lru_cache
 from typing import List, Dict, Any, Optional, Callable, Iterable
 from dataclasses import dataclass
+import traceback
 import uuid
 
 from analyze_mft.utilities.mft_record import MFTRecord
@@ -14,6 +15,20 @@ from analyze_mft.outputs.csv_writer import CSVWriter
 from analyze_mft.utilities.file_handler import FileHandler
 from analyze_mft.utilities.windows_time import WindowsTime
 from analyze_mft.utilities.error_handler import error_handler
+
+@error_handler
+async def parse_mft(mft_parser: MFTParser) -> None:
+    print("Starting parse_mft function")
+    try:
+        await mft_parser.parse_mft_file()
+        print("Finished parsing MFT file")
+        await mft_parser.generate_filepaths()
+        print("Finished generating filepaths")
+        await mft_parser.print_records()
+        print("Finished printing records")
+    except Exception as e:
+        print(f"Error in parse_mft: {str(e)}")
+        traceback.print_exc()
 
 @dataclass
 class ParserOptions:
@@ -41,37 +56,62 @@ class MFTParser:
         print("Starting to parse MFT file...")
         self.logger.info("Starting to parse MFT file...")
 
-        if self.options.output is not None:
-            print("Writing CSV header...")
-            await self.csv_writer.write_csv_header()
-            print("CSV header written")
+        try:
+            if self.options.output is not None:
+                print("Writing CSV header...")
+                await self.csv_writer.write_csv_header()
+                print("CSV header written")
 
-        print("Reading raw records...")
-        raw_records = await self._read_all_records()
-        print(f"Read {len(raw_records)} raw records from MFT file.")
-        self.logger.info(f"Read {len(raw_records)} raw records from MFT file.")
+            print("Reading raw records...")
+            raw_records = await self._read_all_records()
+            print(f"Read {len(raw_records)} raw records from MFT file.")
+            self.logger.info(f"Read {len(raw_records)} raw records from MFT file.")
 
-        print("Processing records...")
-        await self._process_records(raw_records)
+            if not raw_records:
+                print("No records read from MFT file. Exiting.")
+                return
 
-        print(f"Finished parsing MFT file. Total records: {self.num_records}")
-        self.logger.info(f"Finished parsing MFT file. Total records: {self.num_records}")
+            print("Processing records...")
+            await self._process_records(raw_records)
+
+            print(f"Finished parsing MFT file. Total records: {self.num_records}")
+            self.logger.info(f"Finished parsing MFT file. Total records: {self.num_records}")
+        except Exception as e:
+            print(f"Error in parse_mft_file: {str(e)}")
+            traceback.print_exc()
 
     async def _read_all_records(self) -> List[bytes]:
-        return [record async for record in self.file_handler.read_mft_records()]
+        records = []
+        try:
+            while True:
+                record = await self.file_handler.read_mft_record()
+                if not record:
+                    break
+                records.append(record)
+                if len(records) % 10000 == 0:
+                    print(f"Read {len(records)} records so far...")
+            return records
+        except Exception as e:
+            print(f"Error in _read_all_records: {str(e)}")
+            traceback.print_exc()
+            return []
 
     async def _process_records(self, raw_records: List[bytes]):
         print(f"Processing {len(raw_records)} records")
-        for i, raw_record in enumerate(raw_records):
-            record = await self._parse_single_record(raw_record)
-            if record:
-                self.record_queue.append(record)
-                if len(self.record_queue) == self.record_queue.maxlen:
-                    await self._process_record_queue()
-            if i % 10000 == 0:
-                print(f"Processed {i} records")
-        await self._process_record_queue()  # Process any remaining records
-        print("Finished processing all records")
+        try:
+            for i, raw_record in enumerate(raw_records):
+                record = await self._parse_single_record(raw_record)
+                if record:
+                    self.record_queue.append(record)
+                    if len(self.record_queue) == self.record_queue.maxlen:
+                        await self._process_record_queue()
+                if i % 10000 == 0:
+                    print(f"Processed {i} records")
+            await self._process_record_queue()  # Process any remaining records
+            print("Finished processing all records")
+        except Exception as e:
+            print(f"Error in _process_records: {str(e)}")
+            traceback.print_exc()
 
     async def _parse_single_record(self, raw_record: bytes) -> Optional[Dict[str, Any]]:
         try:
@@ -207,8 +247,3 @@ class MFTParser:
     def get_total_records(self) -> int:
         return self.file_handler.estimate_total_records()
 
-@error_handler
-async def parse_mft(mft_parser: Any) -> None:
-    await mft_parser.parse_mft_file()
-    await mft_parser.generate_filepaths()
-    await mft_parser.print_records()

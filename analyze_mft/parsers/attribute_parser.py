@@ -1,13 +1,14 @@
 import struct
+from typing import Optional, Dict, Any
 from analyze_mft.utilities.windows_time import WindowsTime
 from analyze_mft.constants.constants import *
 
 class AttributeParser:
-    def __init__(self, raw_data, options):
+    def __init__(self, raw_data: bytes, options: Any):
         self.raw_data = raw_data
         self.options = options
 
-    def parse_attribute_header(self):
+    async def parse_attribute_header(self) -> Optional[Dict[str, Any]]:
         if len(self.raw_data) < 16:
             return None
 
@@ -37,7 +38,7 @@ class AttributeParser:
 
         return header
 
-    def parse_standard_information(self, offset):
+    async def parse_standard_information(self, offset: int) -> Optional[Dict[str, Any]]:
         data = self.raw_data[offset:]
         if len(data) < 72:
             return None
@@ -57,7 +58,7 @@ class AttributeParser:
             'usn': struct.unpack("<Q", data[64:72])[0]
         }
 
-    def parse_file_name(self, offset):
+    async def parse_file_name(self, offset: int) -> Optional[Dict[str, Any]]:
         data = self.raw_data[offset:]
         if len(data) < 66:
             return None
@@ -81,7 +82,7 @@ class AttributeParser:
 
         return fn
 
-    def parse_attribute_list(self, offset):
+    async def parse_attribute_list(self, offset: int) -> List[Dict[str, Any]]:
         data = self.raw_data[offset:]
         attributes = []
 
@@ -107,7 +108,7 @@ class AttributeParser:
 
         return attributes
 
-    def parse_object_id(self, offset):
+    async def parse_object_id(self, offset: int) -> Optional[Dict[str, bytes]]:
         data = self.raw_data[offset:]
         if len(data) < 64:
             return None
@@ -119,7 +120,7 @@ class AttributeParser:
             'domain_id': data[48:64]
         }
 
-    def parse_volume_info(self, offset):
+    async def parse_volume_info(self, offset: int) -> Optional[Dict[str, Any]]:
         data = self.raw_data[offset:]
         if len(data) < 12:
             return None
@@ -131,10 +132,10 @@ class AttributeParser:
             'flags': struct.unpack("<H", data[10:12])[0]
         }
 
-    def parse_data(self, offset, size):
+    async def parse_data(self, offset: int, size: int) -> bytes:
         return self.raw_data[offset:offset + size]
 
-    def parse_index_root(self, offset):
+    async def parse_index_root(self, offset: int) -> Optional[Dict[str, Any]]:
         data = self.raw_data[offset:]
         if len(data) < 16:
             return None
@@ -146,7 +147,7 @@ class AttributeParser:
             'clusters_per_index_record': struct.unpack("B", data[12:13])[0]
         }
 
-    def parse_index_allocation(self, offset):
+    async def parse_index_allocation(self, offset: int) -> Optional[Dict[str, Any]]:
         data = self.raw_data[offset:]
         if len(data) < 24:
             return None
@@ -163,7 +164,7 @@ class AttributeParser:
         # Parse index entries
         entries_offset = 24
         while entries_offset < len(data) - 16:
-            entry = self.parse_index_entry(data[entries_offset:])
+            entry = await self.parse_index_entry(data[entries_offset:])
             if entry is None:
                 break
             index_allocation['entries'].append(entry)
@@ -171,7 +172,7 @@ class AttributeParser:
 
         return index_allocation
 
-    def parse_index_entry(self, data):
+    async def parse_index_entry(self, data: bytes) -> Optional[Dict[str, Any]]:
         if len(data) < 16:
             return None
 
@@ -190,10 +191,10 @@ class AttributeParser:
 
         return entry
 
-    def parse_bitmap(self, offset, size):
+    async def parse_bitmap(self, offset: int, size: int) -> bytes:
         return self.raw_data[offset:offset + size]
 
-    def parse_reparse_point(self, offset):
+    async def parse_reparse_point(self, offset: int) -> Optional[Dict[str, Any]]:
         data = self.raw_data[offset:]
         if len(data) < 8:
             return None
@@ -205,7 +206,7 @@ class AttributeParser:
             'reparse_data': data[8:]
         }
 
-    def parse_ea_information(self, offset):
+    async def parse_ea_information(self, offset: int) -> Optional[Dict[str, Any]]:
         data = self.raw_data[offset:]
         if len(data) < 8:
             return None
@@ -216,8 +217,7 @@ class AttributeParser:
             'unpacked_ea_size': struct.unpack("<I", data[4:8])[0]
         }
 
-
-    def parse_ea(self, offset):
+    async def parse_ea(self, offset: int) -> List[Dict[str, Any]]:
         data = self.raw_data[offset:]
         eas = []
 
@@ -243,5 +243,5 @@ class AttributeParser:
 
         return eas
 
-    def parse_logged_utility_stream(self, offset, size):
+    async def parse_logged_utility_stream(self, offset: int, size: int) -> bytes:
         return self.raw_data[offset:offset + size]

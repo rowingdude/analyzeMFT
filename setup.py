@@ -26,10 +26,13 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.7",
+    install_requires=[
+        "pywin32;platform_system=='Windows'",
+    ],
     entry_points={
         "console_scripts": [
-            "analyze_mft=analyzeMFT:main",
+            "analyzeMFT=analyzeMFT.cli:main",
         ],
     },
 )

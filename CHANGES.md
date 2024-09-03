@@ -3,19 +3,33 @@
 
 This document lists the changes and version history for the AnalyzeMFT script and component scripts.
 
+## Version 3.0.1 (2024-09-03)
+
+### Changes
+- Implementing asyncio for improved performance and responsiveness.
+- Handles potential issues with asyncio on different platforms, especially Windows.
+- Added the ability to compute and include various hash types (MD5, SHA256, SHA512, CRC32) optionally.
+
+### Fixes
+- Now uses a more robust method to build file paths, handling edge cases like root directory and orphaned files.
+- Set all relevant data, including optional hash information, to be correctly written to the CSV file.
+
+### Upcoming additions:
+
+- Granular processing of each attribute type, file type, etc found in Constants.py (3.0.2)
+- Readmission of file export types other than CSV - XML, JSON, Excel, etc. (3.0.3)
+- Readmission of forensic file types such as the Body file (3.0.4)
+- Optional integration of SQLite (3.0.5)
+- Optional user stipulated fields and reordering of the CSV with optional header (3.0.6)
+
+
+
 ## Version 3.0 (2024-08-15)
 
 Work has completed on the class-based layout. The program has been split into individual files each composed of the class within. 
 I believe this is the way to go (personal preference) as I like to work on one module at a time!
 
 
-### To do list:
-
-1. Implement a testing framework involving the sister project [GenerateMFT](https://github.com/rowingdude/GenerateMFT/).
-2. Implement multithreading as an option
-3. Complete a more succinct and visually appealing menu system (✅ 16-Aug-24 )
-
-<! ----------------- We are going to version up to 3.0 given the complete rewrite ------------------->
 
 ## Version 2.1.1 (2024-08-02)
 

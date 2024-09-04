@@ -88,8 +88,32 @@ class MftRecord:
                     self.parse_si_attribute(offset)
                 elif attr_type == FILE_NAME_ATTRIBUTE:
                     self.parse_fn_attribute(offset)
+                elif attr_type == ATTRIBUTE_LIST_ATTRIBUTE:
+                    self.parse_attribute_list(offset)
                 elif attr_type == OBJECT_ID_ATTRIBUTE:
-                    self.parse_object_id_attribute(offset)
+                    self.parse_object_id(offset)
+                elif attr_type == SECURITY_DESCRIPTOR_ATTRIBUTE:
+                    self.parse_security_descriptor(offset)
+                elif attr_type == VOLUME_NAME_ATTRIBUTE:
+                    self.parse_volume_name(offset)
+                elif attr_type == VOLUME_INFORMATION_ATTRIBUTE:
+                    self.parse_volume_information(offset)
+                elif attr_type == DATA_ATTRIBUTE:
+                    self.parse_data(offset)
+                elif attr_type == INDEX_ROOT_ATTRIBUTE:
+                    self.parse_index_root(offset)
+                elif attr_type == INDEX_ALLOCATION_ATTRIBUTE:
+                    self.parse_index_allocation(offset)
+                elif attr_type == BITMAP_ATTRIBUTE:
+                    self.parse_bitmap(offset)
+                elif attr_type == REPARSE_POINT_ATTRIBUTE:
+                    self.parse_reparse_point(offset)
+                elif attr_type == EA_INFORMATION_ATTRIBUTE:
+                    self.parse_ea_information(offset)
+                elif attr_type == EA_ATTRIBUTE:
+                    self.parse_ea(offset)
+                elif attr_type == LOGGED_UTILITY_STREAM_ATTRIBUTE:
+                    self.parse_logged_utility_stream(offset)
 
                 offset += attr_len
             except struct.error:

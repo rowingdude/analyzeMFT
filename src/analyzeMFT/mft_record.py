@@ -52,6 +52,15 @@ class MftRecord:
         self.parse_record()
         self.security_descriptor = None
         self.volume_name = None
+        self.volume_info = None
+        self.data_attribute = None
+        self.index_root = None
+        self.index_allocation = None
+        self.bitmap = None
+        self.reparse_point = None
+        self.ea_information = None
+        self.ea = None
+        self.logged_utility_stream = None
 
 
     def parse_record(self):
@@ -231,31 +240,148 @@ class MftRecord:
                 print(f"Error parsing Volume Name attribute for record {self.recordnum}")
 
     def parse_volume_information(self, offset):
-        pass
+        vi_data = self.raw_record[offset+24:offset+48]
+        if len(vi_data) >= 12:
+            try:
+                self.volume_info = {
+                    'major_version': struct.unpack("B", vi_data[8:9])[0],
+                    'minor_version': struct.unpack("B", vi_data[9:10])[0],
+                    'flags': struct.unpack("<H", vi_data[10:12])[0]
+                }
+            except struct.error:
+                if self.debug:
+                    print(f"Error parsing Volume Information attribute for record {self.recordnum}")
 
     def parse_data(self, offset):
-        pass
+        data_header = self.raw_record[offset:offset+24]
+        try:
+            non_resident_flag = struct.unpack("B", data_header[8:9])[0]
+            name_length = struct.unpack("B", data_header[9:10])[0]
+            name_offset = struct.unpack("<H", data_header[10:12])[0]
+            if name_length > 0:
+                name = self.raw_record[offset+name_offset:offset+name_offset+name_length*2].decode('utf-16-le', errors='replace')
+            else:
+                name = ""
+            
+            if non_resident_flag == 0:  # Resident
+                content_size = struct.unpack("<L", data_header[16:20])[0]
+                content_offset = struct.unpack("<H", data_header[20:22])[0]
+                content = self.raw_record[offset+content_offset:offset+content_offset+content_size]
+            else:  # Non-resident
+                start_vcn = struct.unpack("<Q", data_header[16:24])[0]
+                last_vcn = struct.unpack("<Q", self.raw_record[offset+24:offset+32])[0]
+                
+            self.data_attribute = {
+                'name': name,
+                'non_resident': bool(non_resident_flag),
+                'content_size': content_size if non_resident_flag == 0 else None,
+                'start_vcn': start_vcn if non_resident_flag != 0 else None,
+                'last_vcn': last_vcn if non_resident_flag != 0 else None
+            }
+        except struct.error:
+            if self.debug:
+                print(f"Error parsing Data attribute for record {self.recordnum}")
 
     def parse_index_root(self, offset):
-        pass
+        ir_data = self.raw_record[offset+24:]
+        try:
+            attr_type = struct.unpack("<L", ir_data[:4])[0]
+            collation_rule = struct.unpack("<L", ir_data[4:8])[0]
+            index_alloc_size = struct.unpack("<L", ir_data[8:12])[0]
+            clusters_per_index = struct.unpack("B", ir_data[12:13])[0]
+            
+            self.index_root = {
+                'attr_type': attr_type,
+                'collation_rule': collation_rule,
+                'index_alloc_size': index_alloc_size,
+                'clusters_per_index': clusters_per_index
+            }
+        except struct.error:
+            if self.debug:
+                print(f"Error parsing Index Root attribute for record {self.recordnum}")
 
     def parse_index_allocation(self, offset):
-        pass
+        ia_data = self.raw_record[offset+24:]
+        try:
+            data_runs_offset = struct.unpack("<H", ia_data[:2])[0]
+            self.index_allocation = {
+                'data_runs_offset': data_runs_offset
+            }
+        except struct.error:
+            if self.debug:
+                print(f"Error parsing Index Allocation attribute for record {self.recordnum}")
 
     def parse_bitmap(self, offset):
-        pass
+        bitmap_data = self.raw_record[offset+24:]
+        try:
+            bitmap_size = struct.unpack("<L", bitmap_data[:4])[0]
+            self.bitmap = {
+                'size': bitmap_size,
+                'data': bitmap_data[4:4+bitmap_size]
+            }
+        except struct.error:
+            if self.debug:
+                print(f"Error parsing Bitmap attribute for record {self.recordnum}")
 
     def parse_reparse_point(self, offset):
-        pass
+        rp_data = self.raw_record[offset+24:]
+        try:
+            reparse_tag = struct.unpack("<L", rp_data[:4])[0]
+            reparse_data_length = struct.unpack("<H", rp_data[4:6])[0]
+            self.reparse_point = {
+                'reparse_tag': reparse_tag,
+                'data_length': reparse_data_length,
+                'data': rp_data[8:8+reparse_data_length]
+            }
+        except struct.error:
+            if self.debug:
+                print(f"Error parsing Reparse Point attribute for record {self.recordnum}")
 
     def parse_ea_information(self, offset):
-        pass
+        eai_data = self.raw_record[offset+24:]
+        try:
+            ea_size = struct.unpack("<L", eai_data[:4])[0]
+            ea_count = struct.unpack("<L", eai_data[4:8])[0]
+            self.ea_information = {
+                'ea_size': ea_size,
+                'ea_count': ea_count
+            }
+        except struct.error:
+            if self.debug:
+                print(f"Error parsing EA Information attribute for record {self.recordnum}")
 
     def parse_ea(self, offset):
-        pass
+        ea_data = self.raw_record[offset+24:]
+        try:
+            next_entry_offset = struct.unpack("<L", ea_data[:4])[0]
+            flags = struct.unpack("B", ea_data[4:5])[0]
+            name_length = struct.unpack("B", ea_data[5:6])[0]
+            value_length = struct.unpack("<H", ea_data[6:8])[0]
+            name = ea_data[8:8+name_length].decode('ascii', errors='replace')
+            value = ea_data[8+name_length:8+name_length+value_length]
+            
+            self.ea = {
+                'next_entry_offset': next_entry_offset,
+                'flags': flags,
+                'name': name,
+                'value': value
+            }
+        except struct.error:
+            if self.debug:
+                print(f"Error parsing EA attribute for record {self.recordnum}")
 
     def parse_logged_utility_stream(self, offset):
-        pass
+        lus_data = self.raw_record[offset+24:]
+        try:
+            stream_size = struct.unpack("<Q", lus_data[:8])[0]
+            self.logged_utility_stream = {
+                'size': stream_size,
+                'data': lus_data[8:8+stream_size]
+            }
+        except struct.error:
+            if self.debug:
+                print(f"Error parsing Logged Utility Stream attribute for record {self.recordnum}")
+
 
     def to_csv(self):
         row = [

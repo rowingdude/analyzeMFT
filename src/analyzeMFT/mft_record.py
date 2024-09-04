@@ -37,6 +37,7 @@ class MftRecord:
         }
         self.filesize = 0
         self.attribute_types = set()
+        self.attribute_list = []
         self.object_id = ''
         self.birth_volume_id = ''
         self.birth_object_id = ''
@@ -195,11 +196,28 @@ class MftRecord:
             except struct.error:
                 break
 
-    def parse_object_id(self, offset):
-        pass
-
     def parse_security_descriptor(self, offset):
-        pass
+        sd_data = self.raw_record[offset+24:]
+        if len(sd_data) >= 20:
+            try:
+                revision = struct.unpack("B", sd_data[0:1])[0]
+                control = struct.unpack("<H", sd_data[2:4])[0]
+                owner_offset = struct.unpack("<L", sd_data[4:8])[0]
+                group_offset = struct.unpack("<L", sd_data[8:12])[0]
+                sacl_offset = struct.unpack("<L", sd_data[12:16])[0]
+                dacl_offset = struct.unpack("<L", sd_data[16:20])[0]
+                
+                self.security_descriptor = {
+                    'revision': revision,
+                    'control': control,
+                    'owner_offset': owner_offset,
+                    'group_offset': group_offset,
+                    'sacl_offset': sacl_offset,
+                    'dacl_offset': dacl_offset
+                }
+            except struct.error:
+                if self.debug:
+                    print(f"Error parsing Security Descriptor attribute for record {self.recordnum}")
 
     def parse_volume_name(self, offset):
         pass

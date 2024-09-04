@@ -4,7 +4,7 @@ import hashlib
 import zlib
 from .constants import *
 from .windows_time import WindowsTime
-from typing import Dict, Set, List, Optional, Any
+from typing import Dict, Set, List, Optional, Any,Union
 
 
 class MftRecord:

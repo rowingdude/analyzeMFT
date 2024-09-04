@@ -3,7 +3,7 @@ import random
 import os
 import uuid
 from datetime import datetime, timedelta
-from src.analyzeMFT.constants import *
+from constants import *
 
 def windows_time(dt):
     """Convert a datetime object to Windows filetime"""
@@ -61,11 +61,14 @@ def create_mft_record(record_number, flags, filename):
         windows_time(datetime.now() + timedelta(days=1)),  # Last modification time
         windows_time(datetime.now() + timedelta(days=2)),  # Last change time
         windows_time(datetime.now() + timedelta(days=3)),  # Last access time
-        1024, 1024,  # Allocated size, Real size
-        flags, 0,  # Flags, Reparse value
-        len(filename), 0  # Filename length, Namespace
+        1024,  # Allocated size
+        1024,  # Real size
+        flags,  # Flags
+        0,  # Reparse value
+        len(filename),  # Filename length
+        0,  # Namespace
+        0  
     ) + filename.encode('utf-16le')
-    offset = add_attribute(record, offset, FILE_NAME_ATTRIBUTE, fn_data)
     
     # $DATA attribute (resident)
     data = f"This is the content of {filename}".encode('utf-8')

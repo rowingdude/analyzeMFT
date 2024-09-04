@@ -3,17 +3,19 @@ import csv
 import io
 import sys
 import traceback
+from typing import Dict, Set, List, Optional, Any
 from .constants import *
 from .mft_record import MftRecord
 
 class MftAnalyzer:
 
-    def __init__(self, mft_file, output_file, debug=False, compute_hashes=False):
+    def __init__(self, mft_file: str, output_file: str, debug: bool = False, compute_hashes: bool = False, export_format: str = "csv") -> None:
         self.mft_file = mft_file
         self.output_file = output_file
         self.debug = debug
         self.compute_hashes = compute_hashes
-        self.mft_records = {}
+        self.export_format = export_format
+        self.mft_records = []
         self.interrupt_flag = asyncio.Event()
         self.csv_writer = None
         self.csvfile = None
@@ -32,30 +34,19 @@ class MftAnalyzer:
             })
 
 
-    async def analyze(self):
+    async def analyze(self) -> None:
         try:
-            self.csvfile = io.open(self.output_file, 'w', newline='', encoding='utf-8')
-            self.csv_writer = csv.writer(self.csvfile)
-            header = CSV_HEADER.copy()
-            if self.compute_hashes:
-                header.extend(['MD5', 'SHA256', 'SHA512', 'CRC32'])
-            self.csv_writer.writerow(header)
-
-            self.handle_interrupt()
             await self.process_mft()
-
+            await self.write_output()
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
             if self.debug:
                 traceback.print_exc()
         finally:
-            await self.write_remaining_records()
             self.print_statistics()
-            if self.csvfile:
-                self.csvfile.close()
-            print(f"Analysis complete. Results written to {self.output_file}")
 
-    async def process_mft(self):
+
+    async def process_mft(self) -> None:
         try:
             with open(self.mft_file, 'rb') as f:
                 while not self.interrupt_flag.is_set():
@@ -100,7 +91,7 @@ class MftAnalyzer:
             if self.debug:
                 traceback.print_exc()
 
-    def handle_interrupt(self):
+    def handle_interrupt(self) -> None:
         if sys.platform == "win32":
             # Windows-specific interrupt handling
             import win32api
@@ -120,7 +111,7 @@ class MftAnalyzer:
                     getattr(signal, signame),
                     unix_handler)
 
-    async def write_csv_block(self):
+    async def write_csv_block(self) -> None:
         try:
             for record in self.mft_records.values():
                 filepath = self.build_filepath(record)
@@ -143,11 +134,11 @@ class MftAnalyzer:
                 traceback.print_exc()
 
 
-    async def write_remaining_records(self):
+    async def write_remaining_records(self) -> None:
         await self.write_csv_block()
         self.mft_records.clear()
 
-    def build_filepath(self, record):
+    def build_filepath(self, record: MftRecord) -> str:
         path_parts = []
         current_record = record
         max_depth = 255
@@ -179,7 +170,7 @@ class MftAnalyzer:
 
         return '\\'.join(path_parts)
 
-    def print_statistics(self):
+    def print_statistics(self) -> None:
         print("\nMFT Analysis Statistics:")
         print(f"Total records processed: {self.stats['total_records']}")
         print(f"Active records: {self.stats['active_records']}")
@@ -191,3 +182,15 @@ class MftAnalyzer:
             print(f"Unique SHA512 hashes: {len(self.stats['unique_sha512'])}")
             print(f"Unique CRC32 hashes: {len(self.stats['unique_crc32'])}")
 
+
+    async def write_output(self) -> None:
+        if self.export_format == "csv":
+            await FileWriters.write_csv(self.mft_records, self.output_file)
+        elif self.export_format == "json":
+            await FileWriters.write_json(self.mft_records, self.output_file)
+        elif self.export_format == "xml":
+            await FileWriters.write_xml(self.mft_records, self.output_file)
+        elif self.export_format == "excel":
+            await FileWriters.write_excel(self.mft_records, self.output_file)
+        else:
+            print(f"Unsupported export format: {self.export_format}")

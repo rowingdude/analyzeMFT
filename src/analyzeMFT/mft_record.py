@@ -4,10 +4,11 @@ import hashlib
 import zlib
 from .constants import *
 from .windows_time import WindowsTime
+from typing import Dict, Set, List, Optional, Any
 
 
 class MftRecord:
-    def __init__(self, raw_record, compute_hashes=False):
+    def __init__(self, raw_record: bytes, compute_hashes: bool = False) -> None:
         self.raw_record = raw_record
         self.magic = 0
         self.upd_off = 0
@@ -63,7 +64,7 @@ class MftRecord:
         self.logged_utility_stream = None
 
 
-    def parse_record(self):
+    def parse_record(self) -> None:
         try:
             self.magic = struct.unpack("<I", self.raw_record[MFT_RECORD_MAGIC_NUMBER_OFFSET:MFT_RECORD_MAGIC_NUMBER_OFFSET+MFT_RECORD_MAGIC_NUMBER_SIZE])[0]
             self.upd_off = struct.unpack("<H", self.raw_record[MFT_RECORD_UPDATE_SEQUENCE_OFFSET:MFT_RECORD_UPDATE_SEQUENCE_OFFSET+MFT_RECORD_UPDATE_SEQUENCE_SIZE])[0]
@@ -84,7 +85,7 @@ class MftRecord:
         
         self.parse_attributes()
 
-    def parse_attributes(self):
+    def parse_attributes(self) -> None:
         offset = self.attr_off
         while offset < len(self.raw_record) - 8:
             try:
@@ -131,7 +132,7 @@ class MftRecord:
             except struct.error:
                 offset += 1
 
-    def parse_si_attribute(self, offset):
+    def parse_si_attribute(self, offset: int) -> None:
         si_data = self.raw_record[offset+24:offset+72]
         if len(si_data) >= 32:
             try:
@@ -144,7 +145,7 @@ class MftRecord:
             except struct.error:
                 pass
 
-    def parse_fn_attribute(self, offset):
+    def parse_fn_attribute(self, offset: int) -> None:
         fn_data = self.raw_record[offset+24:]
         if len(fn_data) >= 64:
             try:
@@ -162,7 +163,7 @@ class MftRecord:
             except struct.error:
                 pass
 
-    def parse_object_id_attribute(self, offset):
+    def parse_object_id_attribute(self, offset: int) -> None:
         obj_id_data = self.raw_record[offset+24:offset+88]
         if len(obj_id_data) >= 64:
             try:
@@ -174,10 +175,10 @@ class MftRecord:
                 if self.debug:
                     print(f"Error parsing Object ID attribute for record {self.recordnum}")
     
-    def get_parent_record_num(self):
+    def get_parent_record_num(self) -> int:
         return self.parent_ref & 0x0000FFFFFFFFFFFF
 
-    def parse_attribute_list(self, offset):
+    def parse_attribute_list(self, offset: int) -> None:
         attr_content_offset = offset + struct.unpack("<H", self.raw_record[offset+20:offset+22])[0]
         attr_content_end = offset + struct.unpack("<L", self.raw_record[offset+4:offset+8])[0]
         
@@ -207,7 +208,7 @@ class MftRecord:
             except struct.error:
                 break
 
-    def parse_security_descriptor(self, offset):
+    def parse_security_descriptor(self, offset: int) -> None:
         sd_data = self.raw_record[offset+24:]
         if len(sd_data) >= 20:
             try:
@@ -230,7 +231,7 @@ class MftRecord:
                 if self.debug:
                     print(f"Error parsing Security Descriptor attribute for record {self.recordnum}")
 
-    def parse_volume_name(self, offset):
+    def parse_volume_name(self, offset: int) -> None:
         vn_data = self.raw_record[offset+24:]
         try:
             name_length = struct.unpack("<H", vn_data[:2])[0]
@@ -239,7 +240,7 @@ class MftRecord:
             if self.debug:
                 print(f"Error parsing Volume Name attribute for record {self.recordnum}")
 
-    def parse_volume_information(self, offset):
+    def parse_volume_information(self, offset: int) -> None:
         vi_data = self.raw_record[offset+24:offset+48]
         if len(vi_data) >= 12:
             try:
@@ -282,7 +283,7 @@ class MftRecord:
             if self.debug:
                 print(f"Error parsing Data attribute for record {self.recordnum}")
 
-    def parse_index_root(self, offset):
+    def parse_index_root(self, offset: int) -> None:
         ir_data = self.raw_record[offset+24:]
         try:
             attr_type = struct.unpack("<L", ir_data[:4])[0]
@@ -300,7 +301,7 @@ class MftRecord:
             if self.debug:
                 print(f"Error parsing Index Root attribute for record {self.recordnum}")
 
-    def parse_index_allocation(self, offset):
+    def parse_index_allocation(self, offset: int) -> None:
         ia_data = self.raw_record[offset+24:]
         try:
             data_runs_offset = struct.unpack("<H", ia_data[:2])[0]
@@ -311,7 +312,7 @@ class MftRecord:
             if self.debug:
                 print(f"Error parsing Index Allocation attribute for record {self.recordnum}")
 
-    def parse_bitmap(self, offset):
+    def parse_bitmap(self, offset: int) -> None:
         bitmap_data = self.raw_record[offset+24:]
         try:
             bitmap_size = struct.unpack("<L", bitmap_data[:4])[0]
@@ -323,7 +324,7 @@ class MftRecord:
             if self.debug:
                 print(f"Error parsing Bitmap attribute for record {self.recordnum}")
 
-    def parse_reparse_point(self, offset):
+    def parse_reparse_point(self, offset: int) -> None:
         rp_data = self.raw_record[offset+24:]
         try:
             reparse_tag = struct.unpack("<L", rp_data[:4])[0]
@@ -337,7 +338,7 @@ class MftRecord:
             if self.debug:
                 print(f"Error parsing Reparse Point attribute for record {self.recordnum}")
 
-    def parse_ea_information(self, offset):
+    def parse_ea_information(self, offset: int) -> None:
         eai_data = self.raw_record[offset+24:]
         try:
             ea_size = struct.unpack("<L", eai_data[:4])[0]
@@ -350,7 +351,7 @@ class MftRecord:
             if self.debug:
                 print(f"Error parsing EA Information attribute for record {self.recordnum}")
 
-    def parse_ea(self, offset):
+    def parse_ea(self, offset: int) -> None:
         ea_data = self.raw_record[offset+24:]
         try:
             next_entry_offset = struct.unpack("<L", ea_data[:4])[0]
@@ -370,7 +371,7 @@ class MftRecord:
             if self.debug:
                 print(f"Error parsing EA attribute for record {self.recordnum}")
 
-    def parse_logged_utility_stream(self, offset):
+    def parse_logged_utility_stream(self, offset: int) -> None:
         lus_data = self.raw_record[offset+24:]
         try:
             stream_size = struct.unpack("<Q", lus_data[:8])[0]
@@ -383,7 +384,7 @@ class MftRecord:
                 print(f"Error parsing Logged Utility Stream attribute for record {self.recordnum}")
 
 
-    def to_csv(self):
+    def to_csv(self) -> List[Union[str, int]]:
         row = [
             self.recordnum,
             "Valid" if self.magic == int.from_bytes(MFT_RECORD_MAGIC, BYTE_ORDER) else "Invalid",
@@ -444,7 +445,7 @@ class MftRecord:
             row.extend([""] * 4)  # Add empty strings for hash fields if not computed
         return row
 
-    def compute_hashes(self):
+    def compute_hashes(self) -> None:
         md5 = hashlib.md5()
         sha256 = hashlib.sha256()
         sha512 = hashlib.sha512()
@@ -458,7 +459,7 @@ class MftRecord:
         self.sha512 = sha512.hexdigest()
         self.crc32 = format(zlib.crc32(self.raw_record) & 0xFFFFFFFF, '08x')
 
-    def get_file_type(self):
+    def get_file_type(self)-> str:
         if self.flags & FILE_RECORD_IS_DIRECTORY:
             return "Directory"
         elif self.flags & FILE_RECORD_IS_EXTENSION:

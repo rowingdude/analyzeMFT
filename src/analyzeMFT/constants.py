@@ -1,4 +1,4 @@
-VERSION = '3.1'
+VERSION = '3.0.5'
 
 # File Record Flags
 FILE_RECORD_IN_USE = 0x0001

@@ -209,7 +209,7 @@ class MftRecord:
             self.recordnum,
             "Good" if self.magic == int.from_bytes(MFT_RECORD_MAGIC, BYTE_ORDER) else "Bad",
             "Active" if self.flags & FILE_RECORD_IN_USE else "Inactive",
-            "Directory" if self.flags & FILE_RECORD_IS_DIRECTORY else "File",
+            self.get_file_type(),
             self.seq,
             self.parent_ref,
             self.base_ref >> 48,  # Parent File Rec. Seq. #

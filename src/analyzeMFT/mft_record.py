@@ -258,3 +258,13 @@ class MftRecord:
         self.sha256 = sha256.hexdigest()
         self.sha512 = sha512.hexdigest()
         self.crc32 = format(zlib.crc32(self.raw_record) & 0xFFFFFFFF, '08x')
+
+    def get_file_type(self):
+        if self.flags & FILE_RECORD_IS_DIRECTORY:
+            return "Directory"
+        elif self.flags & FILE_RECORD_IS_EXTENSION:
+            return "Extension"
+        elif self.flags & FILE_RECORD_HAS_SPECIAL_INDEX:
+            return "Special Index"
+        else:
+            return "File"

@@ -1,14 +1,16 @@
 from setuptools import setup, find_packages
+from src.analyzeMFT.constants import VERSION
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
     name='analyzeMFT',
-    version='3.0',
+    version=VERSION,
     author='Benjamin Cance',
     author_email='bjc@tdx.li',
-    packages=find_packages(),
+    package_dir={'': 'src'},
+    packages=find_packages(where='src'),
     url='http://github.com/rowingdude/analyzeMFT',
     license='LICENSE.txt',
     description='Analyze the $MFT from a NTFS filesystem.',

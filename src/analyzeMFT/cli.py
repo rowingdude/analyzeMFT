@@ -29,8 +29,13 @@ async def main():
                             help="Export as log2timeline CSV")
     parser.add_option_group(export_group)
 
-    parser.add_option("-d", "--debug", action="store_true", dest="debug",
-                      help="Enable debug output", default=False)
+    verbosity_group = OptionGroup(parser, "Verbosity Options")
+    verbosity_group.add_option("-v", action="count", dest="verbosity",
+                               help="Increase output verbosity (can be used multiple times)", default=0)
+    verbosity_group.add_option("-d", action="count", dest="debug",
+                               help="Increase debug output (can be used multiple times)", default=0)
+    parser.add_option_group(verbosity_group)
+
     parser.add_option("-H", "--hash", action="store_true", dest="compute_hashes",
                       help="Compute hashes (MD5, SHA256, SHA512, CRC32)", default=False)
 
@@ -46,8 +51,15 @@ async def main():
         print("\nError: No output file specified. Use -o or --output to specify an output file.")
         sys.exit(1)
 
+    # Default to CSV if no format specified
     if not options.export_format:
-        options.export_format = "csv"  # Default to CSV if no format specified
+        options.export_format = "csv"  
+
+
+    analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.very_debug, 
+                           options.verbosity, options.compute_hashes, options.export_format)
+    await analyzer.analyze()
+    print(f"Analysis complete. Results written to {options.output_file}")
 
     try:
         analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.compute_hashes, options.export_format)
@@ -65,6 +77,7 @@ async def main():
             import traceback
             traceback.print_exc()
         sys.exit(1)
+ master
 
 if __name__ == "__main__":
     asyncio.run(main())

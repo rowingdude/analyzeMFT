@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 import asyncio
 from typing import List, Dict, Any
 from .mft_record import MftRecord
+from .constants import *
 
 class FileWriters:
     @staticmethod

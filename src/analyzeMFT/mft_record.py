@@ -50,6 +50,8 @@ class MftRecord:
         if compute_hashes:
             self.compute_hashes()
         self.parse_record()
+        self.security_descriptor = None
+        self.volume_name = None
 
 
     def parse_record(self):
@@ -220,7 +222,13 @@ class MftRecord:
                     print(f"Error parsing Security Descriptor attribute for record {self.recordnum}")
 
     def parse_volume_name(self, offset):
-        pass
+        vn_data = self.raw_record[offset+24:]
+        try:
+            name_length = struct.unpack("<H", vn_data[:2])[0]
+            self.volume_name = vn_data[2:2+name_length*2].decode('utf-16-le', errors='replace')
+        except struct.error:
+            if self.debug:
+                print(f"Error parsing Volume Name attribute for record {self.recordnum}")
 
     def parse_volume_information(self, offset):
         pass

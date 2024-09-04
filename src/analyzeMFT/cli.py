@@ -30,12 +30,10 @@ async def main():
     parser.add_option_group(export_group)
 
     verbosity_group = OptionGroup(parser, "Verbosity Options")
-    verbosity_group.add_option("-v", "--verbose", action="count", dest="verbosity",
+    verbosity_group.add_option("-v", action="count", dest="verbosity",
                                help="Increase output verbosity (can be used multiple times)", default=0)
-    verbosity_group.add_option("-d", "--debug", action="store_true", dest="debug",
-                               help="Enable debug output", default=False)
-    verbosity_group.add_option("-dd", "--very-debug", action="store_true", dest="very_debug",
-                               help="Enable very verbose debug output", default=False)
+    verbosity_group.add_option("-d", action="count", dest="debug",
+                               help="Increase debug output (can be used multiple times)", default=0)
     parser.add_option_group(verbosity_group)
 
     parser.add_option("-H", "--hash", action="store_true", dest="compute_hashes",
@@ -47,8 +45,9 @@ async def main():
         parser.print_help()
         sys.exit(1)
 
+    # Default to CSV if no format specified
     if not options.export_format:
-        options.export_format = "csv"  # Default to CSV if no format specified
+        options.export_format = "csv"  
 
     analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.very_debug, 
                            options.verbosity, options.compute_hashes, options.export_format)

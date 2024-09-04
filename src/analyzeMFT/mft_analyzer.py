@@ -42,7 +42,7 @@ class MftAnalyzer:
             })
 
     def log(self, message: str, level: int = 0):
-        if self.very_debug or (self.debug and level <= 1) or level <= self.verbosity:
+        if level <= self.debug or level <= self.verbosity:
             print(message)
 
     async def analyze(self) -> None:
@@ -82,7 +82,7 @@ class MftAnalyzer:
 
                         self.mft_records[record.recordnum] = record
 
-                        if self.very_debug:
+                        if self.debug >= 2:
                             self.log(f"Processed record {self.stats['total_records']}: {record.filename}", 2)
                         elif self.stats['total_records'] % 10000 == 0:
                             self.log(f"Processed {self.stats['total_records']} records...", 1)
@@ -93,13 +93,13 @@ class MftAnalyzer:
 
                     except Exception as e:
                         self.log(f"Error processing record {self.stats['total_records']}: {str(e)}", 1)
-                        if self.very_debug:
+                        if self.debug >= 2:
                             traceback.print_exc()
                         continue
 
         except Exception as e:
             self.log(f"Error reading MFT file: {str(e)}", 0)
-            if self.debug or self.very_debug:
+            if self.debug >= 1:
                 traceback.print_exc()
 
         self.log(f"MFT processing complete. Total records processed: {self.stats['total_records']}", 0)

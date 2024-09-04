@@ -270,17 +270,70 @@ MFT_RECORD_RECORD_NUMBER_SIZE = 4
 # MFT Record magic number
 MFT_RECORD_MAGIC = b'FILE'
 
-# CSV Header
 CSV_HEADER = [
-    'Record Number', 'Good', 'Active', 'Record type', 'Sequence Number',
-    'Parent File Rec. #', 'Parent File Rec. Seq. #', 'Filename',
-    'Std Info Creation Time', 'Std Info Modification Time',
-    'Std Info Access Time', 'Std Info Entry Time',
-    'FN Info Creation Time', 'FN Info Modification Time',
-    'FN Info Access Time', 'FN Info Entry Time',
-    'Object ID', 'Birth Volume ID', 'Birth Object ID', 'Birth Domain ID',
-    'Standard Information', 'Attribute List', 'File Name',
-    'Volume Name', 'Volume Info', 'Data', 'Index Root',
-    'Index Allocation', 'Bitmap', 'Reparse Point', 'EA Information', 'EA',
-    'Logged Utility Stream', 'Filepath'
+    # Basic Record Information
+    'Record Number', 
+    'Record Status',  # Instead of 'Good'/'Bad'
+    'Record Type',    # Instead of 'Active'/'Inactive'
+    'File Type',      # Instead of 'Record type'
+    'Sequence Number',
+    'Parent Record Number',
+    'Parent Record Sequence Number',
+    
+    # File Information
+    'Filename',
+    'Filepath',
+    
+    # Standard Information Times
+    'SI Creation Time',
+    'SI Modification Time',
+    'SI Access Time',
+    'SI Entry Time',
+    
+    # File Name Attribute Times
+    'FN Creation Time',
+    'FN Modification Time',
+    'FN Access Time',
+    'FN Entry Time',
+    
+    # Object ID Information
+    'Object ID',
+    'Birth Volume ID',
+    'Birth Object ID',
+    'Birth Domain ID',
+    
+    # Attribute Presence Flags
+    'Has Standard Information',
+    'Has Attribute List',
+    'Has File Name',
+    'Has Volume Name',
+    'Has Volume Information',
+    'Has Data',
+    'Has Index Root',
+    'Has Index Allocation',
+    'Has Bitmap',
+    'Has Reparse Point',
+    'Has EA Information',
+    'Has EA',
+    'Has Logged Utility Stream',
+    
+    # Detailed Attribute Information
+    'Attribute List Details',
+    'Security Descriptor',
+    'Volume Name',
+    'Volume Information',
+    'Data Attribute',
+    'Index Root',
+    'Index Allocation',
+    'Bitmap',
+    'Reparse Point',
+    'EA Information',
+    'EA',
+    'Logged Utility Stream',
+    
+    # Hash Information (if computed)
+    'MD5',
+    'SHA256',
+    'SHA512',
+    'CRC32'
 ]

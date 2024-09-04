@@ -4,7 +4,7 @@ import sys
 from .mft_analyzer import MftAnalyzer
 from .constants import VERSION
 
-async def main():
+async def main() -> None:
     parser = OptionParser(usage="usage: %prog -f <mft_file> -o <output.csv> [-d] [-H]",
                           version=f"%prog {VERSION}")
     parser.add_option("-f", "--file", dest="filename",

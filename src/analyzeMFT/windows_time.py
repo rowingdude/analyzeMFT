@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 class WindowsTime:
-    def __init__(self, low, high):
+    def __init__(self, low: int, high: int) -> None:
         self.low = int(low)
         self.high = int(high)
         
@@ -21,6 +21,6 @@ class WindowsTime:
             self.dtstr = "Invalid timestamp"
             self.unixtime = 0
 
-    def get_unix_time(self):
+    def get_unix_time(self) -> float:
         t = float(self.high) * 2**32 + self.low
         return (t / 10000000) - 11644473600 

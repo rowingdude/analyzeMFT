@@ -386,39 +386,45 @@ class MftRecord:
     def to_csv(self):
         row = [
             self.recordnum,
-            "Good" if self.magic == int.from_bytes(MFT_RECORD_MAGIC, BYTE_ORDER) else "Bad",
-            "Active" if self.flags & FILE_RECORD_IN_USE else "Inactive",
+            "Valid" if self.magic == int.from_bytes(MFT_RECORD_MAGIC, BYTE_ORDER) else "Invalid",
+            "In Use" if self.flags & FILE_RECORD_IN_USE else "Not in Use",
             self.get_file_type(),
             self.seq,
-            self.parent_ref,
-            self.base_ref >> 48,  # Parent File Rec. Seq. #
+            self.get_parent_record_num(),
+            self.base_ref >> 48,
+            
             self.filename,
+            "",  # Filepath (to be filled later)
+            
             self.si_times['crtime'].dtstr,
             self.si_times['mtime'].dtstr,
             self.si_times['atime'].dtstr,
             self.si_times['ctime'].dtstr,
+            
             self.fn_times['crtime'].dtstr,
             self.fn_times['mtime'].dtstr,
             self.fn_times['atime'].dtstr,
             self.fn_times['ctime'].dtstr,
+            
             self.object_id,
             self.birth_volume_id,
             self.birth_object_id,
             self.birth_domain_id,
-            "True" if STANDARD_INFORMATION_ATTRIBUTE in self.attribute_types else "False",
-            "True" if ATTRIBUTE_LIST_ATTRIBUTE in self.attribute_types else "False",
-            "True" if FILE_NAME_ATTRIBUTE in self.attribute_types else "False",
-            "True" if VOLUME_NAME_ATTRIBUTE in self.attribute_types else "False",
-            "True" if VOLUME_INFORMATION_ATTRIBUTE in self.attribute_types else "False",
-            "True" if DATA_ATTRIBUTE in self.attribute_types else "False",
-            "True" if INDEX_ROOT_ATTRIBUTE in self.attribute_types else "False",
-            "True" if INDEX_ALLOCATION_ATTRIBUTE in self.attribute_types else "False",
-            "True" if BITMAP_ATTRIBUTE in self.attribute_types else "False",
-            "True" if REPARSE_POINT_ATTRIBUTE in self.attribute_types else "False",
-            "True" if EA_INFORMATION_ATTRIBUTE in self.attribute_types else "False",
-            "True" if EA_ATTRIBUTE in self.attribute_types else "False",
-            "True" if LOGGED_UTILITY_STREAM_ATTRIBUTE in self.attribute_types else "False",
-            "",  # Filepath
+            
+            str(STANDARD_INFORMATION_ATTRIBUTE in self.attribute_types),
+            str(ATTRIBUTE_LIST_ATTRIBUTE in self.attribute_types),
+            str(FILE_NAME_ATTRIBUTE in self.attribute_types),
+            str(VOLUME_NAME_ATTRIBUTE in self.attribute_types),
+            str(VOLUME_INFORMATION_ATTRIBUTE in self.attribute_types),
+            str(DATA_ATTRIBUTE in self.attribute_types),
+            str(INDEX_ROOT_ATTRIBUTE in self.attribute_types),
+            str(INDEX_ALLOCATION_ATTRIBUTE in self.attribute_types),
+            str(BITMAP_ATTRIBUTE in self.attribute_types),
+            str(REPARSE_POINT_ATTRIBUTE in self.attribute_types),
+            str(EA_INFORMATION_ATTRIBUTE in self.attribute_types),
+            str(EA_ATTRIBUTE in self.attribute_types),
+            str(LOGGED_UTILITY_STREAM_ATTRIBUTE in self.attribute_types),
+            
             str(self.attribute_list),
             str(self.security_descriptor),
             self.volume_name,
@@ -434,6 +440,8 @@ class MftRecord:
         ]
         if self.md5 is not None:
             row.extend([self.md5, self.sha256, self.sha512, self.crc32])
+        else:
+            row.extend([""] * 4)  # Add empty strings for hash fields if not computed
         return row
 
     def compute_hashes(self):

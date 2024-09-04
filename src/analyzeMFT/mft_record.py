@@ -141,6 +141,45 @@ class MftRecord:
     def get_parent_record_num(self):
         return self.parent_ref & 0x0000FFFFFFFFFFFF
 
+    def parse_attribute_list(self, offset):
+        pass
+
+    def parse_object_id(self, offset):
+        pass
+
+    def parse_security_descriptor(self, offset):
+        pass
+
+    def parse_volume_name(self, offset):
+        pass
+
+    def parse_volume_information(self, offset):
+        pass
+
+    def parse_data(self, offset):
+        pass
+
+    def parse_index_root(self, offset):
+        pass
+
+    def parse_index_allocation(self, offset):
+        pass
+
+    def parse_bitmap(self, offset):
+        pass
+
+    def parse_reparse_point(self, offset):
+        pass
+
+    def parse_ea_information(self, offset):
+        pass
+
+    def parse_ea(self, offset):
+        pass
+
+    def parse_logged_utility_stream(self, offset):
+        pass
+
     def to_csv(self):
         row = [
             self.recordnum,

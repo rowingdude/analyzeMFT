@@ -418,7 +418,19 @@ class MftRecord:
             "True" if EA_INFORMATION_ATTRIBUTE in self.attribute_types else "False",
             "True" if EA_ATTRIBUTE in self.attribute_types else "False",
             "True" if LOGGED_UTILITY_STREAM_ATTRIBUTE in self.attribute_types else "False",
-            ""  # Filepath 
+            "",  # Filepath
+            str(self.attribute_list),
+            str(self.security_descriptor),
+            self.volume_name,
+            str(self.volume_info),
+            str(self.data_attribute),
+            str(self.index_root),
+            str(self.index_allocation),
+            str(self.bitmap),
+            str(self.reparse_point),
+            str(self.ea_information),
+            str(self.ea),
+            str(self.logged_utility_stream)
         ]
         if self.md5 is not None:
             row.extend([self.md5, self.sha256, self.sha512, self.crc32])

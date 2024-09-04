@@ -10,10 +10,15 @@ from .file_writers import FileWriters
 
 class MftAnalyzer:
 
-    def __init__(self, mft_file: str, output_file: str, debug: bool = False, compute_hashes: bool = False, export_format: str = "csv") -> None:
+    def __init__(self, mft_file: str, output_file: str, debug: bool = False, very_debug: bool = False, 
+                 verbosity: int = 0, compute_hashes: bool = False, export_format: str = "csv") -> None:
         self.mft_file = mft_file
         self.output_file = output_file
         self.debug = debug
+        self.very_debug = very_debug
+        self.verbosity = verbosity
+        self.compute_hashes = compute_hashes
+        self.export_format = export_format
         self.compute_hashes = compute_hashes
         self.export_format = export_format
         self.mft_records = {}  
@@ -36,6 +41,10 @@ class MftAnalyzer:
                 'unique_crc32': set(),
             })
 
+    def log(self, message: str, level: int = 0):
+        if self.very_debug or (self.debug and level <= 1) or level <= self.verbosity:
+            print(message)
+
     async def analyze(self) -> None:
         try:
             self.initialize_csv_writer()
@@ -52,7 +61,7 @@ class MftAnalyzer:
 
 
     async def process_mft(self) -> None:
-        print(f"Processing MFT file: {self.mft_file}")
+        self.log(f"Processing MFT file: {self.mft_file}", 1)
         try:
             with open(self.mft_file, 'rb') as f:
                 while not self.interrupt_flag.is_set():
@@ -73,27 +82,28 @@ class MftAnalyzer:
 
                         self.mft_records[record.recordnum] = record
 
-                        if self.stats['total_records'] % 10000 == 0:
-                            print(f"Processed {self.stats['total_records']} records...")
+                        if self.very_debug:
+                            self.log(f"Processed record {self.stats['total_records']}: {record.filename}", 2)
+                        elif self.stats['total_records'] % 10000 == 0:
+                            self.log(f"Processed {self.stats['total_records']} records...", 1)
 
                         if self.stats['total_records'] % 1000 == 0:
                             await self.write_csv_block()
                             self.mft_records.clear()
 
                     except Exception as e:
-                        if self.debug:
-                            print(f"Error processing record {self.stats['total_records']}: {str(e)}")
+                        self.log(f"Error processing record {self.stats['total_records']}: {str(e)}", 1)
+                        if self.very_debug:
+                            traceback.print_exc()
                         continue
 
         except Exception as e:
-            print(f"Error reading MFT file: {str(e)}")
-            if self.debug:
+            self.log(f"Error reading MFT file: {str(e)}", 0)
+            if self.debug or self.very_debug:
                 traceback.print_exc()
 
-        print(f"MFT processing complete. Total records processed: {self.stats['total_records']}")
+        self.log(f"MFT processing complete. Total records processed: {self.stats['total_records']}", 0)
 
-
-        print(f"MFT processing complete. Total records processed: {self.stats['total_records']}")
 
     def handle_interrupt(self) -> None:
         if sys.platform == "win32":
@@ -122,8 +132,7 @@ class MftAnalyzer:
             self.csv_writer.writerow(CSV_HEADER)
 
     async def write_csv_block(self) -> None:
-        if self.debug:
-            print(f"Writing CSV block. Records in block: {len(self.mft_records)}")
+        self.log(f"Writing CSV block. Records in block: {len(self.mft_records)}", 2)
         try:
             if self.csv_writer is None:
                 self.initialize_csv_writer()
@@ -137,18 +146,19 @@ class MftAnalyzer:
                     csv_row = [str(item) for item in csv_row]
                     
                     self.csv_writer.writerow(csv_row)
+                    if self.very_debug:
+                        self.log(f"Wrote record {record.recordnum} to CSV", 2)
                 except Exception as e:
-                    if self.debug:
-                        print(f"Error writing record {record.recordnum}: {str(e)}")
+                    self.log(f"Error writing record {record.recordnum}: {str(e)}", 1)
+                    if self.very_debug:
                         traceback.print_exc()
 
             if self.csvfile:
                 self.csvfile.flush()
-            if self.debug:
-                print(f"CSV block written. Current file size: {self.csvfile.tell() if self.csvfile else 0} bytes")
+            self.log(f"CSV block written. Current file size: {self.csvfile.tell() if self.csvfile else 0} bytes", 2)
         except Exception as e:
-            print(f"Error in write_csv_block: {str(e)}")
-            if self.debug:
+            self.log(f"Error in write_csv_block: {str(e)}", 0)
+            if self.debug or self.very_debug:
                 traceback.print_exc()
 
 

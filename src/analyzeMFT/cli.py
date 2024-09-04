@@ -29,8 +29,15 @@ async def main():
                             help="Export as log2timeline CSV")
     parser.add_option_group(export_group)
 
-    parser.add_option("-d", "--debug", action="store_true", dest="debug",
-                      help="Enable debug output", default=False)
+    verbosity_group = OptionGroup(parser, "Verbosity Options")
+    verbosity_group.add_option("-v", "--verbose", action="count", dest="verbosity",
+                               help="Increase output verbosity (can be used multiple times)", default=0)
+    verbosity_group.add_option("-d", "--debug", action="store_true", dest="debug",
+                               help="Enable debug output", default=False)
+    verbosity_group.add_option("-dd", "--very-debug", action="store_true", dest="very_debug",
+                               help="Enable very verbose debug output", default=False)
+    parser.add_option_group(verbosity_group)
+
     parser.add_option("-H", "--hash", action="store_true", dest="compute_hashes",
                       help="Compute hashes (MD5, SHA256, SHA512, CRC32)", default=False)
 
@@ -43,7 +50,8 @@ async def main():
     if not options.export_format:
         options.export_format = "csv"  # Default to CSV if no format specified
 
-    analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.compute_hashes, options.export_format)
+    analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.very_debug, 
+                           options.verbosity, options.compute_hashes, options.export_format)
     await analyzer.analyze()
     print(f"Analysis complete. Results written to {options.output_file}")
 

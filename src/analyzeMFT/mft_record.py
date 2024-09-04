@@ -166,7 +166,34 @@ class MftRecord:
         return self.parent_ref & 0x0000FFFFFFFFFFFF
 
     def parse_attribute_list(self, offset):
-        pass
+        attr_content_offset = offset + struct.unpack("<H", self.raw_record[offset+20:offset+22])[0]
+        attr_content_end = offset + struct.unpack("<L", self.raw_record[offset+4:offset+8])[0]
+        
+        while attr_content_offset < attr_content_end:
+            try:
+                attr_type = struct.unpack("<L", self.raw_record[attr_content_offset:attr_content_offset+4])[0]
+                attr_len = struct.unpack("<H", self.raw_record[attr_content_offset+4:attr_content_offset+6])[0]
+                name_len = struct.unpack("B", self.raw_record[attr_content_offset+6:attr_content_offset+7])[0]
+                name_offset = struct.unpack("B", self.raw_record[attr_content_offset+7:attr_content_offset+8])[0]
+                
+                if name_len > 0:
+                    name = self.raw_record[attr_content_offset+name_offset:attr_content_offset+name_offset+name_len*2].decode('utf-16-le', errors='replace')
+                else:
+                    name = ""
+                
+                vcn = struct.unpack("<Q", self.raw_record[attr_content_offset+8:attr_content_offset+16])[0]
+                ref = struct.unpack("<Q", self.raw_record[attr_content_offset+16:attr_content_offset+24])[0]
+                
+                self.attribute_list.append({
+                    'type': attr_type,
+                    'name': name,
+                    'vcn': vcn,
+                    'reference': ref
+                })
+                
+                attr_content_offset += attr_len
+            except struct.error:
+                break
 
     def parse_object_id(self, offset):
         pass

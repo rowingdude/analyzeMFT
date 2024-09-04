@@ -79,11 +79,11 @@ class MftRecord:
             self.base_ref = struct.unpack("<Q", self.raw_record[MFT_RECORD_FILE_REFERENCE_OFFSET:MFT_RECORD_FILE_REFERENCE_OFFSET+MFT_RECORD_FILE_REFERENCE_SIZE])[0]
             self.next_attrid = struct.unpack("<H", self.raw_record[MFT_RECORD_NEXT_ATTRIBUTE_ID_OFFSET:MFT_RECORD_NEXT_ATTRIBUTE_ID_OFFSET+MFT_RECORD_NEXT_ATTRIBUTE_ID_SIZE])[0]
             self.recordnum = struct.unpack("<I", self.raw_record[MFT_RECORD_RECORD_NUMBER_OFFSET:MFT_RECORD_RECORD_NUMBER_OFFSET+MFT_RECORD_RECORD_NUMBER_SIZE])[0]
+            self.parse_attributes()
+
         except struct.error:
-            if self.debug:
+            if hasattr(self, 'debug') and self.debug:
                 print(f"Error parsing MFT record header for record {self.recordnum}")
-        
-        self.parse_attributes()
 
     def parse_attributes(self) -> None:
         offset = self.attr_off
@@ -104,7 +104,7 @@ class MftRecord:
                 elif attr_type == ATTRIBUTE_LIST_ATTRIBUTE:
                     self.parse_attribute_list(offset)
                 elif attr_type == OBJECT_ID_ATTRIBUTE:
-                    self.parse_object_id(offset)
+                    self.parse_object_id_attribute(offset)
                 elif attr_type == SECURITY_DESCRIPTOR_ATTRIBUTE:
                     self.parse_security_descriptor(offset)
                 elif attr_type == VOLUME_NAME_ATTRIBUTE:

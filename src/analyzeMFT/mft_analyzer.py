@@ -64,24 +64,34 @@ class MftAnalyzer:
                         record = MftRecord(raw_record, self.compute_hashes)
                         self.stats['total_records'] += 1
                         
-                        # Store the record (no change needed here, it will work with a dict)
+                        if record.flags & FILE_RECORD_IN_USE:
+                            self.stats['active_records'] += 1
+                        if record.flags & FILE_RECORD_IS_DIRECTORY:
+                            self.stats['directories'] += 1
+                        else:
+                            self.stats['files'] += 1
+
                         self.mft_records[record.recordnum] = record
 
                         if self.stats['total_records'] % 10000 == 0:
                             print(f"Processed {self.stats['total_records']} records...")
 
-                        # Write to CSV in blocks of 1000 records
                         if self.stats['total_records'] % 1000 == 0:
                             await self.write_csv_block()
-                            self.mft_records.clear()  # Clear processed records to save memory
+                            self.mft_records.clear()
 
                     except Exception as e:
-                        print(f"Error processing record {self.stats['total_records']}: {str(e)}")
+                        if self.debug:
+                            print(f"Error processing record {self.stats['total_records']}: {str(e)}")
                         continue
 
         except Exception as e:
             print(f"Error reading MFT file: {str(e)}")
-            traceback.print_exc()
+            if self.debug:
+                traceback.print_exc()
+
+        print(f"MFT processing complete. Total records processed: {self.stats['total_records']}")
+
 
         print(f"MFT processing complete. Total records processed: {self.stats['total_records']}")
 
@@ -112,7 +122,8 @@ class MftAnalyzer:
             self.csv_writer.writerow(CSV_HEADER)
 
     async def write_csv_block(self) -> None:
-        print(f"Writing CSV block. Records in block: {len(self.mft_records)}")
+        if self.debug:
+            print(f"Writing CSV block. Records in block: {len(self.mft_records)}")
         try:
             if self.csv_writer is None:
                 self.initialize_csv_writer()
@@ -121,21 +132,24 @@ class MftAnalyzer:
                 try:
                     filepath = self.build_filepath(record)
                     csv_row = record.to_csv()
-                    csv_row[-1] = filepath  # Replace the filepath placeholder
+                    csv_row[-1] = filepath
 
                     csv_row = [str(item) for item in csv_row]
                     
                     self.csv_writer.writerow(csv_row)
                 except Exception as e:
-                    print(f"Error writing record {record.recordnum}: {str(e)}")
-                    traceback.print_exc()
+                    if self.debug:
+                        print(f"Error writing record {record.recordnum}: {str(e)}")
+                        traceback.print_exc()
 
             if self.csvfile:
-                self.csvfile.flush()  # Ensure data is written to disk
-            print(f"CSV block written. Current file size: {self.csvfile.tell() if self.csvfile else 0} bytes")
+                self.csvfile.flush()
+            if self.debug:
+                print(f"CSV block written. Current file size: {self.csvfile.tell() if self.csvfile else 0} bytes")
         except Exception as e:
             print(f"Error in write_csv_block: {str(e)}")
-            traceback.print_exc()
+            if self.debug:
+                traceback.print_exc()
 
 
     async def write_remaining_records(self) -> None:

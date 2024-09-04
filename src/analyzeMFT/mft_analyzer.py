@@ -9,12 +9,13 @@ from .mft_record import MftRecord
 
 class MftAnalyzer:
 
-    def __init__(self, mft_file: str, output_file: str, debug: bool = False, compute_hashes: bool = False) -> None:
+    def __init__(self, mft_file: str, output_file: str, debug: bool = False, compute_hashes: bool = False, export_format: str = "csv") -> None:
         self.mft_file = mft_file
         self.output_file = output_file
         self.debug = debug
         self.compute_hashes = compute_hashes
-        self.mft_records = {}
+        self.export_format = export_format
+        self.mft_records = []
         self.interrupt_flag = asyncio.Event()
         self.csv_writer = None
         self.csvfile = None
@@ -35,26 +36,15 @@ class MftAnalyzer:
 
     async def analyze(self) -> None:
         try:
-            self.csvfile = io.open(self.output_file, 'w', newline='', encoding='utf-8')
-            self.csv_writer = csv.writer(self.csvfile)
-            header = CSV_HEADER.copy()
-            if self.compute_hashes:
-                header.extend(['MD5', 'SHA256', 'SHA512', 'CRC32'])
-            self.csv_writer.writerow(header)
-
-            self.handle_interrupt()
             await self.process_mft()
-
+            await self.write_output()
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
             if self.debug:
                 traceback.print_exc()
         finally:
-            await self.write_remaining_records()
             self.print_statistics()
-            if self.csvfile:
-                self.csvfile.close()
-            print(f"Analysis complete. Results written to {self.output_file}")
+
 
     async def process_mft(self) -> None:
         try:
@@ -192,3 +182,15 @@ class MftAnalyzer:
             print(f"Unique SHA512 hashes: {len(self.stats['unique_sha512'])}")
             print(f"Unique CRC32 hashes: {len(self.stats['unique_crc32'])}")
 
+
+    async def write_output(self) -> None:
+        if self.export_format == "csv":
+            await FileWriters.write_csv(self.mft_records, self.output_file)
+        elif self.export_format == "json":
+            await FileWriters.write_json(self.mft_records, self.output_file)
+        elif self.export_format == "xml":
+            await FileWriters.write_xml(self.mft_records, self.output_file)
+        elif self.export_format == "excel":
+            await FileWriters.write_excel(self.mft_records, self.output_file)
+        else:
+            print(f"Unsupported export format: {self.export_format}")

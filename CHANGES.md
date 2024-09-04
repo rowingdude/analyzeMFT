@@ -1,7 +1,26 @@
 
-# AnalyzeMFT Change Log
+## Versions 3.0.2 and 3.0.3 (2024-09-04)
 
-This document lists the changes and version history for the AnalyzeMFT script and component scripts.
+### Changes
+- Brought back XML, JSON outputs
+- Added optional Excel output (requires openpyxl)
+- Restored type hints
+- Tinkered a little more with the attribute specific functions
+
+### Fixes
+- Fixed a minor CSV formatting error where path names weren't being correctly parsed.
+
+### To do
+- Fix the root path file name - currently the parser picks up everything after the `C:\`, I'd like to have the target drive letter also
+- Add verbose and very verbose output to accompany debug
+- Create tests for each class, module, and output type.
+- Finish migrating the `MFTRecord.To_CSV()` functionality to `FileWriters.WriteCSV()` 
+   - Should I be making a new module called `Output_Format`, thus invoking items like `Output_Format.TO_CSV()` .. seems like a lot of work for marginal gain.
+- Better utilize Python built-ins like `@dataclass` and `@staticmethod` on items that would be equivalent to C's `enums` and `structs`.
+- Sort out the documentation and steps to implement a SQLite or PostgreSQL database and use that as an output format. 
+
+### Big thanks!
+To my wife, Jessica, for giving me the motivation to pick this project back up and get it back to a stable, working state. Also thank you to the Reddit Arduino community for helping me consolidate my thoughts on this and some other projects.
 
 ## Version 3.0.1 (2024-09-03)
 

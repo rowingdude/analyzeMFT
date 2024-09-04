@@ -41,18 +41,43 @@ async def main():
 
     (options, args) = parser.parse_args()
 
-    if not options.filename or not options.output_file:
+    if not options.filename:
         parser.print_help()
+        print("\nError: No input file specified. Use -f or --file to specify an MFT file.")
+        sys.exit(1)
+
+    if not options.output_file:
+        parser.print_help()
+        print("\nError: No output file specified. Use -o or --output to specify an output file.")
         sys.exit(1)
 
     # Default to CSV if no format specified
     if not options.export_format:
         options.export_format = "csv"  
 
+
     analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.very_debug, 
                            options.verbosity, options.compute_hashes, options.export_format)
     await analyzer.analyze()
     print(f"Analysis complete. Results written to {options.output_file}")
+
+    try:
+        analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.compute_hashes, options.export_format)
+        await analyzer.analyze()
+        print(f"Analysis complete. Results written to {options.output_file}")
+    except FileNotFoundError:
+        print(f"Error: The file '{options.filename}' was not found.")
+        sys.exit(1)
+    except PermissionError:
+        print(f"Error: Permission denied when trying to read '{options.filename}' or write to '{options.output_file}'.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"An unexpected error occurred: {str(e)}")
+        if options.debug:
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
+ master
 
 if __name__ == "__main__":
     asyncio.run(main())

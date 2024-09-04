@@ -1,5 +1,5 @@
 import asyncio
-from optparse import OptionParser
+from optparse import OptionParser, OptionGroup
 import sys
 from .mft_analyzer import MftAnalyzer
 from .constants import VERSION
@@ -21,6 +21,12 @@ async def main():
                             help="Export as XML")
     export_group.add_option("--excel", action="store_const", const="excel", dest="export_format",
                             help="Export as Excel")
+    export_group.add_option("--body", action="store_const", const="body", dest="export_format",
+                            help="Export as body file (for mactime)")
+    export_group.add_option("--timeline", action="store_const", const="timeline", dest="export_format",
+                            help="Export as TSK timeline")
+    export_group.add_option("--l2t", action="store_const", const="l2t", dest="export_format",
+                            help="Export as log2timeline CSV")
     parser.add_option_group(export_group)
 
     parser.add_option("-d", "--debug", action="store_true", dest="debug",
@@ -35,7 +41,7 @@ async def main():
         sys.exit(1)
 
     if not options.export_format:
-        options.export_format = "csv" 
+        options.export_format = "csv"  # Default to CSV if no format specified
 
     analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.compute_hashes, options.export_format)
     await analyzer.analyze()

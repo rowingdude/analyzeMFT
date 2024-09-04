@@ -1,5 +1,28 @@
 
-## Versions 3.0.2 and 3.0.3 (2024-09-04)
+## Version 3.0.5
+
+### Fixes
+
+- Fixed a CSV writer initialization error (that I caused) when migration functionality to File_Writer.py
+- Fixed a typo where we weren't correctly parsing Object IDs
+
+### Changes
+
+- Added verbosity options for output, `-v` works and so does `-vv`, `-d` works similarly.
+- Introduced the concept of a testing framework in the testing/ folder. Please see `requirements-dev.txt` if you'd like to run those.
+- In the testing framework, I copied/pasted the bulk of Constants.py and started to make tests for each item
+
+### Upcoming
+
+-  _Fix the root path file name_
+- Still need to better utilize Python3 conventions
+- I Can haz Database?!
+
+
+
+
+
+## Versions 3.0.2 and 3.0.3 
 
 ### Changes
 - Brought back XML, JSON outputs

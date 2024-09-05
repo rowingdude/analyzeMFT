@@ -59,9 +59,33 @@ Options:
 Error: No input file specified. Use -f or --file to specify an MFT file.
 ```
 
+## Output 
+
+```
+Starting MFT analysis...
+Processing MFT file: D:\ISOs\MFT_Images\MFT
+Processed 10000 records...
+Processed 20000 records...
+Processed 30000 records...
+
+ .......[CUT].........
+
+Processed 310000 records...
+MFT processing complete. Total records processed: 314880
+Writing output in csv format to X:\extracted.csv
+Analysis complete.
+
+MFT Analysis Statistics:
+Total records processed: 314880
+Active records: 171927
+Directories: 99512
+Files: 215368
+Analysis complete. Results written to X:\extracted.csv
+```
+
 ## Versioning
 
-Current version: 3.0.6
+Current version: 3.0.6.6
 
 ## Author
 

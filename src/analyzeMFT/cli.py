@@ -55,29 +55,38 @@ async def main():
     if not options.export_format:
         options.export_format = "csv"  
 
-
-    analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.very_debug, 
-                           options.verbosity, options.compute_hashes, options.export_format)
-    await analyzer.analyze()
-    print(f"Analysis complete. Results written to {options.output_file}")
-
     try:
-        analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.compute_hashes, options.export_format)
+        analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.verbosity, options.compute_hashes, options.export_format)
+        
         await analyzer.analyze()
+
         print(f"Analysis complete. Results written to {options.output_file}")
+
     except FileNotFoundError:
+        
         print(f"Error: The file '{options.filename}' was not found.")
         sys.exit(1)
+
     except PermissionError:
+        
         print(f"Error: Permission denied when trying to read '{options.filename}' or write to '{options.output_file}'.")
         sys.exit(1)
+
     except Exception as e:
+        
         print(f"An unexpected error occurred: {str(e)}")
+        
         if options.debug:
             import traceback
             traceback.print_exc()
+        
         sys.exit(1)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\nScript terminated by user.")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")

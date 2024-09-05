@@ -10,8 +10,10 @@ from typing import Dict, Set, List, Optional, Any, Union
 
 
 class MftRecord:
-    def __init__(self, raw_record: bytes, compute_hashes: bool = False) -> None:
+    def __init__(self, raw_record: bytes, compute_hashes: bool = False, debug_level: int = 0, logger=None):
         self.raw_record = raw_record
+        self.debug_level = debug_level
+        self.logger = logger or self._default_logger
         self.magic = 0
         self.upd_off = 0
         self.upd_cnt = 0
@@ -65,6 +67,12 @@ class MftRecord:
         self.ea = None
         self.logged_utility_stream = None
 
+    def _default_logger(self, message: str, level: int = 0):
+        if level <= self.debug_level:
+            print(message)
+
+    def log(self, message: str, level: int = 0):
+        self.logger(message, level)
 
     def parse_record(self) -> None:
         try:
@@ -87,16 +95,20 @@ class MftRecord:
             if hasattr(self, 'debug') and self.debug:
                 print(f"Error parsing MFT record header for record {self.recordnum}")
 
-    def parse_attributes(self) -> None:
-        offset = self.attr_off
+    def parse_attributes(self):
+        offset = int(self.attr_off)
         while offset < len(self.raw_record) - 8:
             try:
-                attr_type = struct.unpack("<L", self.raw_record[offset:offset+4])[0]
-                attr_len = struct.unpack("<L", self.raw_record[offset+4:offset+8])[0]
+                self.log(f"Parsing attribute at offset {offset}", 3)
+                attr_type = int(struct.unpack("<L", self.raw_record[offset:offset+4])[0])
+                attr_len = int(struct.unpack("<L", self.raw_record[offset+4:offset+8])[0])
+                
+                self.log(f"Attribute type: {attr_type}, length: {attr_len}", 3)
 
                 if attr_type == 0xffffffff or attr_len == 0:
+                    self.log("End of attributes reached", 3)
                     break
-
+                
                 self.attribute_types.add(attr_type)
 
                 if attr_type == STANDARD_INFORMATION_ATTRIBUTE:
@@ -131,7 +143,14 @@ class MftRecord:
                     self.parse_logged_utility_stream(offset)
 
                 offset += attr_len
-            except struct.error:
+
+            except Exception as e:
+                print(f"Error processing record {self.recordnum}: {str(e)}")
+                print(f"attr_type: {attr_type} (type: {type(attr_type)})")
+                print(f"attr_len: {attr_len} (type: {type(attr_len)})")
+                print(f"offset: {offset}")
+                if self.debug >= 2:
+                    traceback.print_exc()
                 offset += 1
 
     def parse_si_attribute(self, offset: int) -> None:

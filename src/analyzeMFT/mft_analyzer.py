@@ -1,6 +1,7 @@
 import asyncio
 import csv
 import io
+import signal
 import sys
 import traceback
 from typing import Dict, Set, List, Optional, Any
@@ -9,24 +10,20 @@ from .mft_record import MftRecord
 from .file_writers import FileWriters
 
 class MftAnalyzer:
-
-    def __init__(self, mft_file: str, output_file: str, debug: bool = False, very_debug: bool = False, 
-                 verbosity: int = 0, compute_hashes: bool = False, export_format: str = "csv") -> None:
+    def __init__(self, mft_file: str, output_file: str, debug: int = 0, verbosity: int = 0, 
+                 compute_hashes: bool = False, export_format: str = "csv") -> None:
         self.mft_file = mft_file
         self.output_file = output_file
         self.debug = debug
-        self.very_debug = very_debug
-        self.verbosity = verbosity
+        self.verbosity = int(verbosity) 
         self.compute_hashes = compute_hashes
         self.export_format = export_format
-        self.compute_hashes = compute_hashes
-        self.export_format = export_format
-        self.mft_records = {}  
-        self.interrupt_flag = asyncio.Event()
-        
         self.csvfile = None
         self.csv_writer = None
-
+        self.interrupt_flag = asyncio.Event()
+        self.setup_interrupt_handler()
+        
+        self.mft_records = {}
         self.stats = {
             'total_records': 0,
             'active_records': 0,
@@ -41,12 +38,26 @@ class MftAnalyzer:
                 'unique_crc32': set(),
             })
 
+    def setup_interrupt_handler(self):
+        def interrupt_handler(signum, frame):
+            self.log("Interrupt received. Cleaning up...", 1)
+            self.interrupt_flag.set()
+
+        if sys.platform == "win32": # Windows is evil ...
+            import win32api
+            win32api.SetConsoleCtrlHandler(lambda x: interrupt_handler(None, None), True)
+
+        else: # On a proper operating system ...
+            signal.signal(signal.SIGINT, interrupt_handler)
+            signal.signal(signal.SIGTERM, interrupt_handler)
+
     def log(self, message: str, level: int = 0):
         if level <= self.debug or level <= self.verbosity:
             print(message)
 
     async def analyze(self) -> None:
         try:
+            self.log("Starting MFT analysis...", 1)
             self.initialize_csv_writer()
             await self.process_mft()
             await self.write_output()
@@ -57,6 +68,10 @@ class MftAnalyzer:
         finally:
             if self.csvfile:
                 self.csvfile.close()
+            if self.interrupt_flag.is_set():
+                self.log("Analysis interrupted by user.", 1)
+            else:
+                self.log("Analysis complete.", 1)
             self.print_statistics()
 
 
@@ -65,12 +80,14 @@ class MftAnalyzer:
         try:
             with open(self.mft_file, 'rb') as f:
                 while not self.interrupt_flag.is_set():
-                    raw_record = f.read(MFT_RECORD_SIZE)
+                    raw_record = await self.read_record(f) 
                     if not raw_record:
                         break
 
                     try:
+                        self.log(f"Processing record {self.stats['total_records']}", 2)
                         record = MftRecord(raw_record, self.compute_hashes)
+                        self.log(f"Record parsed, recordnum: {record.recordnum}", 2)
                         self.stats['total_records'] += 1
                         
                         if record.flags & FILE_RECORD_IN_USE:
@@ -90,9 +107,14 @@ class MftAnalyzer:
                         if self.stats['total_records'] % 1000 == 0:
                             await self.write_csv_block()
                             self.mft_records.clear()
+                            
+                        if self.interrupt_flag.is_set():
+                            self.log("Interrupt detected. Stopping processing.", 1)
+                            break
 
                     except Exception as e:
                         self.log(f"Error processing record {self.stats['total_records']}: {str(e)}", 1)
+                        self.log(f"Raw record (first 100 bytes): {raw_record[:100].hex()}", 2)
                         if self.debug >= 2:
                             traceback.print_exc()
                         continue
@@ -104,6 +126,8 @@ class MftAnalyzer:
 
         self.log(f"MFT processing complete. Total records processed: {self.stats['total_records']}", 0)
 
+    async def read_record(self, file):
+        return file.read(MFT_RECORD_SIZE)
 
     def handle_interrupt(self) -> None:
         if sys.platform == "win32":
@@ -146,11 +170,11 @@ class MftAnalyzer:
                     csv_row = [str(item) for item in csv_row]
                     
                     self.csv_writer.writerow(csv_row)
-                    if self.very_debug:
+                    if self.debug:
                         self.log(f"Wrote record {record.recordnum} to CSV", 2)
                 except Exception as e:
                     self.log(f"Error writing record {record.recordnum}: {str(e)}", 1)
-                    if self.very_debug:
+                    if self.debug:
                         traceback.print_exc()
 
             if self.csvfile:
@@ -158,7 +182,7 @@ class MftAnalyzer:
             self.log(f"CSV block written. Current file size: {self.csvfile.tell() if self.csvfile else 0} bytes", 2)
         except Exception as e:
             self.log(f"Error in write_csv_block: {str(e)}", 0)
-            if self.debug or self.very_debug:
+            if self.debug:
                 traceback.print_exc()
 
 
@@ -223,3 +247,9 @@ class MftAnalyzer:
             await FileWriters.write_excel(list(self.mft_records.values()), self.output_file)
         else:
             print(f"Unsupported export format: {self.export_format}")
+
+    async def cleanup(self):
+        self.log("Performing cleanup...", 1)
+         # to-do add more cleanup after database stuff is integrated.
+        await self.write_remaining_records()
+        self.log("Cleanup complete.", 1)

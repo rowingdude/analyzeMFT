@@ -1,3 +1,4 @@
+import asyncio
 from .windows_time import WindowsTime
 from .mft_record import MftRecord
 from .mft_analyzer import MftAnalyzer

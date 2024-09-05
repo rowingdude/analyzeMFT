@@ -33,39 +33,35 @@ Rather than clutter up the main project with features people may not want, I wil
 Basic usage:
 
 ```
-Usage: analyzeMFT.py [options] filename
+Usage: analyzeMFT.py -f <mft_file> -o <output_file> [options]
 
 Options:
+  --version             show program's version number and exit
   -h, --help            show this help message and exit
-  -f FILE, --file=FILE  Read MFT from FILE
-  -a, --anomaly         Turn on anomaly detection
-  -l, --localtz         Report times using local timezone
-  -d, --debug           Turn on debugging output
-  -v, --version         Report version and exit
-  -V, --verbose         Provide additional output as the program runs (Dangerous, can produce a lot of information)
+  -f FILE, --file=FILE  MFT file to analyze
+  -o FILE, --output=FILE
+                        Output file
+  -H, --hash            Compute hashes (MD5, SHA256, SHA512, CRC32)
 
-  Output Options:
-    -o FILE, --output=FILE
-                        Write results to CSV FILE
-    -b FILE, --bodyfile=FILE
-                        Write MAC information to bodyfile
-    -c FILE, --csvtimefile=FILE
-                        Write CSV format timeline file
+  Export Options:
+    --csv               Export as CSV (default)
+    --json              Export as JSON
+    --xml               Export as XML
+    --excel             Export as Excel
+    --body              Export as body file (for mactime)
+    --timeline          Export as TSK timeline
+    --l2t               Export as log2timeline CSV
 
-  Body File Options:
-    --bodystd           Use STD_INFO timestamps for body file rather than FN     
-                        timestamps
-    --bodyfull          Use full path name + filename rather than just
-                        filename
+  Verbosity Options:
+    -v                  Increase output verbosity (can be used multiple times)
+    -d                  Increase debug output (can be used multiple times)
 
-  Performance Options:
-    --threads=THREAD_COUNT
-                        Number of threads to use for parsing (default: 1)
+Error: No input file specified. Use -f or --file to specify an MFT file.
 ```
 
 ## Versioning
 
-Current version: 3.0
+Current version: 3.0.6
 
 ## Author
 

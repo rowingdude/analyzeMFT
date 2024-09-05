@@ -33,8 +33,8 @@ setup(
         "pywin32;platform_system=='Windows'",
     ],
     entry_points={
-        "console_scripts": [
-            "analyzeMFT=analyzeMFT.cli:main",
+        'console_scripts': [
+            'analyzemft=analyzeMFT:main',
         ],
     },
 )

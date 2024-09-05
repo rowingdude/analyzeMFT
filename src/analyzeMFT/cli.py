@@ -56,8 +56,7 @@ async def main():
         options.export_format = "csv"  
 
 
-    analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.very_debug, 
-                           options.verbosity, options.compute_hashes, options.export_format)
+    analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.verbosity, options.compute_hashes, options.export_format)
     await analyzer.analyze()
     print(f"Analysis complete. Results written to {options.output_file}")
 

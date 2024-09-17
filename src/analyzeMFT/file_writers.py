@@ -1,7 +1,9 @@
-import csv
-import json
-import xml.etree.ElementTree as ET
 import asyncio
+import csv
+import os
+import json
+import sqlite3
+import xml.etree.ElementTree as ET
 from typing import List, Dict, Any
 from .mft_record import MftRecord
 from .constants import *
@@ -87,3 +89,56 @@ class FileWriters:
                         f"{record.filename} {time_type}", '', record.filename, record.recordnum, '', '', ''
                     ])
             await asyncio.sleep(0)
+
+
+    @staticmethod
+    async def write_sqlite(records: List[MftRecord], output_file: str) -> None:
+        conn = sqlite3.connect(output_file)
+        cursor = conn.cursor()
+
+        # Create and populate static tables
+        sql_dir = os.path.join(os.path.dirname(__file__), 'sql')
+        for sql_file in os.listdir(sql_dir):
+            with open(os.path.join(sql_dir, sql_file), 'r') as f:
+                cursor.executescript(f.read())
+
+        # Create MFT records table
+        cursor.execute('''
+            CREATE TABLE mft_records (
+                record_number INTEGER PRIMARY KEY,
+                filename TEXT,
+                parent_record_number INTEGER,
+                file_size INTEGER,
+                is_directory INTEGER,
+                creation_time TEXT,
+                modification_time TEXT,
+                access_time TEXT,
+                entry_time TEXT,
+                attribute_types TEXT
+            )
+        ''')
+
+        # Insert MFT records
+        for record in records:
+            cursor.execute('''
+                INSERT INTO mft_records (
+                    record_number, filename, parent_record_number, file_size,
+                    is_directory, creation_time, modification_time, access_time,
+                    entry_time, attribute_types
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                record.recordnum,
+                record.filename,
+                record.get_parent_record_num(),
+                record.filesize,
+                1 if record.flags & FILE_RECORD_IS_DIRECTORY else 0,
+                record.fn_times['crtime'].dtstr,
+                record.fn_times['mtime'].dtstr,
+                record.fn_times['atime'].dtstr,
+                record.fn_times['ctime'].dtstr,
+                ','.join(map(str, record.attribute_types))
+            ))
+
+        conn.commit()
+        conn.close()
+        await asyncio.sleep(0)

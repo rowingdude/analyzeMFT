@@ -27,6 +27,9 @@ async def main():
                             help="Export as TSK timeline")
     export_group.add_option("--l2t", action="store_const", const="l2t", dest="export_format",
                             help="Export as log2timeline CSV")
+    export_group.add_option("--sqlite", action="store_const", const="sqlite", dest="export_format",
+                            help="Export as SQLite database")
+    
     parser.add_option_group(export_group)
 
     verbosity_group = OptionGroup(parser, "Verbosity Options")

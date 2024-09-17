@@ -1,1 +1,2 @@
 openpyxl==3.0.10
+sqlite3 

@@ -11,6 +11,9 @@ setup(
     author_email='bjc@tdx.li',
     package_dir={'': 'src'},
     packages=find_packages(where='src'),
+    package_data={
+        'analyzeMFT': ['sql/*.sql'],
+    },
     url='http://github.com/rowingdude/analyzeMFT',
     license='LICENSE.txt',
     description='Analyze the $MFT from a NTFS filesystem.',
@@ -31,6 +34,7 @@ setup(
     python_requires=">=3.7",
     install_requires=[
         "pywin32;platform_system=='Windows'",
+        "openpyxl==3.0.10",
     ],
     entry_points={
         'console_scripts': [

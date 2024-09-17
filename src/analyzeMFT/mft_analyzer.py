@@ -1,7 +1,9 @@
 import asyncio
 import csv
 import io
+import os
 import signal
+import sqlite3
 import sys
 import traceback
 from typing import Dict, Set, List, Optional, Any
@@ -245,6 +247,10 @@ class MftAnalyzer:
             await FileWriters.write_xml(list(self.mft_records.values()), self.output_file)
         elif self.export_format == "excel":
             await FileWriters.write_excel(list(self.mft_records.values()), self.output_file)
+        elif self.export_format == "sqlite":
+            await FileWriters.write_sqlite(list(self.mft_records.values()), self.output_file)
+        elif self.export_format == "tsk":
+            await FileWriters.write_tsk(list(self.mft_records.values()), self.output_file)
         else:
             print(f"Unsupported export format: {self.export_format}")
 
@@ -253,3 +259,40 @@ class MftAnalyzer:
          # to-do add more cleanup after database stuff is integrated.
         await self.write_remaining_records()
         self.log("Cleanup complete.", 1)
+
+    async def create_sqlite_database(self):
+        conn = sqlite3.connect(self.output_file)
+        cursor = conn.cursor()
+
+        # Create and populate static tables
+        sql_dir = os.path.join(os.path.dirname(__file__), 'sql')
+        for sql_file in os.listdir(sql_dir):
+            with open(os.path.join(sql_dir, sql_file), 'r') as f:
+                cursor.executescript(f.read())
+
+        # Create MFT records table
+        cursor.execute('''
+            CREATE TABLE mft_records (
+                record_number INTEGER PRIMARY KEY,
+                filename TEXT,
+                parent_record_number INTEGER,
+                -- Add other fields as needed
+                FOREIGN KEY (attribute_type) REFERENCES attribute_types(id)
+            )
+        ''')
+
+        conn.commit()
+        return conn
+
+    async def write_sqlite(self):
+        conn = await self.create_sqlite_database()
+        cursor = conn.cursor()
+
+        for record in self.mft_records.values():
+            cursor.execute('''
+                INSERT INTO mft_records (record_number, filename, parent_record_number)
+                VALUES (?, ?, ?)
+            ''', (record.recordnum, record.filename, record.get_parent_record_num()))
+
+        conn.commit()
+        conn.close()

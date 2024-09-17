@@ -249,6 +249,8 @@ class MftAnalyzer:
             await FileWriters.write_excel(list(self.mft_records.values()), self.output_file)
         elif self.export_format == "sqlite":
             await FileWriters.write_sqlite(list(self.mft_records.values()), self.output_file)
+        elif self.export_format == "tsk":
+            await FileWriters.write_tsk(list(self.mft_records.values()), self.output_file)
         else:
             print(f"Unsupported export format: {self.export_format}")
 

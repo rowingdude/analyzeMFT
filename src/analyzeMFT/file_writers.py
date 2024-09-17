@@ -142,3 +142,15 @@ class FileWriters:
         conn.commit()
         conn.close()
         await asyncio.sleep(0)
+
+    @staticmethod
+    async def write_tsk(records: List[MftRecord], output_file: str) -> None:
+        with open(output_file, 'w', newline='', encoding='utf-8') as tskfile:
+            for record in records:
+                # TSK body file format:
+                # MD5|name|inode|mode_as_string|UID|GID|size|atime|mtime|ctime|crtime
+                tskfile.write(f"0|{record.filename}|{record.recordnum}|{record.flags:04o}|0|0|"
+                              f"{record.filesize}|{record.fn_times['atime'].unixtime}|"
+                              f"{record.fn_times['mtime'].unixtime}|{record.fn_times['ctime'].unixtime}|"
+                              f"{record.fn_times['crtime'].unixtime}\n")
+            await asyncio.sleep(0)

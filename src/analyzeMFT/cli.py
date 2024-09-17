@@ -29,6 +29,8 @@ async def main():
                             help="Export as log2timeline CSV")
     export_group.add_option("--sqlite", action="store_const", const="sqlite", dest="export_format",
                             help="Export as SQLite database")
+    export_group.add_option("--tsk", action="store_const", const="tsk", dest="export_format",
+                            help="Export as TSK bodyfile format")
     
     parser.add_option_group(export_group)
 

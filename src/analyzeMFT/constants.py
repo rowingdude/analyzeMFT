@@ -1,4 +1,5 @@
-VERSION = '3.0.6.6'
+from importlib.metadata import version
+VERSION = version('analyzeMFT')
 
 # File Record Flags
 FILE_RECORD_IN_USE = 0x0001

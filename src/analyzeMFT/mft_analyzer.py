@@ -251,6 +251,10 @@ class MftAnalyzer:
             await FileWriters.write_sqlite(list(self.mft_records.values()), self.output_file)
         elif self.export_format == "tsk":
             await FileWriters.write_tsk(list(self.mft_records.values()), self.output_file)
+        elif self.export_format == "body":
+            await FileWriters.write_body(list(self.mft_records.values()), self.output_file)
+        elif self.export_format == "timeline":
+            await FileWriters.write_timeline(list(self.mft_records.values()), self.output_file)
         else:
             print(f"Unsupported export format: {self.export_format}")
 

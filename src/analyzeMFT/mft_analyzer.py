@@ -12,6 +12,7 @@ from .constants import *
 from .mft_record import MftRecord
 from .file_writers import FileWriters
 from .config import AnalysisProfile
+from .sqlite_writer import SQLiteWriter
 
 class MftAnalyzer:
     def __init__(self, mft_file: str, output_file: str, debug: int = 0, verbosity: int = 0, 
@@ -43,6 +44,7 @@ class MftAnalyzer:
         
         self.csvfile = None
         self.csv_writer = None
+        self.sqlite_writer = None
         self.interrupt_flag = asyncio.Event()
         self.setup_logging()
         self.setup_interrupt_handler()
@@ -128,7 +130,9 @@ class MftAnalyzer:
     async def analyze(self) -> None:
         try:
             self.logger.warning("Starting MFT analysis...")
-            self.initialize_csv_writer()
+            # Only initialize CSV writer if export format is CSV
+            if self.export_format == "csv":
+                self.initialize_csv_writer()
             await self.process_mft()
             await self.write_output()
         except Exception as e:
@@ -138,11 +142,20 @@ class MftAnalyzer:
         finally:
             if self.csvfile:
                 self.csvfile.close()
+            # Don't close SQLite writer here - it will be closed in write_output
             if self.interrupt_flag.is_set():
                 self.logger.warning("Analysis interrupted by user.")
             else:
                 self.logger.warning("Analysis complete.")
             self.print_statistics()
+            
+            # Close SQLite writer after everything is done
+            if self.sqlite_writer:
+                try:
+                    self.sqlite_writer.close()
+                    self.logger.info("Final SQLite database cleanup completed")
+                except Exception as e:
+                    self.logger.warning(f"Error during final SQLite cleanup: {e}")
 
 
     async def process_mft(self) -> None:
@@ -320,9 +333,29 @@ class MftAnalyzer:
 
     async def write_sqlite_chunk(self) -> None:
         """Write current chunk to SQLite database."""
-        # Implementation depends on SQLite schema
-        # For now, use CSV chunk method
-        await self.write_csv_chunk()
+        if self.sqlite_writer is None:
+            self.sqlite_writer = SQLiteWriter(self.output_file, self.logger)
+            self.sqlite_writer.connect()
+        
+        try:
+            # Build filepaths for records
+            filepaths = {}
+            for record in self.current_chunk:
+                try:
+                    filepaths[record.recordnum] = self.build_filepath(record)
+                except Exception as e:
+                    self.logger.warning(f"Error building filepath for record {record.recordnum}: {e}")
+                    filepaths[record.recordnum] = f"UnknownPath_{record.recordnum}"
+            
+            # Write batch to SQLite
+            self.sqlite_writer.write_records_batch(self.current_chunk, filepaths)
+            self.logger.info(f"Successfully wrote {len(self.current_chunk)} records to SQLite")
+            
+        except Exception as e:
+            self.logger.error(f"Error writing SQLite chunk: {e}")
+            if self.debug:
+                self.logger.debug("Full traceback:", exc_info=True)
+            raise
 
     async def write_csv_block(self) -> None:
         """Legacy method for compatibility."""
@@ -359,6 +392,27 @@ class MftAnalyzer:
     async def write_remaining_records(self) -> None:
         await self.write_csv_block()
         self.mft_records.clear()
+
+    async def write_remaining_sqlite_records(self) -> None:
+        """Write any remaining records to SQLite database"""
+        try:
+            if self.mft_records:
+                # Add remaining records to current chunk and write
+                for record in self.mft_records.values():
+                    self.current_chunk.append(record)
+                
+                if self.current_chunk:
+                    await self.write_sqlite_chunk()
+                    self.current_chunk.clear()
+                
+                self.mft_records.clear()
+                self.logger.info("All remaining records written to SQLite database")
+                
+        except Exception as e:
+            self.logger.error(f"Error writing remaining SQLite records: {e}")
+            if self.debug:
+                self.logger.debug("Full traceback:", exc_info=True)
+            raise
 
     def build_filepath(self, record: MftRecord) -> str:
         path_parts = []
@@ -409,14 +463,14 @@ class MftAnalyzer:
         self.logger.warning(f"Writing output in {self.export_format} format to {self.output_file}")
         if self.export_format == "csv":
             await self.write_remaining_records()
+        elif self.export_format == "sqlite":
+            await self.write_remaining_sqlite_records()
         elif self.export_format == "json":
             await FileWriters.write_json(list(self.mft_records.values()), self.output_file)
         elif self.export_format == "xml":
             await FileWriters.write_xml(list(self.mft_records.values()), self.output_file)
         elif self.export_format == "excel":
             await FileWriters.write_excel(list(self.mft_records.values()), self.output_file)
-        elif self.export_format == "sqlite":
-            await FileWriters.write_sqlite(list(self.mft_records.values()), self.output_file)
         elif self.export_format == "tsk":
             await FileWriters.write_tsk(list(self.mft_records.values()), self.output_file)
         elif self.export_format == "body":

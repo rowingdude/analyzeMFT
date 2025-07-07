@@ -1,9 +1,12 @@
 import asyncio
 import logging
 from optparse import OptionParser, OptionGroup
+from pathlib import Path
 import sys
 from .mft_analyzer import MftAnalyzer
 from .constants import VERSION
+from .config import ConfigManager, find_config_file
+from .test_generator import create_test_mft
 
 async def main():
     # Setup basic logging configuration (will be refined by analyzer)
@@ -51,9 +54,136 @@ async def main():
 
     parser.add_option("-H", "--hash", action="store_true", dest="compute_hashes",
                       help="Compute hashes (MD5, SHA256, SHA512, CRC32)", default=False)
+    
+    # Configuration options
+    config_group = OptionGroup(parser, "Configuration Options")
+    config_group.add_option("-c", "--config", dest="config_file", metavar="FILE",
+                           help="Load configuration from JSON/YAML file")
+    config_group.add_option("--profile", dest="profile_name", metavar="NAME",
+                           help="Use predefined analysis profile (default, quick, forensic, performance)")
+    config_group.add_option("--list-profiles", action="store_true", dest="list_profiles",
+                           help="List available analysis profiles and exit")
+    config_group.add_option("--create-config", dest="create_config", metavar="FILE",
+                           help="Create a sample configuration file and exit")
+    parser.add_option_group(config_group)
+    
+    # Test options
+    test_group = OptionGroup(parser, "Test Options")
+    test_group.add_option("--test-mode", action="store_true", dest="test_mode",
+                         help="Generate test MFT file and run analysis")
+    test_group.add_option("--generate-test-mft", dest="generate_test_mft", metavar="FILE",
+                         help="Generate a test MFT file and exit")
+    test_group.add_option("--test-records", dest="test_records", type="int", default=1000,
+                         help="Number of records in test MFT (default: 1000)")
+    test_group.add_option("--test-type", dest="test_type", choices=["normal", "anomaly"],
+                         default="normal", help="Type of test MFT to generate (normal, anomaly)")
+    parser.add_option_group(test_group)
 
     (options, args) = parser.parse_args()
-
+    
+    # Initialize configuration manager
+    config_manager = ConfigManager()
+    
+    # Handle special actions first
+    if options.list_profiles:
+        profiles = config_manager.list_profiles()
+        print("\nAvailable analysis profiles:")
+        for name, description in profiles.items():
+            print(f"  {name:12} - {description}")
+        sys.exit(0)
+    
+    if options.create_config:
+        try:
+            config_path = Path(options.create_config)
+            config_manager.create_sample_config(config_path)
+            print(f"Sample configuration file created: {config_path}")
+            sys.exit(0)
+        except Exception as e:
+            logging.error(f"Failed to create configuration file: {e}")
+            sys.exit(1)
+    
+    if options.generate_test_mft:
+        try:
+            create_test_mft(
+                output_path=options.generate_test_mft,
+                num_records=options.test_records,
+                test_type=options.test_type
+            )
+            print(f"Test MFT file created: {options.generate_test_mft}")
+            sys.exit(0)
+        except Exception as e:
+            logging.error(f"Failed to generate test MFT file: {e}")
+            sys.exit(1)
+    
+    # Load configuration if specified
+    profile = None
+    
+    if options.config_file:
+        try:
+            config_data = config_manager.load_config_file(options.config_file)
+            profile = config_manager.load_profile_from_config(config_data, "from_file")
+            logging.info(f"Loaded configuration from {options.config_file}")
+        except Exception as e:
+            logging.error(f"Failed to load configuration file: {e}")
+            sys.exit(1)
+    
+    elif options.profile_name:
+        profile = config_manager.get_profile(options.profile_name)
+        if not profile:
+            logging.error(f"Unknown profile: {options.profile_name}")
+            logging.error(f"Available profiles: {', '.join(config_manager.list_profiles().keys())}")
+            sys.exit(1)
+        logging.info(f"Using profile: {options.profile_name}")
+    
+    else:
+        # Try to find default configuration file
+        default_config = find_config_file()
+        if default_config:
+            try:
+                config_data = config_manager.load_config_file(default_config)
+                profile = config_manager.load_profile_from_config(config_data, "default_file")
+                logging.info(f"Loaded default configuration from {default_config}")
+            except Exception as e:
+                logging.warning(f"Failed to load default configuration file {default_config}: {e}")
+                logging.warning("Continuing with command-line options only")
+    
+    # Apply configuration profile settings, with CLI options taking precedence
+    if profile:
+        # Update options with profile values where CLI didn't specify them
+        if not options.export_format:
+            options.export_format = profile.export_format
+        if options.compute_hashes is False and profile.compute_hashes:
+            options.compute_hashes = profile.compute_hashes
+        if options.verbosity == 0:
+            options.verbosity = profile.verbosity
+        if options.debug == 0:
+            options.debug = profile.debug
+    
+    # Handle test mode
+    if options.test_mode:
+        test_mft_file = "test_sample.mft"
+        test_output_file = "test_output.csv"
+        
+        try:
+            # Generate test MFT
+            logging.warning(f"Test mode: Generating test MFT file {test_mft_file}")
+            create_test_mft(
+                output_path=test_mft_file,
+                num_records=options.test_records,
+                test_type=options.test_type
+            )
+            
+            # Override options for test
+            options.filename = test_mft_file
+            if not options.output_file:
+                options.output_file = test_output_file
+            
+            logging.warning(f"Test mode: Will analyze {test_mft_file} and output to {options.output_file}")
+            
+        except Exception as e:
+            logging.error(f"Failed to generate test MFT for test mode: {e}")
+            sys.exit(1)
+    
     if not options.filename:
         parser.print_help()
         logging.error("\nError: No input file specified. Use -f or --file to specify an MFT file.")
@@ -69,7 +199,7 @@ async def main():
         options.export_format = "csv"  
 
     try:
-        analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.verbosity, options.compute_hashes, options.export_format)
+        analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.verbosity, options.compute_hashes, options.export_format, profile)
         
         await analyzer.analyze()
 

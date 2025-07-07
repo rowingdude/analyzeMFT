@@ -11,16 +11,32 @@ from typing import Dict, Set, List, Optional, Any
 from .constants import *
 from .mft_record import MftRecord
 from .file_writers import FileWriters
+from .config import AnalysisProfile
 
 class MftAnalyzer:
     def __init__(self, mft_file: str, output_file: str, debug: int = 0, verbosity: int = 0, 
-                 compute_hashes: bool = False, export_format: str = "csv") -> None:
+                 compute_hashes: bool = False, export_format: str = "csv", 
+                 profile: Optional[AnalysisProfile] = None) -> None:
         self.mft_file = mft_file
         self.output_file = output_file
         self.debug = debug
         self.verbosity = int(verbosity) 
         self.compute_hashes = compute_hashes
         self.export_format = export_format
+        self.profile = profile
+        
+        # Apply profile settings if provided
+        if profile:
+            # Use profile settings as defaults, CLI args take precedence
+            if not export_format or export_format == "csv":
+                self.export_format = profile.export_format
+            if not compute_hashes:
+                self.compute_hashes = profile.compute_hashes
+            if verbosity == 0:
+                self.verbosity = profile.verbosity
+            if debug == 0:
+                self.debug = profile.debug
+        
         self.csvfile = None
         self.csv_writer = None
         self.interrupt_flag = asyncio.Event()

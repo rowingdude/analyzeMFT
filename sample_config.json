@@ -1,0 +1,23 @@
+{
+  "name": "sample",
+  "description": "Sample configuration file",
+  "export_format": "csv",
+  "compute_hashes": false,
+  "verbosity": 1,
+  "debug": 0,
+  "chunk_size": 1000,
+  "enable_anomaly_detection": false,
+  "file_size_threshold_mb": 100,
+  "date_filter_start": null,
+  "date_filter_end": null,
+  "file_types_include": null,
+  "file_types_exclude": [
+    "$MFT",
+    "$MFTMirr"
+  ],
+  "min_file_size": null,
+  "max_file_size": null,
+  "include_deleted": true,
+  "include_system_files": true,
+  "custom_fields": null
+}

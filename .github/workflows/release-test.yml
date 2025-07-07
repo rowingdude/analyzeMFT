@@ -195,7 +195,7 @@ assert records_per_second > 10, f'Processing too slow: {records_per_second} rec/
 
     - name: Archive test results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: release-test-results-${{ matrix.os }}-py${{ matrix.python-version }}
         path: |

@@ -22,7 +22,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/setup.py', '**/pyproject.toml') }}
@@ -181,7 +181,7 @@ jobs:
         safety check || echo "Safety check completed with warnings"
 
     - name: Upload security scan results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-scan-results

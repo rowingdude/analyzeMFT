@@ -190,7 +190,7 @@ print(f'⚡ Processed {size} bytes in {duration:.2f}s ({500/duration:.1f} rec/s)
 
     - name: Upload test artifacts
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: pre-release-test-results
         path: |
@@ -250,7 +250,7 @@ print(f'⚡ Processed {size} bytes in {duration:.2f}s ({500/duration:.1f} rec/s)
 
     - name: Upload quality reports
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: quality-reports
         path: |
@@ -268,49 +268,45 @@ print(f'⚡ Processed {size} bytes in {duration:.2f}s ({500/duration:.1f} rec/s)
       uses: actions/checkout@v4
 
     - name: Create Release
-      uses: actions/create-release@v1
+      run: |
+        gh release create "v${{ needs.pre-release-tests.outputs.version }}" \
+          --title "Release v${{ needs.pre-release-tests.outputs.version }}" \
+          --notes "## analyzeMFT v${{ needs.pre-release-tests.outputs.version }}
+        
+        ### ✨ What's New
+        - Automated release with comprehensive testing
+        - All functionality validated across multiple platforms
+        
+        ### 🧪 Test Results
+        - ✅ All export formats working (CSV, JSON, XML, SQLite, Body, Timeline, TSK)
+        - ✅ All analysis profiles working (Default, Quick, Forensic, Performance)
+        - ✅ Configuration system working
+        - ✅ Chunked processing working
+        - ✅ Hash computation working
+        - ✅ Error handling working
+        - ✅ Cross-platform compatibility verified
+        
+        ### 📦 Installation
+        \`\`\`bash
+        pip install analyzeMFT
+        \`\`\`
+        
+        ### 🚀 Quick Start
+        \`\`\`bash
+        # Generate test MFT file
+        python analyzeMFT.py --generate-test-mft test.mft --test-records 100
+        
+        # Analyze and export to CSV
+        python analyzeMFT.py -f test.mft -o output.csv --csv -v
+        
+        # Analyze and export to SQLite database
+        python analyzeMFT.py -f test.mft -o output.db --sqlite -v
+        
+        # Use forensic analysis profile
+        python analyzeMFT.py -f test.mft -o forensic.csv --profile forensic -v
+        \`\`\`"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: v${{ needs.pre-release-tests.outputs.version }}
-        release_name: Release v${{ needs.pre-release-tests.outputs.version }}
-        body: |
-          ## analyzeMFT v${{ needs.pre-release-tests.outputs.version }}
-          
-          ### ✨ What's New
-          - Automated release with comprehensive testing
-          - All functionality validated across multiple platforms
-          
-          ### 🧪 Test Results
-          - ✅ All export formats working (CSV, JSON, XML, SQLite, Body, Timeline, TSK)
-          - ✅ All analysis profiles working (Default, Quick, Forensic, Performance)
-          - ✅ Configuration system working
-          - ✅ Chunked processing working
-          - ✅ Hash computation working
-          - ✅ Error handling working
-          - ✅ Cross-platform compatibility verified
-          
-          ### 📦 Installation
-          ```bash
-          pip install analyzeMFT
-          ```
-          
-          ### 🚀 Quick Start
-          ```bash
-          # Generate test MFT file
-          python analyzeMFT.py --generate-test-mft test.mft --test-records 100
-          
-          # Analyze and export to CSV
-          python analyzeMFT.py -f test.mft -o output.csv --csv -v
-          
-          # Analyze and export to SQLite database
-          python analyzeMFT.py -f test.mft -o output.db --sqlite -v
-          
-          # Use forensic analysis profile
-          python analyzeMFT.py -f test.mft -o forensic.csv --profile forensic -v
-          ```
-        draft: false
-        prerelease: false
 
   notify-success:
     name: Notify Success

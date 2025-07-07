@@ -1,5 +1,6 @@
 import asyncio
 import csv
+import logging
 import os
 import json
 import sqlite3
@@ -41,7 +42,7 @@ class FileWriters:
         try:
             import openpyxl
         except ImportError:
-            print("openpyxl is not installed. Please install it to use Excel export.")
+            logging.error("openpyxl is not installed. Please install it to use Excel export.")
             return
 
         wb = openpyxl.Workbook()

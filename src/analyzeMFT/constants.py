@@ -1,5 +1,8 @@
-from importlib.metadata import version
-VERSION = version('analyzeMFT')
+try:
+    from importlib.metadata import version
+    VERSION = version('analyzeMFT')
+except Exception:
+    VERSION = '3.0.6.6'  # Fallback version
 
 # File Record Flags
 FILE_RECORD_IN_USE = 0x0001

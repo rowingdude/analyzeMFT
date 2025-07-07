@@ -16,7 +16,7 @@ from .config import AnalysisProfile
 class MftAnalyzer:
     def __init__(self, mft_file: str, output_file: str, debug: int = 0, verbosity: int = 0, 
                  compute_hashes: bool = False, export_format: str = "csv", 
-                 profile: Optional[AnalysisProfile] = None) -> None:
+                 profile: Optional[AnalysisProfile] = None, chunk_size: int = 1000) -> None:
         self.mft_file = mft_file
         self.output_file = output_file
         self.debug = debug
@@ -24,6 +24,7 @@ class MftAnalyzer:
         self.compute_hashes = compute_hashes
         self.export_format = export_format
         self.profile = profile
+        self.chunk_size = chunk_size  # Number of records to process before writing
         
         # Apply profile settings if provided
         if profile:
@@ -36,6 +37,9 @@ class MftAnalyzer:
                 self.verbosity = profile.verbosity
             if debug == 0:
                 self.debug = profile.debug
+            # Apply chunk_size from profile if available
+            if hasattr(profile, 'chunk_size') and chunk_size == 1000:
+                self.chunk_size = profile.chunk_size
         
         self.csvfile = None
         self.csv_writer = None
@@ -44,11 +48,15 @@ class MftAnalyzer:
         self.setup_interrupt_handler()
         
         self.mft_records = {}
+        self.current_chunk = []  # Current chunk being processed
+        self.chunk_count = 0
         self.stats = {
             'total_records': 0,
             'active_records': 0,
             'directories': 0,
             'files': 0,
+            'bytes_processed': 0,
+            'chunks_processed': 0,
         }
         if self.compute_hashes:
             self.stats.update({
@@ -139,54 +147,87 @@ class MftAnalyzer:
 
     async def process_mft(self) -> None:
         self.logger.warning(f"Processing MFT file: {self.mft_file}")
+        self.logger.warning(f"Using chunk size: {self.chunk_size} records")
+        
         try:
+            file_size = os.path.getsize(self.mft_file)
+            estimated_records = file_size // MFT_RECORD_SIZE
+            self.logger.warning(f"MFT file size: {file_size:,} bytes, estimated {estimated_records:,} records")
+            
             with open(self.mft_file, 'rb') as f:
                 while not self.interrupt_flag.is_set():
-                    raw_record = await self.read_record(f) 
-                    if not raw_record:
+                    # Process chunk of records
+                    chunk = await self.read_chunk(f)
+                    if not chunk:
                         break
-
-                    try:
-                        self.logger.info(f"Processing record {self.stats['total_records']}")
-                        record = MftRecord(raw_record, self.compute_hashes, self.debug, self.logger)
-                        self.logger.info(f"Record parsed, recordnum: {record.recordnum}")
-                        self.stats['total_records'] += 1
-                        
-                        if record.flags & FILE_RECORD_IN_USE:
-                            self.stats['active_records'] += 1
-                        if record.flags & FILE_RECORD_IS_DIRECTORY:
-                            self.stats['directories'] += 1
-                        else:
-                            self.stats['files'] += 1
-
-                        self.mft_records[record.recordnum] = record
-
-                        if self.debug >= 2:
-                            self.logger.info(f"Processed record {self.stats['total_records']}: {record.filename}")
-                        elif self.stats['total_records'] % 10000 == 0:
-                            self.logger.warning(f"Processed {self.stats['total_records']} records...")
-
-                        if self.stats['total_records'] % 1000 == 0:
-                            await self.write_csv_block()
-                            self.mft_records.clear()
-                            
-                        if self.interrupt_flag.is_set():
-                            self.logger.warning("Interrupt detected. Stopping processing.")
-                            break
-
-                    except Exception as e:
-                        self.logger.warning(f"Error processing record {self.stats['total_records']}: {str(e)}")
-                        self.logger.info(f"Raw record (first 100 bytes): {raw_record[:100].hex()}")
-                        if self.debug >= 2:
-                            self.logger.debug("Full traceback:", exc_info=True)
-                        continue
+                    
+                    await self.process_chunk(chunk)
+                    
+                    # Write chunk to output and clear memory
+                    if self.current_chunk:
+                        await self.write_chunk()
+                        self.current_chunk.clear()
+                        self.chunk_count += 1
+                        self.stats['chunks_processed'] += 1
+                    
+                    if self.interrupt_flag.is_set():
+                        self.logger.warning("Interrupt detected. Stopping processing.")
+                        break
 
         except Exception as e:
             self.logger.error(f"Error reading MFT file: {str(e)}")
             if self.debug >= 1:
                 self.logger.debug("Full traceback:", exc_info=True)
 
-        self.logger.error(f"MFT processing complete. Total records processed: {self.stats['total_records']}")
+        self.logger.warning(f"MFT processing complete. Total records processed: {self.stats['total_records']}")
+        self.logger.warning(f"Total chunks processed: {self.stats['chunks_processed']}")
+        self.logger.warning(f"Total bytes processed: {self.stats['bytes_processed']:,}")
+
+    async def read_chunk(self, file) -> List[bytes]:
+        """Read a chunk of raw MFT records from file."""
+        chunk = []
+        for _ in range(self.chunk_size):
+            if self.interrupt_flag.is_set():
+                break
+            raw_record = file.read(MFT_RECORD_SIZE)
+            if not raw_record or len(raw_record) < MFT_RECORD_SIZE:
+                break
+            chunk.append(raw_record)
+            self.stats['bytes_processed'] += MFT_RECORD_SIZE
+        return chunk
+
+    async def process_chunk(self, raw_records: List[bytes]) -> None:
+        """Process a chunk of raw MFT records."""
+        for raw_record in raw_records:
+            if self.interrupt_flag.is_set():
+                break
+            
+            try:
+                record = MftRecord(raw_record, self.compute_hashes, self.debug, self.logger)
+                self.stats['total_records'] += 1
+                
+                if record.flags & FILE_RECORD_IN_USE:
+                    self.stats['active_records'] += 1
+                if record.flags & FILE_RECORD_IS_DIRECTORY:
+                    self.stats['directories'] += 1
+                else:
+                    self.stats['files'] += 1
+
+                # Store record temporarily for filepath building
+                self.mft_records[record.recordnum] = record
+                self.current_chunk.append(record)
+
+                if self.debug >= 2:
+                    self.logger.info(f"Processed record {self.stats['total_records']}: {record.filename}")
+                elif self.stats['total_records'] % 10000 == 0:
+                    self.logger.warning(f"Processed {self.stats['total_records']} records...")
+
+            except Exception as e:
+                self.logger.warning(f"Error processing record {self.stats['total_records']}: {str(e)}")
+                self.logger.info(f"Raw record (first 100 bytes): {raw_record[:100].hex()}")
+                if self.debug >= 2:
+                    self.logger.debug("Full traceback:", exc_info=True)
+                continue
 
     async def read_record(self, file):
         return file.read(MFT_RECORD_SIZE)
@@ -217,7 +258,74 @@ class MftAnalyzer:
             self.csv_writer = csv.writer(self.csvfile)
             self.csv_writer.writerow(CSV_HEADER)
 
+    async def write_chunk(self) -> None:
+        """Write current chunk of records to output."""
+        self.logger.info(f"Writing chunk {self.chunk_count + 1}. Records in chunk: {len(self.current_chunk)}")
+        try:
+            if self.export_format == "csv":
+                await self.write_csv_chunk()
+            elif self.export_format == "json":
+                await self.write_json_chunk()
+            elif self.export_format == "sqlite":
+                await self.write_sqlite_chunk()
+            else:
+                # For other formats, fall back to batch processing
+                await self.write_csv_chunk()
+            
+            self.logger.info(f"Chunk {self.chunk_count + 1} written successfully")
+        except Exception as e:
+            self.logger.error(f"Error writing chunk {self.chunk_count + 1}: {str(e)}")
+            if self.debug:
+                self.logger.debug("Full traceback:", exc_info=True)
+
+    async def write_csv_chunk(self) -> None:
+        """Write current chunk to CSV format."""
+        if self.csv_writer is None:
+            self.initialize_csv_writer()
+        
+        for record in self.current_chunk:
+            try:
+                filepath = self.build_filepath(record)
+                csv_row = record.to_csv()
+                csv_row[-1] = filepath
+
+                csv_row = [str(item) for item in csv_row]
+                
+                self.csv_writer.writerow(csv_row)
+                if self.debug:
+                    self.logger.info(f"Wrote record {record.recordnum} to CSV")
+            except Exception as e:
+                self.logger.warning(f"Error writing record {record.recordnum}: {str(e)}")
+                if self.debug:
+                    self.logger.debug("Full traceback:", exc_info=True)
+
+        if self.csvfile:
+            self.csvfile.flush()
+
+    async def write_json_chunk(self) -> None:
+        """Write current chunk to JSON format (streaming)."""
+        # For streaming JSON, we need to handle chunks differently
+        # This is a simplified implementation
+        import json
+        
+        chunk_filename = f"{self.output_file}.chunk_{self.chunk_count + 1}.json"
+        with open(chunk_filename, 'w') as f:
+            chunk_data = []
+            for record in self.current_chunk:
+                filepath = self.build_filepath(record)
+                record_dict = record.to_dict()
+                record_dict['filepath'] = filepath
+                chunk_data.append(record_dict)
+            json.dump(chunk_data, f, indent=2)
+
+    async def write_sqlite_chunk(self) -> None:
+        """Write current chunk to SQLite database."""
+        # Implementation depends on SQLite schema
+        # For now, use CSV chunk method
+        await self.write_csv_chunk()
+
     async def write_csv_block(self) -> None:
+        """Legacy method for compatibility."""
         self.logger.info(f"Writing CSV block. Records in block: {len(self.mft_records)}")
         try:
             if self.csv_writer is None:

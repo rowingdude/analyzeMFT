@@ -2,6 +2,7 @@ import struct
 import uuid
 import hashlib
 import zlib
+import logging
 from .constants import *
 from .windows_time import WindowsTime
 
@@ -13,7 +14,7 @@ class MftRecord:
     def __init__(self, raw_record: bytes, compute_hashes: bool = False, debug_level: int = 0, logger=None):
         self.raw_record = raw_record
         self.debug_level = debug_level
-        self.logger = logger or self._default_logger
+        self.logger = logger or logging.getLogger('analyzeMFT.mft_record')
         self.magic = 0
         self.upd_off = 0
         self.upd_cnt = 0
@@ -68,11 +69,28 @@ class MftRecord:
         self.logged_utility_stream = None
 
     def _default_logger(self, message: str, level: int = 0):
-        if level <= self.debug_level:
-            print(message)
+        logger = logging.getLogger('analyzeMFT.mft_record')
+        if level == 0:
+            logger.error(message)
+        elif level == 1:
+            logger.warning(message)
+        elif level == 2:
+            logger.info(message)
+        else:
+            logger.debug(message)
 
     def log(self, message: str, level: int = 0):
-        self.logger(message, level)
+        if hasattr(self.logger, 'error'):  # It's a proper logger object
+            if level == 0:
+                self.logger.error(message)
+            elif level == 1:
+                self.logger.warning(message)
+            elif level == 2:
+                self.logger.info(message)
+            else:
+                self.logger.debug(message)
+        else:  # It's the old callable logger
+            self.logger(message, level)
 
     def parse_record(self) -> None:
         try:
@@ -93,7 +111,7 @@ class MftRecord:
 
         except struct.error:
             if hasattr(self, 'debug') and self.debug:
-                print(f"Error parsing MFT record header for record {self.recordnum}")
+                self.logger.error(f"Error parsing MFT record header for record {self.recordnum}")
 
     def parse_attributes(self):
         offset = int(self.attr_off)
@@ -145,10 +163,10 @@ class MftRecord:
                 offset += attr_len
 
             except Exception as e:
-                print(f"Error processing record {self.recordnum}: {str(e)}")
-                print(f"attr_type: {attr_type} (type: {type(attr_type)})")
-                print(f"attr_len: {attr_len} (type: {type(attr_len)})")
-                print(f"offset: {offset}")
+                self.logger.error(f"Error processing record {self.recordnum}: {str(e)}")
+                self.logger.error(f"attr_type: {attr_type} (type: {type(attr_type)})")
+                self.logger.error(f"attr_len: {attr_len} (type: {type(attr_len)})")
+                self.logger.error(f"offset: {offset}")
                 if self.debug >= 2:
                     traceback.print_exc()
                 offset += 1
@@ -194,7 +212,7 @@ class MftRecord:
                 self.birth_domain_id = str(uuid.UUID(bytes_le=obj_id_data[48:64]))
             except (struct.error, ValueError):
                 if self.debug:
-                    print(f"Error parsing Object ID attribute for record {self.recordnum}")
+                    self.logger.error(f"Error parsing Object ID attribute for record {self.recordnum}")
     
     def get_parent_record_num(self) -> int:
         return self.parent_ref & 0x0000FFFFFFFFFFFF
@@ -250,7 +268,7 @@ class MftRecord:
                 }
             except struct.error:
                 if self.debug:
-                    print(f"Error parsing Security Descriptor attribute for record {self.recordnum}")
+                    self.logger.error(f"Error parsing Security Descriptor attribute for record {self.recordnum}")
 
     def parse_volume_name(self, offset: int) -> None:
         vn_data = self.raw_record[offset+24:]
@@ -259,7 +277,7 @@ class MftRecord:
             self.volume_name = vn_data[2:2+name_length*2].decode('utf-16-le', errors='replace')
         except struct.error:
             if self.debug:
-                print(f"Error parsing Volume Name attribute for record {self.recordnum}")
+                self.logger.error(f"Error parsing Volume Name attribute for record {self.recordnum}")
 
     def parse_volume_information(self, offset: int) -> None:
         vi_data = self.raw_record[offset+24:offset+48]
@@ -272,7 +290,7 @@ class MftRecord:
                 }
             except struct.error:
                 if self.debug:
-                    print(f"Error parsing Volume Information attribute for record {self.recordnum}")
+                    self.logger.error(f"Error parsing Volume Information attribute for record {self.recordnum}")
 
     def parse_data(self, offset):
         data_header = self.raw_record[offset:offset+24]
@@ -302,7 +320,7 @@ class MftRecord:
             }
         except struct.error:
             if self.debug:
-                print(f"Error parsing Data attribute for record {self.recordnum}")
+                self.logger.error(f"Error parsing Data attribute for record {self.recordnum}")
 
     def parse_index_root(self, offset: int) -> None:
         ir_data = self.raw_record[offset+24:]
@@ -320,7 +338,7 @@ class MftRecord:
             }
         except struct.error:
             if self.debug:
-                print(f"Error parsing Index Root attribute for record {self.recordnum}")
+                self.logger.error(f"Error parsing Index Root attribute for record {self.recordnum}")
 
     def parse_index_allocation(self, offset: int) -> None:
         ia_data = self.raw_record[offset+24:]
@@ -331,7 +349,7 @@ class MftRecord:
             }
         except struct.error:
             if self.debug:
-                print(f"Error parsing Index Allocation attribute for record {self.recordnum}")
+                self.logger.error(f"Error parsing Index Allocation attribute for record {self.recordnum}")
 
     def parse_bitmap(self, offset: int) -> None:
         bitmap_data = self.raw_record[offset+24:]
@@ -343,7 +361,7 @@ class MftRecord:
             }
         except struct.error:
             if self.debug:
-                print(f"Error parsing Bitmap attribute for record {self.recordnum}")
+                self.logger.error(f"Error parsing Bitmap attribute for record {self.recordnum}")
 
     def parse_reparse_point(self, offset: int) -> None:
         rp_data = self.raw_record[offset+24:]
@@ -357,7 +375,7 @@ class MftRecord:
             }
         except struct.error:
             if self.debug:
-                print(f"Error parsing Reparse Point attribute for record {self.recordnum}")
+                self.logger.error(f"Error parsing Reparse Point attribute for record {self.recordnum}")
 
     def parse_ea_information(self, offset: int) -> None:
         eai_data = self.raw_record[offset+24:]
@@ -370,7 +388,7 @@ class MftRecord:
             }
         except struct.error:
             if self.debug:
-                print(f"Error parsing EA Information attribute for record {self.recordnum}")
+                self.logger.error(f"Error parsing EA Information attribute for record {self.recordnum}")
 
     def parse_ea(self, offset: int) -> None:
         ea_data = self.raw_record[offset+24:]
@@ -390,7 +408,7 @@ class MftRecord:
             }
         except struct.error:
             if self.debug:
-                print(f"Error parsing EA attribute for record {self.recordnum}")
+                self.logger.error(f"Error parsing EA attribute for record {self.recordnum}")
 
     def parse_logged_utility_stream(self, offset: int) -> None:
         lus_data = self.raw_record[offset+24:]
@@ -402,7 +420,7 @@ class MftRecord:
             }
         except struct.error:
             if self.debug:
-                print(f"Error parsing Logged Utility Stream attribute for record {self.recordnum}")
+                self.logger.error(f"Error parsing Logged Utility Stream attribute for record {self.recordnum}")
 
 
     def to_csv(self) -> List[Union[str, int]]:

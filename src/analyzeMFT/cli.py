@@ -1,10 +1,18 @@
 import asyncio
+import logging
 from optparse import OptionParser, OptionGroup
 import sys
 from .mft_analyzer import MftAnalyzer
 from .constants import VERSION
 
 async def main():
+    # Setup basic logging configuration (will be refined by analyzer)
+    logging.basicConfig(
+        level=logging.WARNING,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
     parser = OptionParser(usage="usage: %prog -f <mft_file> -o <output_file> [options]",
                           version=f"%prog {VERSION}")
     parser.add_option("-f", "--file", dest="filename",
@@ -48,12 +56,12 @@ async def main():
 
     if not options.filename:
         parser.print_help()
-        print("\nError: No input file specified. Use -f or --file to specify an MFT file.")
+        logging.error("\nError: No input file specified. Use -f or --file to specify an MFT file.")
         sys.exit(1)
 
     if not options.output_file:
         parser.print_help()
-        print("\nError: No output file specified. Use -o or --output to specify an output file.")
+        logging.error("\nError: No output file specified. Use -o or --output to specify an output file.")
         sys.exit(1)
 
     # Default to CSV if no format specified
@@ -65,25 +73,26 @@ async def main():
         
         await analyzer.analyze()
 
-        print(f"Analysis complete. Results written to {options.output_file}")
+        logger = logging.getLogger('analyzeMFT.cli')
+        logger.warning(f"Analysis complete. Results written to {options.output_file}")
 
     except FileNotFoundError:
         
-        print(f"Error: The file '{options.filename}' was not found.")
+        logging.error(f"Error: The file '{options.filename}' was not found.")
         sys.exit(1)
 
     except PermissionError:
         
-        print(f"Error: Permission denied when trying to read '{options.filename}' or write to '{options.output_file}'.")
+        logging.error(f"Error: Permission denied when trying to read '{options.filename}' or write to '{options.output_file}'.")
         sys.exit(1)
 
     except Exception as e:
         
-        print(f"An unexpected error occurred: {str(e)}")
+        logging.error(f"An unexpected error occurred: {str(e)}")
         
         if options.debug:
             import traceback
-            traceback.print_exc()
+            logging.debug("Full traceback:", exc_info=True)
         
         sys.exit(1)
 
@@ -92,6 +101,6 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\nScript terminated by user.")
+        logging.warning("\nScript terminated by user.")
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        logging.error(f"An unexpected error occurred: {e}")

@@ -117,11 +117,11 @@ jobs:
         # Basic content validation
         grep -q "Record Number" test_output.csv && echo "CSV has header" || exit 1
         python -c "import json; data=json.load(open('test_output.json')); print(f'JSON has {len(data)} records')" || exit 1
-        python -c "import sqlite3; conn=sqlite3.connect('test_output.db'); print(f'SQLite tables: {[row[0] for row in conn.execute(\"SELECT name FROM sqlite_master WHERE type=\\'table\\'\")]}')" || exit 1
+        python -c "import sqlite3; conn=sqlite3.connect('test_output.db'); tables=[row[0] for row in conn.execute('SELECT name FROM sqlite_master WHERE type=\"table\"')]; print(f'SQLite tables: {tables}')" || exit 1
 
     - name: Upload coverage to Codecov (if tests ran)
       if: matrix.python-version == '3.11'
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         flags: unittests

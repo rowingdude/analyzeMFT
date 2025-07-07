@@ -52,8 +52,12 @@ async def main():
                                help="Increase debug output (can be used multiple times)", default=0)
     parser.add_option_group(verbosity_group)
 
-    parser.add_option("-H", "--hash", action="store_true", dest="compute_hashes",
-                      help="Compute hashes (MD5, SHA256, SHA512, CRC32)", default=False)
+    performance_group = OptionGroup(parser, "Performance Options")
+    performance_group.add_option("--chunk-size", dest="chunk_size", type="int", default=1000,
+                                help="Number of records to process in each chunk (default: 1000)")
+    performance_group.add_option("-H", "--hash", action="store_true", dest="compute_hashes",
+                                help="Compute hashes (MD5, SHA256, SHA512, CRC32)", default=False)
+    parser.add_option_group(performance_group)
     
     # Configuration options
     config_group = OptionGroup(parser, "Configuration Options")
@@ -158,6 +162,8 @@ async def main():
             options.verbosity = profile.verbosity
         if options.debug == 0:
             options.debug = profile.debug
+        if options.chunk_size == 1000:  # Default value
+            options.chunk_size = profile.chunk_size
     
     # Handle test mode
     if options.test_mode:
@@ -199,7 +205,16 @@ async def main():
         options.export_format = "csv"  
 
     try:
-        analyzer = MftAnalyzer(options.filename, options.output_file, options.debug, options.verbosity, options.compute_hashes, options.export_format, profile)
+        analyzer = MftAnalyzer(
+            options.filename, 
+            options.output_file, 
+            options.debug, 
+            options.verbosity, 
+            options.compute_hashes, 
+            options.export_format, 
+            profile,
+            options.chunk_size
+        )
         
         await analyzer.analyze()
 

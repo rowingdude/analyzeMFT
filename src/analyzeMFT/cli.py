@@ -57,6 +57,10 @@ async def main():
                                 help="Number of records to process in each chunk (default: 1000)")
     performance_group.add_option("-H", "--hash", action="store_true", dest="compute_hashes",
                                 help="Compute hashes (MD5, SHA256, SHA512, CRC32)", default=False)
+    performance_group.add_option("--no-multiprocessing-hashes", action="store_false", dest="multiprocessing_hashes",
+                                help="Disable multiprocessing for hash computation", default=True)
+    performance_group.add_option("--hash-processes", dest="hash_processes", type="int",
+                                help="Number of processes for hash computation (default: auto-detect)")
     parser.add_option_group(performance_group)
     
     # Configuration options
@@ -213,7 +217,9 @@ async def main():
             options.compute_hashes, 
             options.export_format, 
             profile,
-            options.chunk_size
+            options.chunk_size,
+            options.multiprocessing_hashes,
+            options.hash_processes
         )
         
         await analyzer.analyze()

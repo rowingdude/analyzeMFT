@@ -485,6 +485,10 @@ class MftRecord:
         return row
 
     def compute_hashes(self) -> None:
+        """
+        Compute hashes for this MFT record using single-threaded approach.
+        For better performance with multiple records, use HashProcessor class.
+        """
         md5 = hashlib.md5()
         sha256 = hashlib.sha256()
         sha512 = hashlib.sha512()
@@ -497,6 +501,21 @@ class MftRecord:
         self.sha256 = sha256.hexdigest()
         self.sha512 = sha512.hexdigest()
         self.crc32 = format(zlib.crc32(self.raw_record) & 0xFFFFFFFF, '08x')
+        
+    def set_hashes(self, md5: str, sha256: str, sha512: str, crc32: str) -> None:
+        """
+        Set hash values from external computation (e.g., multiprocessing).
+        
+        Args:
+            md5: MD5 hash as hex string
+            sha256: SHA256 hash as hex string  
+            sha512: SHA512 hash as hex string
+            crc32: CRC32 hash as hex string
+        """
+        self.md5 = md5
+        self.sha256 = sha256
+        self.sha512 = sha512
+        self.crc32 = crc32
 
     def get_file_type(self)-> str:
         if self.flags & FILE_RECORD_IS_DIRECTORY:

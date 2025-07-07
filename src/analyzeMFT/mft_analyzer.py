@@ -13,11 +13,13 @@ from .mft_record import MftRecord
 from .file_writers import FileWriters
 from .config import AnalysisProfile
 from .sqlite_writer import SQLiteWriter
+from .hash_processor import HashProcessor
 
 class MftAnalyzer:
     def __init__(self, mft_file: str, output_file: str, debug: int = 0, verbosity: int = 0, 
                  compute_hashes: bool = False, export_format: str = "csv", 
-                 profile: Optional[AnalysisProfile] = None, chunk_size: int = 1000) -> None:
+                 profile: Optional[AnalysisProfile] = None, chunk_size: int = 1000,
+                 multiprocessing_hashes: bool = True, hash_processes: Optional[int] = None) -> None:
         self.mft_file = mft_file
         self.output_file = output_file
         self.debug = debug
@@ -26,6 +28,8 @@ class MftAnalyzer:
         self.export_format = export_format
         self.profile = profile
         self.chunk_size = chunk_size  # Number of records to process before writing
+        self.multiprocessing_hashes = multiprocessing_hashes
+        self.hash_processes = hash_processes
         
         # Apply profile settings if provided
         if profile:
@@ -45,6 +49,7 @@ class MftAnalyzer:
         self.csvfile = None
         self.csv_writer = None
         self.sqlite_writer = None
+        self.hash_processor = None
         self.interrupt_flag = asyncio.Event()
         self.setup_logging()
         self.setup_interrupt_handler()
@@ -211,13 +216,41 @@ class MftAnalyzer:
 
     async def process_chunk(self, raw_records: List[bytes]) -> None:
         """Process a chunk of raw MFT records."""
-        for raw_record in raw_records:
+        # Initialize hash processor if needed
+        if self.compute_hashes and self.multiprocessing_hashes and self.hash_processor is None:
+            self.hash_processor = HashProcessor(
+                num_processes=self.hash_processes,
+                logger=self.logger
+            )
+            self.logger.info(f"Initialized HashProcessor with {self.hash_processor.num_processes} processes")
+        
+        # Compute hashes for all records in batch if using multiprocessing
+        hash_results = []
+        if self.compute_hashes and self.multiprocessing_hashes and self.hash_processor:
+            self.logger.debug(f"Computing hashes for {len(raw_records)} records using multiprocessing")
+            hash_results = self.hash_processor.compute_hashes_adaptive(raw_records)
+        
+        for i, raw_record in enumerate(raw_records):
             if self.interrupt_flag.is_set():
                 break
             
             try:
-                record = MftRecord(raw_record, self.compute_hashes, self.debug, self.logger)
+                # Create record without computing hashes if using multiprocessing
+                compute_individual_hashes = self.compute_hashes and not self.multiprocessing_hashes
+                record = MftRecord(raw_record, compute_individual_hashes, self.debug, self.logger)
                 self.stats['total_records'] += 1
+                
+                # Apply pre-computed hashes if using multiprocessing
+                if self.compute_hashes and self.multiprocessing_hashes and i < len(hash_results):
+                    hash_result = hash_results[i]
+                    record.set_hashes(hash_result.md5, hash_result.sha256, hash_result.sha512, hash_result.crc32)
+                    
+                    # Update statistics with unique hashes
+                    if 'unique_md5' in self.stats:
+                        self.stats['unique_md5'].add(hash_result.md5)
+                        self.stats['unique_sha256'].add(hash_result.sha256)
+                        self.stats['unique_sha512'].add(hash_result.sha512)
+                        self.stats['unique_crc32'].add(hash_result.crc32)
                 
                 if record.flags & FILE_RECORD_IN_USE:
                     self.stats['active_records'] += 1

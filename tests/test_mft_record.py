@@ -1,5 +1,6 @@
 import pytest
 import struct
+import os
 from unittest.mock import patch, MagicMock
 from src.analyzeMFT.mft_record import MftRecord
 from src.analyzeMFT.constants import *
@@ -45,9 +46,22 @@ def test_mft_record_initialization(mft_record):
     assert mft_record.recordnum == 5
 
 def test_parse_si_attribute(mft_record):
-    si_data = struct.pack("<QQQQLLLQQQ", 
-        131000000000000, 131000000000001, 131000000000002, 131000000000003,
+    # Create a proper attribute header (24 bytes) + content
+    attr_header = struct.pack("<IBBHHHH", 
+        0x10,  # STANDARD_INFORMATION_ATTRIBUTE
+        72,    # Length (24 header + 48 content)
+        0,     # Non-resident flag
+        0,     # Name length
+        24,    # Content offset
+        0,     # Compression flags
+        0      # Attribute ID
+    ) + b'\x00' * 10  # Padding to 24 bytes
+    
+    si_content = struct.pack("<QQQQLLLQQQ", 
+        131092560000000000, 131092560010000000, 131092560020000000, 131092560030000000,
         0x80, 0, 0, 0, 0, 0)
+    
+    si_data = attr_header + si_content
     offset = 56
     mft_record.raw_record[offset:offset+len(si_data)] = si_data
     
@@ -60,9 +74,22 @@ def test_parse_si_attribute(mft_record):
     assert mft_record.si_times['atime'].dt > mft_record.si_times['ctime'].dt
 
 def test_parse_fn_attribute(mft_record):
-    fn_data = struct.pack("<QQQQQQLLLLBB", 
-        5, 131000000000000, 131000000000001, 131000000000002, 131000000000003,
+    # Create a proper attribute header (24 bytes) + content
+    attr_header = struct.pack("<IBBHHHH", 
+        0x30,  # FILE_NAME_ATTRIBUTE
+        90,    # Length (24 header + 66 content)
+        0,     # Non-resident flag
+        0,     # Name length
+        24,    # Content offset
+        0,     # Compression flags
+        0      # Attribute ID
+    ) + b'\x00' * 10  # Padding to 24 bytes
+    
+    fn_content = struct.pack("<QQQQQQQLLBB", 
+        5, 131092560000000000, 131092560010000000, 131092560020000000, 131092560030000000,
         1024, 1024, FILE_RECORD_IN_USE, 0, 8, 0) + "test.txt".encode('utf-16le')
+    
+    fn_data = attr_header + fn_content
     offset = 56
     mft_record.raw_record[offset:offset+len(fn_data)] = fn_data
     
@@ -81,16 +108,30 @@ def test_parse_object_id_attribute(mft_record):
     birth_volume_id = uuid.uuid4().bytes
     birth_object_id = uuid.uuid4().bytes
     birth_domain_id = uuid.uuid4().bytes
-    obj_id_data = obj_id + birth_volume_id + birth_object_id + birth_domain_id
+    
+    # Create a proper attribute header (24 bytes) + content
+    attr_header = struct.pack("<IBBHHHH", 
+        0x40,  # OBJECT_ID_ATTRIBUTE
+        88,    # Length (24 header + 64 content)
+        0,     # Non-resident flag
+        0,     # Name length
+        24,    # Content offset
+        0,     # Compression flags
+        0      # Attribute ID
+    ) + b'\x00' * 10  # Padding to 24 bytes
+    
+    obj_id_content = obj_id + birth_volume_id + birth_object_id + birth_domain_id
+    obj_id_data = attr_header + obj_id_content
+    
     offset = 56
     mft_record.raw_record[offset:offset+len(obj_id_data)] = obj_id_data
     
     mft_record.parse_object_id(offset)
     
-    assert uuid.UUID(mft_record.object_id).bytes == obj_id
-    assert uuid.UUID(mft_record.birth_volume_id).bytes == birth_volume_id
-    assert uuid.UUID(mft_record.birth_object_id).bytes == birth_object_id
-    assert uuid.UUID(mft_record.birth_domain_id).bytes == birth_domain_id
+    assert uuid.UUID(mft_record.object_id).bytes_le == obj_id
+    assert uuid.UUID(mft_record.birth_volume_id).bytes_le == birth_volume_id
+    assert uuid.UUID(mft_record.birth_object_id).bytes_le == birth_object_id
+    assert uuid.UUID(mft_record.birth_domain_id).bytes_le == birth_domain_id
 
 def test_parse_data_attribute_resident(mft_record):
     data_content = b"This is the content of test.txt"
@@ -291,7 +332,7 @@ def test_parse_multiple_attributes(mft_record):
     
     # Add $STANDARD_INFORMATION attribute
     si_data = struct.pack("<QQQQLLLQQQ", 
-        131000000000000, 131000000000001, 131000000000002, 131000000000003,
+        131092560000000000, 131092560000000001, 131092560000000002, 131092560000000003,
         0x80, 0, 0, 0, 0, 0)
     offset = add_attribute(mft_record.raw_record, offset, STANDARD_INFORMATION_ATTRIBUTE, si_data)
     

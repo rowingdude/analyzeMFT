@@ -175,11 +175,13 @@ class MftRecord:
         si_data = self.raw_record[offset+24:offset+72]
         if len(si_data) >= 32:
             try:
+                # Parse 64-bit Windows FILETIME values
+                timestamps = struct.unpack("<QQQQ", si_data[:32])
                 self.si_times = {
-                    'crtime': WindowsTime(struct.unpack("<L", si_data[:4])[0], struct.unpack("<L", si_data[4:8])[0]),
-                    'mtime': WindowsTime(struct.unpack("<L", si_data[8:12])[0], struct.unpack("<L", si_data[12:16])[0]),
-                    'ctime': WindowsTime(struct.unpack("<L", si_data[16:20])[0], struct.unpack("<L", si_data[20:24])[0]),
-                    'atime': WindowsTime(struct.unpack("<L", si_data[24:28])[0], struct.unpack("<L", si_data[28:32])[0])
+                    'crtime': WindowsTime(timestamps[0] & 0xFFFFFFFF, timestamps[0] >> 32),
+                    'mtime': WindowsTime(timestamps[1] & 0xFFFFFFFF, timestamps[1] >> 32),
+                    'ctime': WindowsTime(timestamps[2] & 0xFFFFFFFF, timestamps[2] >> 32),
+                    'atime': WindowsTime(timestamps[3] & 0xFFFFFFFF, timestamps[3] >> 32)
                 }
             except struct.error:
                 pass
@@ -188,17 +190,25 @@ class MftRecord:
         fn_data = self.raw_record[offset+24:]
         if len(fn_data) >= 64:
             try:
+                # Parse parent reference
+                self.parent_ref = struct.unpack("<Q", fn_data[:8])[0] & 0x0000FFFFFFFFFFFF
+                
+                # Parse 64-bit Windows FILETIME values
+                timestamps = struct.unpack("<QQQQ", fn_data[8:40])
                 self.fn_times = {
-                    'crtime': WindowsTime(struct.unpack("<L", fn_data[8:12])[0], struct.unpack("<L", fn_data[12:16])[0]),
-                    'mtime': WindowsTime(struct.unpack("<L", fn_data[16:20])[0], struct.unpack("<L", fn_data[20:24])[0]),
-                    'ctime': WindowsTime(struct.unpack("<L", fn_data[24:28])[0], struct.unpack("<L", fn_data[28:32])[0]),
-                    'atime': WindowsTime(struct.unpack("<L", fn_data[32:36])[0], struct.unpack("<L", fn_data[36:40])[0])
+                    'crtime': WindowsTime(timestamps[0] & 0xFFFFFFFF, timestamps[0] >> 32),
+                    'mtime': WindowsTime(timestamps[1] & 0xFFFFFFFF, timestamps[1] >> 32),
+                    'ctime': WindowsTime(timestamps[2] & 0xFFFFFFFF, timestamps[2] >> 32),
+                    'atime': WindowsTime(timestamps[3] & 0xFFFFFFFF, timestamps[3] >> 32)
                 }
+                
+                # Parse file sizes
                 self.filesize = struct.unpack("<Q", fn_data[48:56])[0]
+                
+                # Parse filename
                 name_len = struct.unpack("B", fn_data[64:65])[0]
                 if len(fn_data) >= 66 + name_len * 2:
                     self.filename = fn_data[66:66+name_len*2].decode('utf-16-le', errors='replace')
-                self.parent_ref = struct.unpack("<Q", fn_data[:8])[0] & 0x0000FFFFFFFFFFFF
             except struct.error:
                 pass
 
@@ -206,13 +216,17 @@ class MftRecord:
         obj_id_data = self.raw_record[offset+24:offset+88]
         if len(obj_id_data) >= 64:
             try:
-                self.object_id = str(uuid.UUID(bytes_le=obj_id_data[:16]))
-                self.birth_volume_id = str(uuid.UUID(bytes_le=obj_id_data[16:32]))
-                self.birth_object_id = str(uuid.UUID(bytes_le=obj_id_data[32:48]))
-                self.birth_domain_id = str(uuid.UUID(bytes_le=obj_id_data[48:64]))
+                self.object_id = str(uuid.UUID(bytes_le=bytes(obj_id_data[:16])))
+                self.birth_volume_id = str(uuid.UUID(bytes_le=bytes(obj_id_data[16:32])))
+                self.birth_object_id = str(uuid.UUID(bytes_le=bytes(obj_id_data[32:48])))
+                self.birth_domain_id = str(uuid.UUID(bytes_le=bytes(obj_id_data[48:64])))
             except (struct.error, ValueError):
                 if self.debug:
                     self.logger.error(f"Error parsing Object ID attribute for record {self.recordnum}")
+    
+    def parse_object_id(self, offset: int) -> None:
+        """Alias for parse_object_id_attribute for backward compatibility"""
+        self.parse_object_id_attribute(offset)
     
     def get_parent_record_num(self) -> int:
         return self.parent_ref & 0x0000FFFFFFFFFFFF

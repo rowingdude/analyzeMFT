@@ -34,10 +34,7 @@ def compute_hashes_for_record(data: Tuple[int, bytes]) -> HashResult:
         HashResult containing all computed hashes
     """
     record_index, raw_record = data
-    start_time = time.time()
-    
-    # Compute all hashes in one pass
-    md5 = hashlib.md5()
+    start_time = time.time()    md5 = hashlib.md5()
     sha256 = hashlib.sha256()
     sha512 = hashlib.sha512()
     
@@ -75,8 +72,7 @@ class HashProcessor:
             num_processes: Number of processes to use. If None, uses optimal count.
             logger: Logger instance for debugging and progress reporting.
         """
-        self.num_processes = num_processes or min(mp.cpu_count(), 8)  # Cap at 8 to avoid overhead
-        self.logger = logger or logging.getLogger('analyzeMFT.hash_processor')
+        self.num_processes = num_processes or min(mp.cpu_count(), 8)        self.logger = logger or logging.getLogger('analyzeMFT.hash_processor')
         self.stats = {
             'total_records': 0,
             'total_processing_time': 0.0,
@@ -123,31 +119,19 @@ class HashProcessor:
         Returns:
             List of HashResult objects in original order
         """
-        if len(raw_records) < 10:  # Use single-threaded for small batches
-            return self.compute_hashes_single_threaded(raw_records)
+        if len(raw_records) < 10:            return self.compute_hashes_single_threaded(raw_records)
             
-        start_time = time.time()
-        
-        # Prepare data for multiprocessing
-        indexed_records = [(i, record) for i, record in enumerate(raw_records)]
+        start_time = time.time()        indexed_records = [(i, record) for i, record in enumerate(raw_records)]
         
         results = []
-        with ProcessPoolExecutor(max_workers=self.num_processes) as executor:
-            # Submit all tasks
-            mp_start = time.time()
+        with ProcessPoolExecutor(max_workers=self.num_processes) as executor:            mp_start = time.time()
             future_to_index = {
                 executor.submit(compute_hashes_for_record, data): data[0] 
                 for data in indexed_records
-            }
-            
-            # Collect results as they complete
-            temp_results = {}
+            }            temp_results = {}
             for future in as_completed(future_to_index):
                 result = future.result()
-                temp_results[result.record_index] = result
-                
-            # Sort results back to original order
-            results = [temp_results[i] for i in range(len(raw_records))]
+                temp_results[result.record_index] = result            results = [temp_results[i] for i in range(len(raw_records))]
             
         mp_overhead = time.time() - mp_start
         total_time = time.time() - start_time
@@ -175,21 +159,10 @@ class HashProcessor:
             List of HashResult objects
         """
         if not raw_records:
-            return []
-            
-        # Adaptive thresholds
-        mp_threshold = 50  # Use multiprocessing for batches larger than this
-        cpu_count = mp.cpu_count()
-        
-        # Use multiprocessing if:
-        # 1. We have enough records to justify the overhead
-        # 2. We have multiple CPU cores available
-        # 3. The batch size is large enough per core
-        use_multiprocessing = (
+            return []        mp_threshold = 50        cpu_count = mp.cpu_count()        use_multiprocessing = (
             len(raw_records) >= mp_threshold and
             cpu_count > 1 and
-            len(raw_records) >= (cpu_count * 10)  # At least 10 records per core
-        )
+            len(raw_records) >= (cpu_count * 10)        )
         
         if use_multiprocessing:
             self.logger.info(f"Using multiprocessing for {len(raw_records)} records with {self.num_processes} processes")
@@ -235,19 +208,13 @@ def get_optimal_process_count() -> int:
     Returns:
         Optimal number of processes
     """
-    cpu_count = mp.cpu_count()
-    
-    # Hash computation is CPU-bound, so we can use more processes
-    # But cap it to avoid excessive context switching overhead
-    if cpu_count <= 2:
+    cpu_count = mp.cpu_count()    if cpu_count <= 2:
         return cpu_count
     elif cpu_count <= 4:
         return cpu_count
     elif cpu_count <= 8:
-        return min(cpu_count, 6)  # Leave some cores for other tasks
-    else:
-        return min(cpu_count - 2, 8)  # Cap at 8, leave 2 cores free
-
+        return min(cpu_count, 6)    else:
+        return min(cpu_count - 2, 8)
 
 def benchmark_hash_methods(raw_records: List[bytes], logger: Optional[logging.Logger] = None) -> Dict[str, Any]:
     """
@@ -264,22 +231,13 @@ def benchmark_hash_methods(raw_records: List[bytes], logger: Optional[logging.Lo
     if not raw_records:
         return {}
         
-    logger = logger or logging.getLogger('analyzeMFT.hash_benchmark')
-    
-    # Test single-threaded
-    processor_st = HashProcessor(num_processes=1, logger=logger)
+    logger = logger or logging.getLogger('analyzeMFT.hash_benchmark')    processor_st = HashProcessor(num_processes=1, logger=logger)
     start_st = time.time()
     results_st = processor_st.compute_hashes_single_threaded(raw_records)
-    time_st = time.time() - start_st
-    
-    # Test multiprocessed
-    processor_mp = HashProcessor(logger=logger)
+    time_st = time.time() - start_st    processor_mp = HashProcessor(logger=logger)
     start_mp = time.time()
     results_mp = processor_mp.compute_hashes_multiprocessed(raw_records)
-    time_mp = time.time() - start_mp
-    
-    # Verify results are identical
-    verification_passed = True
+    time_mp = time.time() - start_mp    verification_passed = True
     if len(results_st) == len(results_mp):
         for i, (st_result, mp_result) in enumerate(zip(results_st, results_mp)):
             if (st_result.md5 != mp_result.md5 or 

@@ -18,20 +18,12 @@ class TestConstants:
     def test_version_format(self):
         """Test that VERSION follows semantic versioning format."""
         assert isinstance(VERSION, str)
-        assert len(VERSION) > 0
-        
-        # Should contain at least major.minor.patch
-        parts = VERSION.split('.')
-        assert len(parts) >= 3
-        
-        # First three parts should be numeric
-        for i in range(3):
+        assert len(VERSION) > 0        parts = VERSION.split('.')
+        assert len(parts) >= 3        for i in range(3):
             assert parts[i].isdigit(), f"Version part {i} '{parts[i]}' is not numeric"
     
     def test_file_record_flags_values(self):
-        """Test file record flag constant values."""
-        # These are based on NTFS specification
-        assert FILE_RECORD_IN_USE == 0x0001
+        """Test file record flag constant values."""        assert FILE_RECORD_IN_USE == 0x0001
         assert FILE_RECORD_IS_DIRECTORY == 0x0002
         assert FILE_RECORD_IS_EXTENSION == 0x0004
         assert FILE_RECORD_HAS_SPECIAL_INDEX == 0x0008
@@ -50,14 +42,8 @@ class TestConstants:
             FILE_RECORD_IS_DIRECTORY, 
             FILE_RECORD_IS_EXTENSION,
             FILE_RECORD_HAS_SPECIAL_INDEX
-        ]
-        
-        # Each flag should be a unique power of 2
-        for i, flag in enumerate(flags):
-            assert flag & (flag - 1) == 0, f"Flag {flag} is not a power of 2"
-            
-            # No two flags should have overlapping bits
-            for j, other_flag in enumerate(flags):
+        ]        for i, flag in enumerate(flags):
+            assert flag & (flag - 1) == 0, f"Flag {flag} is not a power of 2"            for j, other_flag in enumerate(flags):
                 if i != j:
                     assert flag & other_flag == 0, f"Flags {flag} and {other_flag} overlap"
     
@@ -70,26 +56,8 @@ class TestConstants:
     def test_attribute_names_structure(self):
         """Test ATTRIBUTE_NAMES structure and contents."""
         assert isinstance(ATTRIBUTE_NAMES, dict)
-        assert len(ATTRIBUTE_NAMES) > 0
-        
-        # Check for essential NTFS attributes
-        essential_attributes = [
-            0x10,  # STANDARD_INFORMATION
-            0x20,  # ATTRIBUTE_LIST
-            0x30,  # FILE_NAME
-            0x40,  # OBJECT_ID
-            0x50,  # SECURITY_DESCRIPTOR
-            0x60,  # VOLUME_NAME
-            0x70,  # VOLUME_INFORMATION
-            0x80,  # DATA
-            0x90,  # INDEX_ROOT
-            0xA0,  # INDEX_ALLOCATION
-            0xB0,  # BITMAP
-            0xC0,  # REPARSE_POINT
-            0xD0,  # EA_INFORMATION
-            0xE0,  # EA
-            0x100, # LOGGED_UTILITY_STREAM
-        ]
+        assert len(ATTRIBUTE_NAMES) > 0        essential_attributes = [
+            0x10,            0x20,            0x30,            0x40,            0x50,            0x60,            0x70,            0x80,            0x90,            0xA0,            0xB0,            0xC0,            0xD0,            0xE0,            0x100,        ]
         
         for attr_type in essential_attributes:
             assert attr_type in ATTRIBUTE_NAMES, f"Missing attribute type 0x{attr_type:02X}"
@@ -126,26 +94,16 @@ class TestConstants:
             assert ATTRIBUTE_NAMES[attr_type] == expected_name
     
     def test_flag_combinations(self):
-        """Test that file record flags can be combined properly."""
-        # Test combining IN_USE and DIRECTORY flags
-        combined = FILE_RECORD_IN_USE | FILE_RECORD_IS_DIRECTORY
-        
-        # Should be able to test individual flags
-        assert combined & FILE_RECORD_IN_USE
+        """Test that file record flags can be combined properly."""        combined = FILE_RECORD_IN_USE | FILE_RECORD_IS_DIRECTORY        assert combined & FILE_RECORD_IN_USE
         assert combined & FILE_RECORD_IS_DIRECTORY
-        assert not (combined & FILE_RECORD_IS_EXTENSION)
-        
-        # Test three flag combination
-        three_flags = FILE_RECORD_IN_USE | FILE_RECORD_IS_DIRECTORY | FILE_RECORD_HAS_SPECIAL_INDEX
+        assert not (combined & FILE_RECORD_IS_EXTENSION)        three_flags = FILE_RECORD_IN_USE | FILE_RECORD_IS_DIRECTORY | FILE_RECORD_HAS_SPECIAL_INDEX
         assert three_flags & FILE_RECORD_IN_USE
         assert three_flags & FILE_RECORD_IS_DIRECTORY
         assert three_flags & FILE_RECORD_HAS_SPECIAL_INDEX
         assert not (three_flags & FILE_RECORD_IS_EXTENSION)
     
     def test_constants_immutability(self):
-        """Test that constants maintain their expected values."""
-        # These should never change as they're based on NTFS specification
-        assert FILE_RECORD_IN_USE == 1
+        """Test that constants maintain their expected values."""        assert FILE_RECORD_IN_USE == 1
         assert FILE_RECORD_IS_DIRECTORY == 2
         assert FILE_RECORD_IS_EXTENSION == 4
         assert FILE_RECORD_HAS_SPECIAL_INDEX == 8

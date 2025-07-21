@@ -8,23 +8,8 @@ from src.analyzeMFT.windows_time import WindowsTime
 import uuid
 
 @pytest.fixture
-def mock_raw_record():
-    # Create a mock MFT record with basic structure
-    record = bytearray(MFT_RECORD_SIZE)
-    struct.pack_into("<I", record, 0, int.from_bytes(MFT_RECORD_MAGIC, BYTE_ORDER))  # Magic number
-    struct.pack_into("<H", record, 4, 42)  # Update sequence offset
-    struct.pack_into("<H", record, 6, 3)  # Update sequence count
-    struct.pack_into("<Q", record, 8, 12345)  # $LogFile sequence number
-    struct.pack_into("<H", record, 16, 1)  # Sequence number
-    struct.pack_into("<H", record, 18, 1)  # Hard link count
-    struct.pack_into("<H", record, 20, 56)  # Attribute offset
-    struct.pack_into("<H", record, 22, FILE_RECORD_IN_USE)  # Flags
-    struct.pack_into("<I", record, 24, MFT_RECORD_SIZE)  # Used size
-    struct.pack_into("<I", record, 28, MFT_RECORD_SIZE)  # Allocated size
-    struct.pack_into("<Q", record, 32, 0)  # File reference
-    struct.pack_into("<H", record, 40, 2)  # Next attribute ID
-    struct.pack_into("<I", record, 44, 5)  # Record number
-    return record
+def mock_raw_record():    record = bytearray(MFT_RECORD_SIZE)
+    struct.pack_into("<I", record, 0, int.from_bytes(MFT_RECORD_MAGIC, BYTE_ORDER))    struct.pack_into("<H", record, 4, 42)    struct.pack_into("<H", record, 6, 3)    struct.pack_into("<Q", record, 8, 12345)    struct.pack_into("<H", record, 16, 1)    struct.pack_into("<H", record, 18, 1)    struct.pack_into("<H", record, 20, 56)    struct.pack_into("<H", record, 22, FILE_RECORD_IN_USE)    struct.pack_into("<I", record, 24, MFT_RECORD_SIZE)    struct.pack_into("<I", record, 28, MFT_RECORD_SIZE)    struct.pack_into("<Q", record, 32, 0)    struct.pack_into("<H", record, 40, 2)    struct.pack_into("<I", record, 44, 5)    return record
 
 @pytest.fixture
 def mft_record(mock_raw_record):
@@ -45,18 +30,8 @@ def test_mft_record_initialization(mft_record):
     assert mft_record.next_attrid == 2
     assert mft_record.recordnum == 5
 
-def test_parse_si_attribute(mft_record):
-    # Create a proper attribute header (24 bytes) + content
-    attr_header = struct.pack("<IBBHHHH", 
-        0x10,  # STANDARD_INFORMATION_ATTRIBUTE
-        72,    # Length (24 header + 48 content)
-        0,     # Non-resident flag
-        0,     # Name length
-        24,    # Content offset
-        0,     # Compression flags
-        0      # Attribute ID
-    ) + b'\x00' * 10  # Padding to 24 bytes
-    
+def test_parse_si_attribute(mft_record):    attr_header = struct.pack("<IBBHHHH", 
+        0x10,        72,        0,        0,        24,        0,        0    ) + b'\x00' * 10    
     si_content = struct.pack("<QQQQLLLQQQ", 
         131092560000000000, 131092560010000000, 131092560020000000, 131092560030000000,
         0x80, 0, 0, 0, 0, 0)
@@ -73,18 +48,8 @@ def test_parse_si_attribute(mft_record):
     assert mft_record.si_times['ctime'].dt > mft_record.si_times['mtime'].dt
     assert mft_record.si_times['atime'].dt > mft_record.si_times['ctime'].dt
 
-def test_parse_fn_attribute(mft_record):
-    # Create a proper attribute header (24 bytes) + content
-    attr_header = struct.pack("<IBBHHHH", 
-        0x30,  # FILE_NAME_ATTRIBUTE
-        90,    # Length (24 header + 66 content)
-        0,     # Non-resident flag
-        0,     # Name length
-        24,    # Content offset
-        0,     # Compression flags
-        0      # Attribute ID
-    ) + b'\x00' * 10  # Padding to 24 bytes
-    
+def test_parse_fn_attribute(mft_record):    attr_header = struct.pack("<IBBHHHH", 
+        0x30,        90,        0,        0,        24,        0,        0    ) + b'\x00' * 10    
     fn_content = struct.pack("<QQQQQQQLLBB", 
         5, 131092560000000000, 131092560010000000, 131092560020000000, 131092560030000000,
         1024, 1024, FILE_RECORD_IN_USE, 0, 8, 0) + "test.txt".encode('utf-16le')
@@ -107,19 +72,8 @@ def test_parse_object_id_attribute(mft_record):
     obj_id = uuid.uuid4().bytes
     birth_volume_id = uuid.uuid4().bytes
     birth_object_id = uuid.uuid4().bytes
-    birth_domain_id = uuid.uuid4().bytes
-    
-    # Create a proper attribute header (24 bytes) + content
-    attr_header = struct.pack("<IBBHHHH", 
-        0x40,  # OBJECT_ID_ATTRIBUTE
-        88,    # Length (24 header + 64 content)
-        0,     # Non-resident flag
-        0,     # Name length
-        24,    # Content offset
-        0,     # Compression flags
-        0      # Attribute ID
-    ) + b'\x00' * 10  # Padding to 24 bytes
-    
+    birth_domain_id = uuid.uuid4().bytes    attr_header = struct.pack("<IBBHHHH", 
+        0x40,        88,        0,        0,        24,        0,        0    ) + b'\x00' * 10    
     obj_id_content = obj_id + birth_volume_id + birth_object_id + birth_domain_id
     obj_id_data = attr_header + obj_id_content
     
@@ -144,21 +98,7 @@ def test_parse_data_attribute_resident(mft_record):
     assert mft_record.data_attribute['non_resident'] == False
     assert mft_record.data_attribute['content_size'] == len(data_content)
 
-def test_parse_data_attribute_non_resident(mft_record):
-    # For non-resident data, we need to manually construct the header with proper offsets
-    offset = 56
-    
-    # Create attribute header for non-resident data
-    struct.pack_into('<I', mft_record.raw_record, offset, DATA_ATTRIBUTE)  # Type
-    struct.pack_into('<I', mft_record.raw_record, offset + 4, 32)  # Length  
-    struct.pack_into('<B', mft_record.raw_record, offset + 8, 1)  # Non-resident flag
-    struct.pack_into('<B', mft_record.raw_record, offset + 9, 0)  # Name length
-    struct.pack_into('<H', mft_record.raw_record, offset + 10, 24)  # Name offset
-    struct.pack_into('<H', mft_record.raw_record, offset + 12, 0)  # Flags
-    struct.pack_into('<H', mft_record.raw_record, offset + 14, 0)  # Attribute ID
-    struct.pack_into('<Q', mft_record.raw_record, offset + 16, 1000)  # Start VCN
-    struct.pack_into('<Q', mft_record.raw_record, offset + 24, 2000)  # Last VCN
-    
+def test_parse_data_attribute_non_resident(mft_record):    offset = 56    struct.pack_into('<I', mft_record.raw_record, offset, DATA_ATTRIBUTE)    struct.pack_into('<I', mft_record.raw_record, offset + 4, 32)    struct.pack_into('<B', mft_record.raw_record, offset + 8, 1)    struct.pack_into('<B', mft_record.raw_record, offset + 9, 0)    struct.pack_into('<H', mft_record.raw_record, offset + 10, 24)    struct.pack_into('<H', mft_record.raw_record, offset + 12, 0)    struct.pack_into('<H', mft_record.raw_record, offset + 14, 0)    struct.pack_into('<Q', mft_record.raw_record, offset + 16, 1000)    struct.pack_into('<Q', mft_record.raw_record, offset + 24, 2000)    
     mft_record.parse_data(offset)
     
     assert mft_record.data_attribute['name'] == ''
@@ -179,8 +119,7 @@ def test_parse_index_root(mft_record):
     assert mft_record.index_root['clusters_per_index'] == 1
 
 def test_parse_index_allocation(mft_record):
-    ia_data = struct.pack("<H", 16) + b'\x00' * 14  # Just enough data for the test
-    offset = 56
+    ia_data = struct.pack("<H", 16) + b'\x00' * 14    offset = 56
     add_attribute(mft_record.raw_record, offset, INDEX_ALLOCATION_ATTRIBUTE, ia_data)
     
     mft_record.parse_index_allocation(offset)
@@ -252,9 +191,7 @@ def test_parse_volume_name(mft_record):
     
     assert mft_record.volume_name == "TestVolume"
 
-def test_parse_volume_information(mft_record):
-    # Volume information expects data at specific offsets: major_version at 8, minor_version at 9, flags at 10
-    vi_data = b'\x00' * 8 + struct.pack('<BBH', 3, 1, 0x0001)
+def test_parse_volume_information(mft_record):    vi_data = b'\x00' * 8 + struct.pack('<BBH', 3, 1, 0x0001)
     offset = 56
     add_attribute(mft_record.raw_record, offset, VOLUME_INFORMATION_ATTRIBUTE, vi_data)
     
@@ -271,17 +208,10 @@ def test_to_csv(mft_record):
     
     csv_row = mft_record.to_csv()
     
-    assert csv_row[0] == 5  # recordnum
-    assert csv_row[1] == "Valid"
+    assert csv_row[0] == 5    assert csv_row[1] == "Valid"
     assert csv_row[2] == "In Use"
     assert csv_row[3] == "File"
-    assert csv_row[7] == "test.txt"
-    # Object ID fields are at indices 17-20
-    assert csv_row[17] == ""  # object_id
-    assert csv_row[18] == ""  # birth_volume_id
-    assert csv_row[19] == ""  # birth_object_id
-    assert csv_row[20] == ""  # birth_domain_id
-
+    assert csv_row[7] == "test.txt"    assert csv_row[17] == ""    assert csv_row[18] == ""    assert csv_row[19] == ""    assert csv_row[20] == ""
 def test_compute_hashes(mft_record):
     mft_record.compute_hashes()
     
@@ -321,9 +251,7 @@ def test_parse_security_descriptor(mft_record):
     assert mft_record.security_descriptor['sacl_offset'] == 60
     assert mft_record.security_descriptor['dacl_offset'] == 80
 
-def test_parse_attribute_list(mft_record):
-    # Create attribute list entries 
-    entry1 = struct.pack("<LHHBBQQ", 0x10, 24, 0, 0, 24, 0, 0, 1)
+def test_parse_attribute_list(mft_record):    entry1 = struct.pack("<LHHBBQQ", 0x10, 24, 0, 0, 24, 0, 0, 1)
     entry2 = struct.pack("<LHHBBQQ", 0x30, 24, 0, 0, 24, 0, 0, 2)
     attr_list_data = entry1 + entry2
     offset = 56
@@ -338,22 +266,13 @@ def test_parse_attribute_list(mft_record):
     assert mft_record.attribute_list[1]['reference'] == 2
 
 def test_parse_multiple_attributes(mft_record):
-    offset = 56
-    
-    # Add $STANDARD_INFORMATION attribute
-    si_data = struct.pack("<QQQQLLLQQQ", 
+    offset = 56    si_data = struct.pack("<QQQQLLLQQQ", 
         131092560000000000, 131092560000000001, 131092560000000002, 131092560000000003,
         0x80, 0, 0, 0, 0, 0)
-    offset = add_attribute(mft_record.raw_record, offset, STANDARD_INFORMATION_ATTRIBUTE, si_data)
-    
-    # Add $FILE_NAME attribute
-    fn_data = struct.pack("<QQQQQQLLLLBB", 
+    offset = add_attribute(mft_record.raw_record, offset, STANDARD_INFORMATION_ATTRIBUTE, si_data)    fn_data = struct.pack("<QQQQQQLLLLBB", 
         5, 131000000000000, 131000000000001, 131000000000002, 131000000000003,
         1024, 1024, FILE_RECORD_IN_USE, 0, 8, 0) + "test.txt".encode('utf-16le')
-    offset = add_attribute(mft_record.raw_record, offset, FILE_NAME_ATTRIBUTE, fn_data)
-    
-    # Add $DATA attribute
-    data_content = b"This is the content of test.txt"
+    offset = add_attribute(mft_record.raw_record, offset, FILE_NAME_ATTRIBUTE, fn_data)    data_content = b"This is the content of test.txt"
     offset = add_attribute(mft_record.raw_record, offset, DATA_ATTRIBUTE, data_content)
     
     mft_record.parse_record()
@@ -367,18 +286,8 @@ def test_parse_multiple_attributes(mft_record):
 
 def test_parse_directory_record(mft_record):
     mft_record.flags = FILE_RECORD_IN_USE | FILE_RECORD_IS_DIRECTORY
-    offset = 56
-    
-    # Add $INDEX_ROOT attribute
-    ir_data = struct.pack("<LLLLBBHH", FILE_NAME_ATTRIBUTE, COLLATION_FILENAME, 4096, 1, 1, 0, 0, 0)
-    offset = add_attribute(mft_record.raw_record, offset, INDEX_ROOT_ATTRIBUTE, ir_data)
-    
-    # Add $INDEX_ALLOCATION attribute
-    ia_data = struct.pack("<H", 16) + os.urandom(496)  # Simulating index records
-    offset = add_attribute(mft_record.raw_record, offset, INDEX_ALLOCATION_ATTRIBUTE, ia_data)
-    
-    # Add $BITMAP attribute
-    bitmap_data = struct.pack("<L", 8) + b'\xff' * 8
+    offset = 56    ir_data = struct.pack("<LLLLBBHH", FILE_NAME_ATTRIBUTE, COLLATION_FILENAME, 4096, 1, 1, 0, 0, 0)
+    offset = add_attribute(mft_record.raw_record, offset, INDEX_ROOT_ATTRIBUTE, ir_data)    ia_data = struct.pack("<H", 16) + os.urandom(496)    offset = add_attribute(mft_record.raw_record, offset, INDEX_ALLOCATION_ATTRIBUTE, ia_data)    bitmap_data = struct.pack("<L", 8) + b'\xff' * 8
     offset = add_attribute(mft_record.raw_record, offset, BITMAP_ATTRIBUTE, bitmap_data)
     
     mft_record.parse_record()
@@ -393,14 +302,8 @@ def test_parse_directory_record(mft_record):
 
 def test_parse_volume_record(mft_record):
     mft_record.recordnum = 3
-    offset = 56
-    
-    # Add $VOLUME_NAME attribute
-    vn_data = "TestVolume".encode('utf-16le')
-    offset = add_attribute(mft_record.raw_record, offset, VOLUME_NAME_ATTRIBUTE, vn_data)
-    
-    # Add $VOLUME_INFORMATION attribute
-    vi_data = struct.pack('<BBBBBBH', 0, 0, 0, 0, 3, 1, 0x0001)
+    offset = 56    vn_data = "TestVolume".encode('utf-16le')
+    offset = add_attribute(mft_record.raw_record, offset, VOLUME_NAME_ATTRIBUTE, vn_data)    vi_data = struct.pack('<BBBBBBH', 0, 0, 0, 0, 3, 1, 0x0001)
     offset = add_attribute(mft_record.raw_record, offset, VOLUME_INFORMATION_ATTRIBUTE, vi_data)
     
     mft_record.parse_record()
@@ -413,10 +316,7 @@ def test_parse_volume_record(mft_record):
     assert mft_record.volume_info['flags'] == 0x0001
 
 def test_parse_reparse_point_record(mft_record):
-    offset = 56
-    
-    # Add $REPARSE_POINT attribute
-    rp_data = struct.pack("<LH", 0x80000000, 12) + b'\x00' * 2 + b"Reparse data"
+    offset = 56    rp_data = struct.pack("<LH", 0x80000000, 12) + b'\x00' * 2 + b"Reparse data"
     offset = add_attribute(mft_record.raw_record, offset, REPARSE_POINT_ATTRIBUTE, rp_data)
     
     mft_record.parse_record()
@@ -427,14 +327,8 @@ def test_parse_reparse_point_record(mft_record):
     assert mft_record.reparse_point['data'] == b'\x00' * 2 + b"Reparse data"
 
 def test_parse_extended_attributes(mft_record):
-    offset = 56
-    
-    # Add $EA_INFORMATION attribute
-    eai_data = struct.pack("<LL", 256, 2)
-    offset = add_attribute(mft_record.raw_record, offset, EA_INFORMATION_ATTRIBUTE, eai_data)
-    
-    # Add $EA attribute
-    ea_data = struct.pack("<LBBH", 0, 0, 4, 5) + b"name" + b"value"
+    offset = 56    eai_data = struct.pack("<LL", 256, 2)
+    offset = add_attribute(mft_record.raw_record, offset, EA_INFORMATION_ATTRIBUTE, eai_data)    ea_data = struct.pack("<LBBH", 0, 0, 4, 5) + b"name" + b"value"
     offset = add_attribute(mft_record.raw_record, offset, EA_ATTRIBUTE, ea_data)
     
     mft_record.parse_record()
@@ -447,10 +341,7 @@ def test_parse_extended_attributes(mft_record):
     assert mft_record.ea['value'] == b"value"
 
 def test_parse_logged_utility_stream(mft_record):
-    offset = 56
-    
-    # Add $LOGGED_UTILITY_STREAM attribute
-    stream_data = b"Utility stream"
+    offset = 56    stream_data = b"Utility stream"
     lus_data = struct.pack("<Q", len(stream_data)) + stream_data
     offset = add_attribute(mft_record.raw_record, offset, LOGGED_UTILITY_STREAM_ATTRIBUTE, lus_data)
     
@@ -458,21 +349,10 @@ def test_parse_logged_utility_stream(mft_record):
     
     assert LOGGED_UTILITY_STREAM_ATTRIBUTE in mft_record.attribute_types
     assert mft_record.logged_utility_stream['size'] == len(stream_data)
-    assert mft_record.logged_utility_stream['data'] == stream_data
-
-# Helper function to add attributes to the raw record
-def add_attribute(record, offset, attr_type, data):
-    attr_len = len(data) + 24  # 24 is the size of the attribute header
-    struct.pack_into('<I', record, offset, attr_type)
+    assert mft_record.logged_utility_stream['data'] == stream_datadef add_attribute(record, offset, attr_type, data):
+    attr_len = len(data) + 24    struct.pack_into('<I', record, offset, attr_type)
     struct.pack_into('<I', record, offset + 4, attr_len)
-    struct.pack_into('<B', record, offset + 8, 0)  # Resident flag
-    struct.pack_into('<B', record, offset + 9, 0)  # Name length
-    struct.pack_into('<H', record, offset + 10, 24)  # Name offset
-    struct.pack_into('<H', record, offset + 12, 0)  # Flags
-    struct.pack_into('<H', record, offset + 14, 0)  # Attribute ID
-    struct.pack_into('<L', record, offset + 16, len(data))  # Content length
-    struct.pack_into('<H', record, offset + 20, 24)  # Content offset (should be 24, not 0)
-    record[offset + 24:offset + 24 + len(data)] = data
+    struct.pack_into('<B', record, offset + 8, 0)    struct.pack_into('<B', record, offset + 9, 0)    struct.pack_into('<H', record, offset + 10, 24)    struct.pack_into('<H', record, offset + 12, 0)    struct.pack_into('<H', record, offset + 14, 0)    struct.pack_into('<L', record, offset + 16, len(data))    struct.pack_into('<H', record, offset + 20, 24)    record[offset + 24:offset + 24 + len(data)] = data
     return offset + attr_len
 
 
@@ -482,8 +362,7 @@ def test_parse_corrupted_record():
     assert record.magic != int.from_bytes(MFT_RECORD_MAGIC, BYTE_ORDER)
 
 def test_parse_incomplete_record():
-    incomplete_record = b'FILE' + b'\x00' * 100  # Less than MFT_RECORD_SIZE
-    with pytest.raises(Exception):
+    incomplete_record = b'FILE' + b'\x00' * 100    with pytest.raises(Exception):
         MftRecord(incomplete_record)
 
 def test_parse_large_attribute():

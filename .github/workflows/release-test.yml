@@ -6,8 +6,7 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:  # Allow manual triggering
-
+  workflow_dispatch:
 jobs:
   comprehensive-test:
     name: Comprehensive Release Testing
@@ -33,9 +32,7 @@ jobs:
         pip install pytest pytest-asyncio PyYAML
 
     - name: Generate comprehensive test data
-      run: |
-        # Generate different types of test MFT files
-        python analyzeMFT.py --generate-test-mft small_normal.mft --test-records 25 --test-type normal
+      run: |        python analyzeMFT.py --generate-test-mft small_normal.mft --test-records 25 --test-type normal
         python analyzeMFT.py --generate-test-mft medium_normal.mft --test-records 500 --test-type normal
         python analyzeMFT.py --generate-test-mft small_anomaly.mft --test-records 25 --test-type anomaly
         python analyzeMFT.py --generate-test-mft medium_anomaly.mft --test-records 200 --test-type anomaly
@@ -168,10 +165,7 @@ conn.close()
         python -c "
 import time
 import subprocess
-import os
-
-# Test processing speed
-start_time = time.time()
+import osstart_time = time.time()
 result = subprocess.run(['python', 'analyzeMFT.py', '-f', 'medium_normal.mft', '-o', 'benchmark.csv', '--csv'], 
                        capture_output=True, text=True)
 end_time = time.time()
@@ -181,10 +175,7 @@ file_size = os.path.getsize('medium_normal.mft')
 records_per_second = 500 / processing_time
 
 print(f'Processed {file_size} bytes in {processing_time:.2f} seconds')
-print(f'Processing rate: {records_per_second:.1f} records/second')
-
-# Basic performance expectations
-assert processing_time < 30, f'Processing took too long: {processing_time}s'
+print(f'Processing rate: {records_per_second:.1f} records/second')assert processing_time < 30, f'Processing took too long: {processing_time}s'
 assert records_per_second > 10, f'Processing too slow: {records_per_second} rec/s'
 "
 
@@ -228,19 +219,11 @@ assert records_per_second > 10, f'Processing too slow: {records_per_second} rec/
     - name: Test pip installation
       run: |
         python -m pip install --upgrade pip
-        pip install .
-        
-        # Test that the package can be imported
-        python -c "import analyzeMFT; print('Package imported successfully')"
+        pip install .        python -c "import analyzeMFT; print('Package imported successfully')"
 
     - name: Test installed script functionality
-      run: |
-        # Generate test data and run analysis
-        python analyzeMFT.py --generate-test-mft package_test.mft --test-records 50
-        python analyzeMFT.py -f package_test.mft -o package_test.csv -v
-        
-        # Verify output
-        [ -f package_test.csv ] && echo "Package installation test successful" || exit 1
+      run: |        python analyzeMFT.py --generate-test-mft package_test.mft --test-records 50
+        python analyzeMFT.py -f package_test.mft -o package_test.csv -v        [ -f package_test.csv ] && echo "Package installation test successful" || exit 1
 
   documentation-test:
     name: Test Documentation Examples
@@ -261,14 +244,8 @@ assert records_per_second > 10, f'Processing too slow: {records_per_second} rec/
 
     - name: Test README examples
       run: |
-        echo "Testing examples from documentation..."
-        
-        # Basic usage example
-        python analyzeMFT.py --generate-test-mft example.mft --test-records 100
-        python analyzeMFT.py -f example.mft -o example_output.csv -v
-        
-        # Advanced usage examples
-        python analyzeMFT.py -f example.mft -o example.db --sqlite --hash -v
+        echo "Testing examples from documentation..."        python analyzeMFT.py --generate-test-mft example.mft --test-records 100
+        python analyzeMFT.py -f example.mft -o example_output.csv -v        python analyzeMFT.py -f example.mft -o example.db --sqlite --hash -v
         python analyzeMFT.py -f example.mft -o example.json --json --profile forensic -v
 
     - name: Validate help documentation
@@ -297,23 +274,11 @@ assert records_per_second > 10, f'Processing too slow: {records_per_second} rec/
 
     - name: Final functionality verification
       run: |
-        echo "🧪 Running final verification tests..."
-        
-        # Generate test data
-        python analyzeMFT.py --generate-test-mft final_test.mft --test-records 100 --test-type normal
-        
-        # Test all major features
-        python analyzeMFT.py -f final_test.mft -o final.csv --csv -v
+        echo "🧪 Running final verification tests..."        python analyzeMFT.py --generate-test-mft final_test.mft --test-records 100 --test-type normal        python analyzeMFT.py -f final_test.mft -o final.csv --csv -v
         python analyzeMFT.py -f final_test.mft -o final.json --json -v  
-        python analyzeMFT.py -f final_test.mft -o final.db --sqlite -v
-        
-        # Verify outputs
-        [ -s final.csv ] && echo "✅ CSV export working"
+        python analyzeMFT.py -f final_test.mft -o final.db --sqlite -v        [ -s final.csv ] && echo "✅ CSV export working"
         [ -s final.json ] && echo "✅ JSON export working" 
-        [ -s final.db ] && echo "✅ SQLite export working"
-        
-        # Test SQLite database
-        python -c "
+        [ -s final.db ] && echo "✅ SQLite export working"        python -c "
 import sqlite3
 conn = sqlite3.connect('final.db')
 cursor = conn.cursor()

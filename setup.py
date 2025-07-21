@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='analyzeMFT',
-    version='3.0.6.6',
+    version='3.1.0',
     author='Benjamin Cance',
     author_email='bjc@tdx.li',
     package_dir={'': 'src'},

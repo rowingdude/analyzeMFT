@@ -32,8 +32,7 @@ class TestSQLiteWriter:
             'filename': f'test_file_{record_num}.txt',
             'filepath': f'/test/path/test_file_{record_num}.txt',
             'file_size': 1024,
-            'flags': 1,  # FILE_RECORD_IN_USE
-            'si_create_time': '2023-01-01 12:00:00',
+            'flags': 1,            'si_create_time': '2023-01-01 12:00:00',
             'si_modify_time': '2023-01-01 12:00:00',
             'si_access_time': '2023-01-01 12:00:00',
             'si_mft_time': '2023-01-01 12:00:00',
@@ -59,10 +58,7 @@ class TestSQLiteWriter:
         
         mock_record = Mock(spec=MftRecord)
         for attr, value in defaults.items():
-            setattr(mock_record, attr, value)
-        
-        # Add the get_parent_record_num method
-        mock_record.get_parent_record_num = Mock(return_value=defaults.get('parent_record_num', 5))
+            setattr(mock_record, attr, value)        mock_record.get_parent_record_num = Mock(return_value=defaults.get('parent_record_num', 5))
         
         return mock_record
     
@@ -78,15 +74,9 @@ class TestSQLiteWriter:
     def test_initialize_database(self):
         """Test database initialization and schema creation."""
         writer = SQLiteWriter(str(self.test_db_path), self.logger)
-        writer.connect()
-        
-        # Check that database file was created
-        assert self.test_db_path.exists()
+        writer.connect()        assert self.test_db_path.exists()
         assert writer.conn is not None
-        assert writer.cursor is not None
-        
-        # Verify tables were created
-        tables = writer.cursor.execute(
+        assert writer.cursor is not None        tables = writer.cursor.execute(
             "SELECT name FROM sqlite_master WHERE type='table'"
         ).fetchall()
         table_names = [table[0] for table in tables]
@@ -96,14 +86,9 @@ class TestSQLiteWriter:
             assert table in table_names
     
     def test_initialize_database_already_exists(self):
-        """Test initializing database when file already exists."""
-        # Create database first time
-        writer1 = SQLiteWriter(str(self.test_db_path), self.logger)
+        """Test initializing database when file already exists."""        writer1 = SQLiteWriter(str(self.test_db_path), self.logger)
         writer1.connect()
-        writer1.close()
-        
-        # Initialize again - should not fail
-        writer2 = SQLiteWriter(str(self.test_db_path), self.logger)
+        writer1.close()        writer2 = SQLiteWriter(str(self.test_db_path), self.logger)
         writer2.connect()
         
         assert writer2.conn is not None
@@ -117,10 +102,7 @@ class TestSQLiteWriter:
         record = self.create_mock_record(record_num=42)
         
         writer.write_record(record, "/test/path/test_file_42.txt")
-        writer.conn.commit()
-        
-        # Verify record was written
-        result = writer.cursor.execute(
+        writer.conn.commit()        result = writer.cursor.execute(
             "SELECT record_number, filename FROM mft_records WHERE record_number = ?",
             (42,)
         ).fetchone()
@@ -144,14 +126,8 @@ class TestSQLiteWriter:
         for record in records:
             writer.write_record(record, f"/test/path/file_{record.recordnum}.txt")
         
-        writer.conn.commit()
-        
-        # Verify all records were written
-        count = writer.cursor.execute("SELECT COUNT(*) FROM mft_records").fetchone()[0]
-        assert count == 10
-        
-        # Verify specific records
-        for i in range(10):
+        writer.conn.commit()        count = writer.cursor.execute("SELECT COUNT(*) FROM mft_records").fetchone()[0]
+        assert count == 10        for i in range(10):
             result = writer.cursor.execute(
                 "SELECT filename FROM mft_records WHERE record_number = ?",
                 (i,)
@@ -171,10 +147,7 @@ class TestSQLiteWriter:
         ]
         
         filepaths = {i: f"/test/path/test_file_{i}.txt" for i in range(100)}
-        writer.write_records_batch(records, filepaths)
-        
-        # Verify all records were written
-        count = writer.cursor.execute("SELECT COUNT(*) FROM mft_records").fetchone()[0]
+        writer.write_records_batch(records, filepaths)        count = writer.cursor.execute("SELECT COUNT(*) FROM mft_records").fetchone()[0]
         assert count == 100
         
         writer.close()
@@ -182,16 +155,11 @@ class TestSQLiteWriter:
     def test_get_statistics(self):
         """Test statistics collection."""
         writer = SQLiteWriter(str(self.test_db_path), self.logger)
-        writer.connect()
-        
-        # Write some test records
-        records = [
-            self.create_mock_record(record_num=i, flags=1)  # IN_USE
-            for i in range(5)
+        writer.connect()        records = [
+            self.create_mock_record(record_num=i, flags=1)            for i in range(5)
         ]
         records.extend([
-            self.create_mock_record(record_num=i+5, flags=3)  # IN_USE | DIRECTORY
-            for i in range(3)
+            self.create_mock_record(record_num=i+5, flags=3)            for i in range(3)
         ])
         
         filepaths = {i: f"/test/path/test_file_{i}.txt" for i in range(8)}
@@ -214,25 +182,14 @@ class TestSQLiteWriter:
             record = self.create_mock_record()
             writer.write_record(record, "/test/path/test_file_0.txt")
             
-            assert writer.conn is not None
-        
-        # Connection should be closed after context exit
-        # Note: Mock connections might not behave exactly like real ones
-        # so we mainly test that the context manager doesn't raise exceptions
-    
+            assert writer.conn is not None    
     def test_close_without_connection(self):
         """Test closing writer without active connection."""
-        writer = SQLiteWriter(str(self.test_db_path), self.logger)
-        
-        # Should not raise exception
-        writer.close()
+        writer = SQLiteWriter(str(self.test_db_path), self.logger)        writer.close()
     
     def test_commit_without_connection(self):
         """Test committing without active connection."""
-        writer = SQLiteWriter(str(self.test_db_path), self.logger)
-        
-        # Should not raise exception
-        writer.close()
+        writer = SQLiteWriter(str(self.test_db_path), self.logger)        writer.close()
     
     def test_write_record_with_special_characters(self):
         """Test writing records with special characters in filenames."""
@@ -253,10 +210,7 @@ class TestSQLiteWriter:
             record = self.create_mock_record(record_num=i, filename=filename)
             writer.write_record(record, f"/test/path/{filename}")
         
-        writer.conn.commit()
-        
-        # Verify all records were written correctly
-        for i, expected_filename in enumerate(special_names):
+        writer.conn.commit()        for i, expected_filename in enumerate(special_names):
             result = writer.cursor.execute(
                 "SELECT filename FROM mft_records WHERE record_number = ?",
                 (i,)
@@ -278,10 +232,7 @@ class TestSQLiteWriter:
         )
         
         writer.write_record(record, "")
-        writer.conn.commit()
-        
-        # Verify record was written (should handle None values gracefully)
-        result = writer.cursor.execute(
+        writer.conn.commit()        result = writer.cursor.execute(
             "SELECT record_number FROM mft_records WHERE record_number = ?",
             (1,)
         ).fetchone()
@@ -292,10 +243,7 @@ class TestSQLiteWriter:
     def test_database_schema_integrity(self):
         """Test that database schema matches expectations."""
         writer = SQLiteWriter(str(self.test_db_path), self.logger)
-        writer.connect()
-        
-        # Check mft_records table schema
-        schema_info = writer.cursor.execute(
+        writer.connect()        schema_info = writer.cursor.execute(
             "PRAGMA table_info(mft_records)"
         ).fetchall()
         
@@ -320,28 +268,14 @@ class TestSQLiteWriter:
             writer.connect()
     
     def test_concurrent_access_handling(self):
-        """Test handling of concurrent database access."""
-        # Create first writer
-        writer1 = SQLiteWriter(str(self.test_db_path), self.logger)
-        writer1.connect()
-        
-        # Write and commit with first writer
-        record1 = self.create_mock_record(record_num=1)
+        """Test handling of concurrent database access."""        writer1 = SQLiteWriter(str(self.test_db_path), self.logger)
+        writer1.connect()        record1 = self.create_mock_record(record_num=1)
         writer1.write_record(record1, "/test/path/test_file_1.txt")
         writer1.conn.commit()
-        writer1.close()
-        
-        # Create second writer to same database after first is closed
-        writer2 = SQLiteWriter(str(self.test_db_path), self.logger)
-        writer2.connect()
-        
-        # Write with second writer
-        record2 = self.create_mock_record(record_num=2)
+        writer1.close()        writer2 = SQLiteWriter(str(self.test_db_path), self.logger)
+        writer2.connect()        record2 = self.create_mock_record(record_num=2)
         writer2.write_record(record2, "/test/path/test_file_2.txt")
-        writer2.conn.commit()
-        
-        # Verify both records exist
-        writer2.cursor.execute("SELECT COUNT(*) FROM mft_records")
+        writer2.conn.commit()        writer2.cursor.execute("SELECT COUNT(*) FROM mft_records")
         count = writer2.cursor.fetchone()[0]
         assert count == 2
         

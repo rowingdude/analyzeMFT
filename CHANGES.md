@@ -1,4 +1,21 @@
 
+## Version 3.1.0
+
+### Security & Stability
+
+- Added comprehensive input validation framework to prevent security vulnerabilities
+- Implemented path traversal protection, numeric bounds checking, and buffer overflow prevention
+- Fixed critical async test mocking issues - all CLI tests now pass
+- Validated MFT parsing with real forensic samples
+
+### Changes
+
+- New validators.py module with security-focused validation functions
+- MFT file validation with magic number checking and size limits
+- Attribute length validation in MFT record parsing
+- Configuration schema validation for safe config file loading
+
+
 ## Version 3.0.5
 
 ### Fixes

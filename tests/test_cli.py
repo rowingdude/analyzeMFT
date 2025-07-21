@@ -93,9 +93,6 @@ async def test_main_with_keyboard_interrupt(mock_analyzer, caplog):
             await main()
     
     assert "Operation interrupted by user" in caplog.text
-
-# Note: Windows event loop policy setting functionality not present in current CLI
-
 @pytest.mark.asyncio
 async def test_main_with_non_windows_platform():
     with patch('sys.platform', 'linux'):
@@ -111,10 +108,7 @@ async def test_main_with_non_windows_platform():
 def test_main_with_invalid_file_path(caplog):
     test_args = ['analyzeMFT.py', '-f', 'nonexistent.mft', '-o', 'output.csv']
     with patch.object(sys, 'argv', test_args):
-        asyncio.run(main())
-    
-    # MftAnalyzer catches the FileNotFoundError and logs it
-    assert "Error reading MFT file" in caplog.text and "No such file or directory" in caplog.text
+        asyncio.run(main())    assert "Error reading MFT file" in caplog.text and "No such file or directory" in caplog.text
 
 def test_main_with_unsupported_export_format():
     test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.unsupported', '--unsupported']

@@ -81,8 +81,7 @@ class MftRecord:
             logger.debug(message)
 
     def log(self, message: str, level: int = 0):
-        if hasattr(self.logger, 'error'):  # It's a proper logger object
-            if level == 0:
+        if hasattr(self.logger, 'error'):            if level == 0:
                 self.logger.error(message)
             elif level == 1:
                 self.logger.warning(message)
@@ -90,8 +89,7 @@ class MftRecord:
                 self.logger.info(message)
             else:
                 self.logger.debug(message)
-        else:  # It's the old callable logger
-            self.logger(message, level)
+        else:            self.logger(message, level)
 
     def parse_record(self) -> None:
         try:
@@ -126,10 +124,7 @@ class MftRecord:
 
                 if attr_type == 0xffffffff or attr_len == 0:
                     self.log("End of attributes reached", 3)
-                    break
-                
-                # Validate attribute length to prevent buffer overruns
-                try:
+                    break                try:
                     validate_attribute_length(
                         attr_len=attr_len,
                         offset=offset,
@@ -137,10 +132,7 @@ class MftRecord:
                         attr_type=attr_type
                     )
                 except ValidationError as e:
-                    self.logger.error(f"Attribute validation failed at record {getattr(self, 'recordnum', 'unknown')}: {e}")
-                    # Continue parsing other attributes rather than failing completely
-                    offset += 8  # Skip this attribute header
-                    continue
+                    self.logger.error(f"Attribute validation failed at record {getattr(self, 'recordnum', 'unknown')}: {e}")                    offset += 8                    continue
                 
                 self.attribute_types.add(attr_type)
 
@@ -189,9 +181,7 @@ class MftRecord:
     def parse_si_attribute(self, offset: int) -> None:
         si_data = self.raw_record[offset+24:offset+72]
         if len(si_data) >= 32:
-            try:
-                # Parse 64-bit Windows FILETIME values
-                timestamps = struct.unpack("<QQQQ", si_data[:32])
+            try:                timestamps = struct.unpack("<QQQQ", si_data[:32])
                 self.si_times = {
                     'crtime': WindowsTime(timestamps[0] & 0xFFFFFFFF, timestamps[0] >> 32),
                     'mtime': WindowsTime(timestamps[1] & 0xFFFFFFFF, timestamps[1] >> 32),
@@ -204,24 +194,13 @@ class MftRecord:
     def parse_fn_attribute(self, offset: int) -> None:
         fn_data = self.raw_record[offset+24:]
         if len(fn_data) >= 64:
-            try:
-                # Parse parent reference
-                self.parent_ref = struct.unpack("<Q", fn_data[:8])[0] & 0x0000FFFFFFFFFFFF
-                
-                # Parse 64-bit Windows FILETIME values
-                timestamps = struct.unpack("<QQQQ", fn_data[8:40])
+            try:                self.parent_ref = struct.unpack("<Q", fn_data[:8])[0] & 0x0000FFFFFFFFFFFF                timestamps = struct.unpack("<QQQQ", fn_data[8:40])
                 self.fn_times = {
                     'crtime': WindowsTime(timestamps[0] & 0xFFFFFFFF, timestamps[0] >> 32),
                     'mtime': WindowsTime(timestamps[1] & 0xFFFFFFFF, timestamps[1] >> 32),
                     'ctime': WindowsTime(timestamps[2] & 0xFFFFFFFF, timestamps[2] >> 32),
                     'atime': WindowsTime(timestamps[3] & 0xFFFFFFFF, timestamps[3] >> 32)
-                }
-                
-                # Parse file sizes
-                self.filesize = struct.unpack("<Q", fn_data[48:56])[0]
-                
-                # Parse filename
-                name_len = struct.unpack("B", fn_data[64:65])[0]
+                }                self.filesize = struct.unpack("<Q", fn_data[48:56])[0]                name_len = struct.unpack("B", fn_data[64:65])[0]
                 if len(fn_data) >= 66 + name_len * 2:
                     self.filename = fn_data[66:66+name_len*2].decode('utf-16-le', errors='replace')
             except struct.error:
@@ -332,12 +311,10 @@ class MftRecord:
             else:
                 name = ""
             
-            if non_resident_flag == 0:  # Resident
-                content_size = struct.unpack("<L", data_header[16:20])[0]
+            if non_resident_flag == 0:                content_size = struct.unpack("<L", data_header[16:20])[0]
                 content_offset = struct.unpack("<H", data_header[20:22])[0]
                 content = self.raw_record[offset+content_offset:offset+content_offset+content_size]
-            else:  # Non-resident
-                start_vcn = struct.unpack("<Q", data_header[16:24])[0]
+            else:                start_vcn = struct.unpack("<Q", data_header[16:24])[0]
                 last_vcn = struct.unpack("<Q", self.raw_record[offset+24:offset+32])[0]
                 
             self.data_attribute = {
@@ -463,8 +440,7 @@ class MftRecord:
             self.base_ref >> 48,
             
             self.filename,
-            "",  # Filepath (to be filled later)
-            
+            "",            
             self.si_times['crtime'].dtstr,
             self.si_times['mtime'].dtstr,
             self.si_times['atime'].dtstr,
@@ -510,8 +486,7 @@ class MftRecord:
         if self.md5 is not None:
             row.extend([self.md5, self.sha256, self.sha512, self.crc32])
         else:
-            row.extend([""] * 4)  # Add empty strings for hash fields if not computed
-        return row
+            row.extend([""] * 4)        return row
 
     def compute_hashes(self) -> None:
         """

@@ -27,23 +27,15 @@ class MftAnalyzer:
         self.compute_hashes = compute_hashes
         self.export_format = export_format
         self.profile = profile
-        self.chunk_size = chunk_size  # Number of records to process before writing
-        self.multiprocessing_hashes = multiprocessing_hashes
-        self.hash_processes = hash_processes
-        
-        # Apply profile settings if provided
-        if profile:
-            # Use profile settings as defaults, CLI args take precedence
-            if not export_format or export_format == "csv":
+        self.chunk_size = chunk_size        self.multiprocessing_hashes = multiprocessing_hashes
+        self.hash_processes = hash_processes        if profile:            if not export_format or export_format == "csv":
                 self.export_format = profile.export_format
             if not compute_hashes:
                 self.compute_hashes = profile.compute_hashes
             if verbosity == 0:
                 self.verbosity = profile.verbosity
             if debug == 0:
-                self.debug = profile.debug
-            # Apply chunk_size from profile if available
-            if hasattr(profile, 'chunk_size') and chunk_size == 1000:
+                self.debug = profile.debug            if hasattr(profile, 'chunk_size') and chunk_size == 1000:
                 self.chunk_size = profile.chunk_size
         
         self.csvfile = None
@@ -55,8 +47,7 @@ class MftAnalyzer:
         self.setup_interrupt_handler()
         
         self.mft_records = {}
-        self.current_chunk = []  # Current chunk being processed
-        self.chunk_count = 0
+        self.current_chunk = []        self.chunk_count = 0
         self.stats = {
             'total_records': 0,
             'active_records': 0,
@@ -74,31 +65,18 @@ class MftAnalyzer:
             })
 
     def setup_logging(self) -> None:
-        """Get logger and configure level based on verbosity and debug levels."""
-        # Get logger (configuration should be done by CLI)
-        self.logger = logging.getLogger('analyzeMFT')
-        
-        # Set log level based on verbosity and debug if not already configured
-        if not self.logger.handlers:
-            # Fallback configuration if no handlers exist
-            logging.basicConfig(
+        """Get logger and configure level based on verbosity and debug levels."""        self.logger = logging.getLogger('analyzeMFT')        if not self.logger.handlers:            logging.basicConfig(
                 level=logging.WARNING,
                 format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                 datefmt='%Y-%m-%d %H:%M:%S'
-            )
-        
-        # Adjust level based on verbosity settings
-        if self.debug >= 2:
+            )        if self.debug >= 2:
             self.logger.setLevel(logging.DEBUG)
         elif self.debug >= 1 or self.verbosity >= 2:
             self.logger.setLevel(logging.INFO)
         elif self.verbosity >= 1:
             self.logger.setLevel(logging.WARNING)
         else:
-            self.logger.setLevel(logging.ERROR)
-        
-        # Optionally add file handler for debug mode
-        if self.debug >= 1 and not any(isinstance(h, logging.FileHandler) for h in self.logger.handlers):
+            self.logger.setLevel(logging.ERROR)        if self.debug >= 1 and not any(isinstance(h, logging.FileHandler) for h in self.logger.handlers):
             file_handler = logging.FileHandler(f"{self.output_file}.log")
             file_handler.setLevel(logging.DEBUG)
             formatter = logging.Formatter(
@@ -113,12 +91,10 @@ class MftAnalyzer:
             self.logger.warning("Interrupt received. Cleaning up...")
             self.interrupt_flag.set()
 
-        if sys.platform == "win32": # Windows is evil ...
-            import win32api
+        if sys.platform == "win32":            import win32api
             win32api.SetConsoleCtrlHandler(lambda x: interrupt_handler(None, None), True)
 
-        else: # On a proper operating system ...
-            signal.signal(signal.SIGINT, interrupt_handler)
+        else:            signal.signal(signal.SIGINT, interrupt_handler)
             signal.signal(signal.SIGTERM, interrupt_handler)
 
     def log(self, message: str, level: int = 0):
@@ -134,9 +110,7 @@ class MftAnalyzer:
 
     async def analyze(self) -> None:
         try:
-            self.logger.warning("Starting MFT analysis...")
-            # Only initialize CSV writer if export format is CSV
-            if self.export_format == "csv":
+            self.logger.warning("Starting MFT analysis...")            if self.export_format == "csv":
                 self.initialize_csv_writer()
             await self.process_mft()
             await self.write_output()
@@ -146,16 +120,11 @@ class MftAnalyzer:
                 self.logger.debug("Full traceback:", exc_info=True)
         finally:
             if self.csvfile:
-                self.csvfile.close()
-            # Don't close SQLite writer here - it will be closed in write_output
-            if self.interrupt_flag.is_set():
+                self.csvfile.close()            if self.interrupt_flag.is_set():
                 self.logger.warning("Analysis interrupted by user.")
             else:
                 self.logger.warning("Analysis complete.")
-            self.print_statistics()
-            
-            # Close SQLite writer after everything is done
-            if self.sqlite_writer:
+            self.print_statistics()            if self.sqlite_writer:
                 try:
                     self.sqlite_writer.close()
                     self.logger.info("Final SQLite database cleanup completed")
@@ -173,16 +142,11 @@ class MftAnalyzer:
             self.logger.warning(f"MFT file size: {file_size:,} bytes, estimated {estimated_records:,} records")
             
             with open(self.mft_file, 'rb') as f:
-                while not self.interrupt_flag.is_set():
-                    # Process chunk of records
-                    chunk = await self.read_chunk(f)
+                while not self.interrupt_flag.is_set():                    chunk = await self.read_chunk(f)
                     if not chunk:
                         break
                     
-                    await self.process_chunk(chunk)
-                    
-                    # Write chunk to output and clear memory
-                    if self.current_chunk:
+                    await self.process_chunk(chunk)                    if self.current_chunk:
                         await self.write_chunk()
                         self.current_chunk.clear()
                         self.chunk_count += 1
@@ -215,17 +179,12 @@ class MftAnalyzer:
         return chunk
 
     async def process_chunk(self, raw_records: List[bytes]) -> None:
-        """Process a chunk of raw MFT records."""
-        # Initialize hash processor if needed
-        if self.compute_hashes and self.multiprocessing_hashes and self.hash_processor is None:
+        """Process a chunk of raw MFT records."""        if self.compute_hashes and self.multiprocessing_hashes and self.hash_processor is None:
             self.hash_processor = HashProcessor(
                 num_processes=self.hash_processes,
                 logger=self.logger
             )
-            self.logger.info(f"Initialized HashProcessor with {self.hash_processor.num_processes} processes")
-        
-        # Compute hashes for all records in batch if using multiprocessing
-        hash_results = []
+            self.logger.info(f"Initialized HashProcessor with {self.hash_processor.num_processes} processes")        hash_results = []
         if self.compute_hashes and self.multiprocessing_hashes and self.hash_processor:
             self.logger.debug(f"Computing hashes for {len(raw_records)} records using multiprocessing")
             hash_results = self.hash_processor.compute_hashes_adaptive(raw_records)
@@ -234,19 +193,11 @@ class MftAnalyzer:
             if self.interrupt_flag.is_set():
                 break
             
-            try:
-                # Create record without computing hashes if using multiprocessing
-                compute_individual_hashes = self.compute_hashes and not self.multiprocessing_hashes
+            try:                compute_individual_hashes = self.compute_hashes and not self.multiprocessing_hashes
                 record = MftRecord(raw_record, compute_individual_hashes, self.debug, self.logger)
-                self.stats['total_records'] += 1
-                
-                # Apply pre-computed hashes if using multiprocessing
-                if self.compute_hashes and self.multiprocessing_hashes and i < len(hash_results):
+                self.stats['total_records'] += 1                if self.compute_hashes and self.multiprocessing_hashes and i < len(hash_results):
                     hash_result = hash_results[i]
-                    record.set_hashes(hash_result.md5, hash_result.sha256, hash_result.sha512, hash_result.crc32)
-                    
-                    # Update statistics with unique hashes
-                    if 'unique_md5' in self.stats:
+                    record.set_hashes(hash_result.md5, hash_result.sha256, hash_result.sha512, hash_result.crc32)                    if 'unique_md5' in self.stats:
                         self.stats['unique_md5'].add(hash_result.md5)
                         self.stats['unique_sha256'].add(hash_result.sha256)
                         self.stats['unique_sha512'].add(hash_result.sha512)
@@ -257,10 +208,7 @@ class MftAnalyzer:
                 if record.flags & FILE_RECORD_IS_DIRECTORY:
                     self.stats['directories'] += 1
                 else:
-                    self.stats['files'] += 1
-
-                # Store record temporarily for filepath building
-                self.mft_records[record.recordnum] = record
+                    self.stats['files'] += 1                self.mft_records[record.recordnum] = record
                 self.current_chunk.append(record)
 
                 if self.debug >= 2:
@@ -279,17 +227,13 @@ class MftAnalyzer:
         return file.read(MFT_RECORD_SIZE)
 
     def handle_interrupt(self) -> None:
-        if sys.platform == "win32":
-            # Windows-specific interrupt handling
-            import win32api
+        if sys.platform == "win32":            import win32api
             def windows_handler(type):
                 self.interrupt_flag.set()
                 self.logger.warning("\nCtrl+C pressed. Cleaning up and writing data...")
                 return True
             win32api.SetConsoleCtrlHandler(windows_handler, True)
-        else:
-            # Unix-like systems interrupt handling
-            def unix_handler():
+        else:            def unix_handler():
                 self.interrupt_flag.set()
                 self.logger.warning("\nCtrl+C pressed. Cleaning up and writing data...")
 
@@ -314,9 +258,7 @@ class MftAnalyzer:
                 await self.write_json_chunk()
             elif self.export_format == "sqlite":
                 await self.write_sqlite_chunk()
-            else:
-                # For other formats, fall back to batch processing
-                await self.write_csv_chunk()
+            else:                await self.write_csv_chunk()
             
             self.logger.info(f"Chunk {self.chunk_count + 1} written successfully")
         except Exception as e:
@@ -349,10 +291,7 @@ class MftAnalyzer:
             self.csvfile.flush()
 
     async def write_json_chunk(self) -> None:
-        """Write current chunk to JSON format (streaming)."""
-        # For streaming JSON, we need to handle chunks differently
-        # This is a simplified implementation
-        import json
+        """Write current chunk to JSON format (streaming)."""        import json
         
         chunk_filename = f"{self.output_file}.chunk_{self.chunk_count + 1}.json"
         with open(chunk_filename, 'w') as f:
@@ -370,18 +309,13 @@ class MftAnalyzer:
             self.sqlite_writer = SQLiteWriter(self.output_file, self.logger)
             self.sqlite_writer.connect()
         
-        try:
-            # Build filepaths for records
-            filepaths = {}
+        try:            filepaths = {}
             for record in self.current_chunk:
                 try:
                     filepaths[record.recordnum] = self.build_filepath(record)
                 except Exception as e:
                     self.logger.warning(f"Error building filepath for record {record.recordnum}: {e}")
-                    filepaths[record.recordnum] = f"UnknownPath_{record.recordnum}"
-            
-            # Write batch to SQLite
-            self.sqlite_writer.write_records_batch(self.current_chunk, filepaths)
+                    filepaths[record.recordnum] = f"UnknownPath_{record.recordnum}"            self.sqlite_writer.write_records_batch(self.current_chunk, filepaths)
             self.logger.info(f"Successfully wrote {len(self.current_chunk)} records to SQLite")
             
         except Exception as e:
@@ -429,9 +363,7 @@ class MftAnalyzer:
     async def write_remaining_sqlite_records(self) -> None:
         """Write any remaining records to SQLite database"""
         try:
-            if self.mft_records:
-                # Add remaining records to current chunk and write
-                for record in self.mft_records.values():
+            if self.mft_records:                for record in self.mft_records.values():
                     self.current_chunk.append(record)
                 
                 if self.current_chunk:
@@ -514,23 +446,15 @@ class MftAnalyzer:
             self.logger.error(f"Unsupported export format: {self.export_format}")
 
     async def cleanup(self):
-        self.logger.warning("Performing cleanup...")
-         # to-do add more cleanup after database stuff is integrated.
-        await self.write_remaining_records()
+        self.logger.warning("Performing cleanup...")        await self.write_remaining_records()
         self.logger.warning("Cleanup complete.")
 
     async def create_sqlite_database(self):
         conn = sqlite3.connect(self.output_file)
-        cursor = conn.cursor()
-
-        # Create and populate static tables
-        sql_dir = os.path.join(os.path.dirname(__file__), 'sql')
+        cursor = conn.cursor()        sql_dir = os.path.join(os.path.dirname(__file__), 'sql')
         for sql_file in os.listdir(sql_dir):
             with open(os.path.join(sql_dir, sql_file), 'r') as f:
-                cursor.executescript(f.read())
-
-        # Create MFT records table
-        cursor.execute('''
+                cursor.executescript(f.read())        cursor.execute('''
             CREATE TABLE mft_records (
                 record_number INTEGER PRIMARY KEY,
                 filename TEXT,

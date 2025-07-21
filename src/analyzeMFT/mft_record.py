@@ -5,6 +5,7 @@ import zlib
 import logging
 from .constants import *
 from .windows_time import WindowsTime
+from .validators import validate_attribute_length, ValidationError
 
 from typing import Dict, Set, List, Optional, Any, Union
 
@@ -126,6 +127,20 @@ class MftRecord:
                 if attr_type == 0xffffffff or attr_len == 0:
                     self.log("End of attributes reached", 3)
                     break
+                
+                # Validate attribute length to prevent buffer overruns
+                try:
+                    validate_attribute_length(
+                        attr_len=attr_len,
+                        offset=offset,
+                        record_size=len(self.raw_record),
+                        attr_type=attr_type
+                    )
+                except ValidationError as e:
+                    self.logger.error(f"Attribute validation failed at record {getattr(self, 'recordnum', 'unknown')}: {e}")
+                    # Continue parsing other attributes rather than failing completely
+                    offset += 8  # Skip this attribute header
+                    continue
                 
                 self.attribute_types.add(attr_type)
 

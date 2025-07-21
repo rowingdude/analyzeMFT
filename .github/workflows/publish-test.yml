@@ -30,50 +30,22 @@ jobs:
 
     - name: Test installation from source
       run: |
-        python -m pip install --upgrade pip
-        # Try to install from git tag if this is a tag push
-        if [ "${{ github.ref_type }}" = "tag" ]; then
+        python -m pip install --upgrade pip        if [ "${{ github.ref_type }}" = "tag" ]; then
           pip install git+https://github.com/${{ github.repository }}.git@${{ github.ref_name }}
-        else
-          # Fallback to installing from PyPI (if available) or git
-          pip install git+https://github.com/${{ github.repository }}.git
+        else          pip install git+https://github.com/${{ github.repository }}.git
         fi
 
     - name: Test basic functionality
       run: |
-        echo "🧪 Testing basic functionality..."
-        
-        # Test help command
-        python -m analyzeMFT --help
-        
-        # Test version command
-        python -m analyzeMFT --version || echo "Version command may not be available"
-        
-        # Test profile listing
-        python -m analyzeMFT --list-profiles
+        echo "🧪 Testing basic functionality..."        python -m analyzeMFT --help        python -m analyzeMFT --version || echo "Version command may not be available"        python -m analyzeMFT --list-profiles
 
     - name: Test MFT generation and analysis
       run: |
-        echo "🔬 Testing MFT generation and analysis..."
-        
-        # Generate test MFT file
-        python -m analyzeMFT --generate-test-mft publish_test.mft --test-records 100
-        
-        # Test CSV export
-        python -m analyzeMFT -f publish_test.mft -o publish_test.csv --csv -v
-        
-        # Test SQLite export  
-        python -m analyzeMFT -f publish_test.mft -o publish_test.db --sqlite -v
-        
-        # Test JSON export
-        python -m analyzeMFT -f publish_test.mft -o publish_test.json --json -v
+        echo "🔬 Testing MFT generation and analysis..."        python -m analyzeMFT --generate-test-mft publish_test.mft --test-records 100        python -m analyzeMFT -f publish_test.mft -o publish_test.csv --csv -v        python -m analyzeMFT -f publish_test.mft -o publish_test.db --sqlite -v        python -m analyzeMFT -f publish_test.mft -o publish_test.json --json -v
 
     - name: Validate outputs
       run: |
-        echo "✅ Validating outputs..."
-        
-        # Check file existence and size
-        if [ -f publish_test.csv ]; then
+        echo "✅ Validating outputs..."        if [ -f publish_test.csv ]; then
           size=$(wc -l < publish_test.csv)
           echo "CSV file has $size lines"
           [ "$size" -gt 1 ] && echo "✅ CSV export successful" || exit 1
@@ -135,38 +107,20 @@ except Exception as e:
 
     - name: Test platform-specific features
       run: |
-        echo "🖥️ Testing platform-specific features on ${{ matrix.os }}..."
-        
-        # Generate test data
-        python analyzeMFT.py --generate-test-mft platform_test.mft --test-records 200
-        
-        # Test all export formats
-        python analyzeMFT.py -f platform_test.mft -o platform.csv --csv -v
+        echo "🖥️ Testing platform-specific features on ${{ matrix.os }}..."        python analyzeMFT.py --generate-test-mft platform_test.mft --test-records 200        python analyzeMFT.py -f platform_test.mft -o platform.csv --csv -v
         python analyzeMFT.py -f platform_test.mft -o platform.json --json -v
         python analyzeMFT.py -f platform_test.mft -o platform.db --sqlite -v
         python analyzeMFT.py -f platform_test.mft -o platform.xml --xml -v
 
     - name: Test path handling
       run: |
-        echo "📁 Testing path handling..."
-        
-        # Create directory with spaces (cross-platform test)
-        mkdir -p "test path/sub dir" || mkdir "test path\sub dir" 2>/dev/null || mkdir "test_path_sub_dir"
-        
-        # Test output to path with spaces
-        python analyzeMFT.py -f platform_test.mft -o "test path/output.csv" --csv -v 2>/dev/null || \
+        echo "📁 Testing path handling..."        mkdir -p "test path/sub dir" || mkdir "test path\sub dir" 2>/dev/null || mkdir "test_path_sub_dir"        python analyzeMFT.py -f platform_test.mft -o "test path/output.csv" --csv -v 2>/dev/null || \
         python analyzeMFT.py -f platform_test.mft -o "test path\\output.csv" --csv -v 2>/dev/null || \
         python analyzeMFT.py -f platform_test.mft -o "test_path_output.csv" --csv -v
 
     - name: Test error conditions
       run: |
-        echo "⚠️ Testing error conditions..."
-        
-        # Test with non-existent file
-        python analyzeMFT.py -f nonexistent.mft -o error.csv --csv 2>&1 | grep -i "error\|not found" && echo "✅ Error handling working"
-        
-        # Test with invalid MFT data
-        echo "not an mft file" > invalid.mft
+        echo "⚠️ Testing error conditions..."        python analyzeMFT.py -f nonexistent.mft -o error.csv --csv 2>&1 | grep -i "error\|not found" && echo "✅ Error handling working"        echo "not an mft file" > invalid.mft
         python analyzeMFT.py -f invalid.mft -o invalid.csv --csv 2>&1 | grep -i "error\|invalid" && echo "✅ Invalid file handling working"
 
   integration-test:
@@ -186,30 +140,17 @@ except Exception as e:
       run: |
         python -m pip install --upgrade pip
         pip install -e .
-        pip install PyYAML  # For config file support
-
+        pip install PyYAML
     - name: End-to-end workflow test
       run: |
-        echo "🔄 Running end-to-end workflow test..."
-        
-        # Step 1: Create configuration
-        python analyzeMFT.py --create-config workflow_config.json
-        echo "✅ Configuration created"
-        
-        # Step 2: Generate test data
-        python analyzeMFT.py --generate-test-mft workflow_normal.mft --test-records 300 --test-type normal
+        echo "🔄 Running end-to-end workflow test..."        python analyzeMFT.py --create-config workflow_config.json
+        echo "✅ Configuration created"        python analyzeMFT.py --generate-test-mft workflow_normal.mft --test-records 300 --test-type normal
         python analyzeMFT.py --generate-test-mft workflow_anomaly.mft --test-records 100 --test-type anomaly
-        echo "✅ Test data generated"
-        
-        # Step 3: Test all profiles with normal data
-        for profile in default quick forensic performance; do
+        echo "✅ Test data generated"        for profile in default quick forensic performance; do
           echo "Testing profile: $profile"
           python analyzeMFT.py -f workflow_normal.mft -o "workflow_${profile}.csv" --profile $profile -v
           [ -s "workflow_${profile}.csv" ] && echo "✅ Profile $profile working"
-        done
-        
-        # Step 4: Test all export formats
-        for format in csv json xml sqlite body timeline tsk; do
+        done        for format in csv json xml sqlite body timeline tsk; do
           echo "Testing format: $format"
           case $format in
             csv) flag="--csv" ;;
@@ -223,41 +164,20 @@ except Exception as e:
           
           python analyzeMFT.py -f workflow_normal.mft -o "workflow_output.$format" $flag -v
           [ -s "workflow_output.$format" ] && echo "✅ Format $format working"
-        done
-        
-        # Step 5: Test with configuration file
-        python analyzeMFT.py -f workflow_normal.mft -o workflow_config.csv --config workflow_config.json -v
-        [ -s workflow_config.csv ] && echo "✅ Configuration file support working"
-        
-        # Step 6: Test chunked processing with different sizes
-        for chunk_size in 10 50 100; do
+        done        python analyzeMFT.py -f workflow_normal.mft -o workflow_config.csv --config workflow_config.json -v
+        [ -s workflow_config.csv ] && echo "✅ Configuration file support working"        for chunk_size in 10 50 100; do
           echo "Testing chunk size: $chunk_size"
           python analyzeMFT.py -f workflow_normal.mft -o "workflow_chunk_${chunk_size}.csv" --chunk-size $chunk_size -v
           [ -s "workflow_chunk_${chunk_size}.csv" ] && echo "✅ Chunk size $chunk_size working"
-        done
-        
-        # Step 7: Test hash computation
-        python analyzeMFT.py -f workflow_normal.mft -o workflow_hashes.csv --hash -v
-        [ -s workflow_hashes.csv ] && echo "✅ Hash computation working"
-        
-        # Step 8: Test anomaly data processing
-        python analyzeMFT.py -f workflow_anomaly.mft -o workflow_anomaly.csv --profile forensic -v
+        done        python analyzeMFT.py -f workflow_normal.mft -o workflow_hashes.csv --hash -v
+        [ -s workflow_hashes.csv ] && echo "✅ Hash computation working"        python analyzeMFT.py -f workflow_anomaly.mft -o workflow_anomaly.csv --profile forensic -v
         [ -s workflow_anomaly.csv ] && echo "✅ Anomaly data processing working"
 
     - name: Validate integration results
       run: |
-        echo "🔍 Validating integration results..."
-        
-        # Count total files generated
-        file_count=$(ls workflow_* | wc -l)
-        echo "Generated $file_count output files"
-        
-        # Validate key outputs
-        python -c "
-import os, csv, json, sqlite3
-
-# Validate CSV outputs
-csv_files = [f for f in os.listdir('.') if f.startswith('workflow_') and f.endswith('.csv')]
+        echo "🔍 Validating integration results..."        file_count=$(ls workflow_* | wc -l)
+        echo "Generated $file_count output files"        python -c "
+import os, csv, json, sqlite3csv_files = [f for f in os.listdir('.') if f.startswith('workflow_') and f.endswith('.csv')]
 print(f'Found {len(csv_files)} CSV files')
 
 for csv_file in csv_files:
@@ -267,16 +187,10 @@ for csv_file in csv_files:
         if len(rows) > 1:
             print(f'✅ {csv_file}: {len(rows)-1} records')
         else:
-            print(f'❌ {csv_file}: No data')
-
-# Validate JSON output
-if os.path.exists('workflow_output.json'):
+            print(f'❌ {csv_file}: No data')if os.path.exists('workflow_output.json'):
     with open('workflow_output.json', 'r') as f:
         data = json.load(f)
-        print(f'✅ JSON output: {len(data)} records')
-
-# Validate SQLite output
-if os.path.exists('workflow_output.sqlite'):
+        print(f'✅ JSON output: {len(data)} records')if os.path.exists('workflow_output.sqlite'):
     conn = sqlite3.connect('workflow_output.sqlite')
     cursor = conn.cursor()
     cursor.execute('SELECT COUNT(*) FROM mft_records')
@@ -287,13 +201,7 @@ if os.path.exists('workflow_output.sqlite'):
 
     - name: Performance benchmark
       run: |
-        echo "⚡ Running performance benchmark..."
-        
-        # Generate larger test file
-        python analyzeMFT.py --generate-test-mft perf_test.mft --test-records 1000 --test-type normal
-        
-        # Benchmark different configurations
-        python -c "
+        echo "⚡ Running performance benchmark..."        python analyzeMFT.py --generate-test-mft perf_test.mft --test-records 1000 --test-type normal        python -c "
 import time
 import subprocess
 import os
@@ -346,32 +254,19 @@ for name, cmd in configs:
 
     - name: Create validation report
       run: |
-        cat > validation-report.md << 'EOF'
-        # analyzeMFT Publish Validation Report
-        
-        ## Test Summary
-        - ✅ **Package Installation**: Tested on Ubuntu, Windows, macOS with Python 3.8-3.12
+        cat > validation-report.md << 'EOF'        - ✅ **Package Installation**: Tested on Ubuntu, Windows, macOS with Python 3.8-3.12
         - ✅ **Core Functionality**: All export formats working (CSV, JSON, XML, SQLite, Body, Timeline, TSK)
         - ✅ **Cross-Platform**: Path handling and platform-specific features validated
         - ✅ **Integration**: End-to-end workflows tested with all profiles and configurations
         - ✅ **Performance**: Benchmarks confirm acceptable processing speeds
-        - ✅ **Error Handling**: Proper error handling for invalid inputs verified
-        
-        ## Export Format Validation
-        - ✅ CSV: Headers and data integrity confirmed
+        - ✅ **Error Handling**: Proper error handling for invalid inputs verified        - ✅ CSV: Headers and data integrity confirmed
         - ✅ JSON: Valid JSON structure with complete records
         - ✅ SQLite: Database schema and data accessibility verified
         - ✅ XML: Well-formed XML output confirmed
-        - ✅ Body/Timeline/TSK: Format-specific outputs generated
-        
-        ## Configuration Testing
-        - ✅ All analysis profiles working (Default, Quick, Forensic, Performance)
+        - ✅ Body/Timeline/TSK: Format-specific outputs generated        - ✅ All analysis profiles working (Default, Quick, Forensic, Performance)
         - ✅ Configuration file creation and usage
         - ✅ Chunked processing with various sizes
-        - ✅ Hash computation functionality
-        
-        ## Platform Compatibility
-        - ✅ Ubuntu (latest)
+        - ✅ Hash computation functionality        - ✅ Ubuntu (latest)
         - ✅ Windows (latest)  
         - ✅ macOS (latest)
         - ✅ Python 3.8, 3.9, 3.10, 3.11, 3.12

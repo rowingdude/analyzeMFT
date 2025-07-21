@@ -115,8 +115,7 @@ async def test_build_filepath_with_deep_path(analyzer, mock_mft_record):
     
     filepath = analyzer.build_filepath(analyzer.mft_records[0])
     assert filepath.startswith("DeepPath\\")
-    assert len(filepath.split("\\")) == 256  # Max depth + 1 for DeepPath
-
+    assert len(filepath.split("\\")) == 256
 @pytest.mark.asyncio
 async def test_build_filepath_with_orphaned_file(analyzer, mock_mft_record):
     mock_mft_record.get_parent_record_num.return_value = mock_mft_record.recordnum

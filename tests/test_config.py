@@ -58,10 +58,7 @@ class TestAnalysisProfile:
     
     def test_profile_dataclass_fields(self):
         """Test that AnalysisProfile has expected dataclass fields."""
-        profile = AnalysisProfile()
-        
-        # Test all expected fields exist
-        expected_fields = [
+        profile = AnalysisProfile()        expected_fields = [
             'name', 'description', 'export_format', 'compute_hashes',
             'verbosity', 'debug', 'chunk_size', 'enable_anomaly_detection',
             'file_size_threshold_mb', 'date_filter_start', 'date_filter_end',
@@ -92,8 +89,7 @@ class TestConfigManager:
         cm = ConfigManager()
         assert hasattr(cm, 'profiles')
         assert isinstance(cm.profiles, dict)
-        assert len(cm.profiles) > 0  # Should have built-in profiles
-    
+        assert len(cm.profiles) > 0    
     def test_list_profiles(self):
         """Test listing available profiles."""
         profiles = self.config_manager.list_profiles()
@@ -101,10 +97,7 @@ class TestConfigManager:
         assert "default" in profiles
         assert "quick" in profiles
         assert "forensic" in profiles
-        assert "performance" in profiles
-        
-        # Check that descriptions are provided
-        for name, description in profiles.items():
+        assert "performance" in profiles        for name, description in profiles.items():
             assert isinstance(name, str)
             assert isinstance(description, str)
             assert len(description) > 0
@@ -122,16 +115,14 @@ class TestConfigManager:
         assert profile is not None
         assert isinstance(profile, AnalysisProfile)
         assert profile.name == "forensic"
-        assert profile.compute_hashes is True  # Forensic should enable hashes
-    
+        assert profile.compute_hashes is True    
     def test_get_profile_performance(self):
         """Test getting the performance profile."""
         profile = self.config_manager.get_profile("performance")
         assert profile is not None
         assert isinstance(profile, AnalysisProfile)
         assert profile.name == "performance"
-        assert profile.chunk_size > 1000  # Performance should use larger chunks
-    
+        assert profile.chunk_size > 1000    
     def test_get_profile_nonexistent(self):
         """Test getting a non-existent profile."""
         profile = self.config_manager.get_profile("nonexistent")
@@ -143,14 +134,8 @@ class TestConfigManager:
         
         self.config_manager.create_sample_config(config_path)
         
-        assert config_path.exists()
-        
-        # Verify the content is valid JSON
-        with open(config_path, 'r') as f:
-            config_data = json.load(f)
-        
-        # Should contain profile configuration fields
-        assert "name" in config_data
+        assert config_path.exists()        with open(config_path, 'r') as f:
+            config_data = json.load(f)        assert "name" in config_data
         assert "export_format" in config_data
         assert "compute_hashes" in config_data
         assert isinstance(config_data, dict)
@@ -161,23 +146,16 @@ class TestConfigManager:
         
         try:
             self.config_manager.create_sample_config(config_path)
-            assert config_path.exists()
-            
-            # Try to read as YAML (if PyYAML is available)
-            try:
+            assert config_path.exists()            try:
                 import yaml
                 with open(config_path, 'r') as f:
                     config_data = yaml.safe_load(f)
                 assert "name" in config_data
-            except ImportError:
-                # If PyYAML not available, should fall back to JSON
-                with open(config_path, 'r') as f:
+            except ImportError:                with open(config_path, 'r') as f:
                     config_data = json.load(f)
                 assert "name" in config_data
                 
-        except Exception as e:
-            # If YAML not supported, should handle gracefully
-            assert "YAML" in str(e) or "yaml" in str(e)
+        except Exception as e:            assert "YAML" in str(e) or "yaml" in str(e)
     
     def test_load_config_file_json(self):
         """Test loading configuration from JSON file."""
@@ -236,10 +214,7 @@ class TestConfigManager:
         
         self.config_manager.save_profile(profile, config_path)
         
-        assert config_path.exists()
-        
-        # Verify saved content
-        with open(config_path, 'r') as f:
+        assert config_path.exists()        with open(config_path, 'r') as f:
             saved_data = json.load(f)
         
         assert saved_data["name"] == "saved_test"
@@ -288,13 +263,9 @@ class TestConfigManager:
         
         assert profile.compute_hashes is False
         assert profile.include_deleted is False
-        assert profile.chunk_size >= 1000  # Should use larger chunks for speed
-    
+        assert profile.chunk_size >= 1000    
     def test_performance_profile_settings(self):
         """Test performance profile has appropriate settings."""
         profile = self.config_manager.get_profile("performance")
         
-        assert profile.export_format == "sqlite"  # SQLite should be faster for large datasets
-        assert profile.chunk_size >= 1000  # Should use large chunks
-        assert profile.include_deleted is False  # Skip deleted files for performance
-        assert profile.include_system_files is False  # Skip system files for performance
+        assert profile.export_format == "sqlite"        assert profile.chunk_size >= 1000        assert profile.include_deleted is False        assert profile.include_system_files is False  # Skip system files for performance

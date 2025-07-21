@@ -33,17 +33,11 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pytest pytest-cov pytest-asyncio
-        pip install -e .
-        # Install optional dependencies for full feature support
-        pip install PyYAML || echo "PyYAML not available"
+        pip install -e .        pip install PyYAML || echo "PyYAML not available"
 
     - name: Lint with flake8 (optional)
       run: |
-        pip install flake8 || echo "flake8 not available"
-        # Stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || echo "Lint warnings found"
-        # Exit-zero treats all errors as warnings
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics || echo "Lint check completed"
+        pip install flake8 || echo "flake8 not available"        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || echo "Lint warnings found"        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics || echo "Lint check completed"
 
     - name: Generate test MFT files
       run: |
@@ -63,9 +57,7 @@ jobs:
     - name: Test SQLite export
       run: |
         python analyzeMFT.py -f test_normal.mft -o test_output.db --sqlite -v
-        [ -f test_output.db ] && echo "SQLite export successful" || exit 1
-        # Verify SQLite database is readable
-        python -c "import sqlite3; conn=sqlite3.connect('test_output.db'); cursor=conn.cursor(); cursor.execute('SELECT COUNT(*) FROM mft_records'); print(f'SQLite contains {cursor.fetchone()[0]} records'); conn.close()"
+        [ -f test_output.db ] && echo "SQLite export successful" || exit 1        python -c "import sqlite3; conn=sqlite3.connect('test_output.db'); cursor=conn.cursor(); cursor.execute('SELECT COUNT(*) FROM mft_records'); print(f'SQLite contains {cursor.fetchone()[0]} records'); conn.close()"
 
     - name: Test XML export
       run: |
@@ -108,14 +100,9 @@ jobs:
         python analyzeMFT.py -f test_normal.mft -o test_hashes.csv --hash -v
 
     - name: Validate output files
-      run: |
-        # Check that output files are not empty and contain expected content
-        [ -s test_output.csv ] && echo "CSV file has content" || exit 1
+      run: |        [ -s test_output.csv ] && echo "CSV file has content" || exit 1
         [ -s test_output.json ] && echo "JSON file has content" || exit 1
-        [ -s test_output.db ] && echo "SQLite file has content" || exit 1
-        
-        # Basic content validation
-        grep -q "Record Number" test_output.csv && echo "CSV has header" || exit 1
+        [ -s test_output.db ] && echo "SQLite file has content" || exit 1        grep -q "Record Number" test_output.csv && echo "CSV has header" || exit 1
         python -c "import json; data=json.load(open('test_output.json')); print(f'JSON has {len(data)} records')" || exit 1
         python -c "import sqlite3; conn=sqlite3.connect('test_output.db'); tables=[row[0] for row in conn.execute('SELECT name FROM sqlite_master WHERE type=\"table\"')]; print(f'SQLite tables: {tables}')" || exit 1
 

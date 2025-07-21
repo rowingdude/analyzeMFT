@@ -38,18 +38,13 @@ class NumericValidationError(ValidationError):
 
 class ConfigValidationError(ValidationError):
     """Raised when configuration validation fails."""
-    pass
-
-# Security constants
-MAX_FILE_SIZE_GB = 10  # Maximum MFT file size in GB
-MIN_CHUNK_SIZE = 1
+    passMAX_FILE_SIZE_GB = 10MIN_CHUNK_SIZE = 1
 MAX_CHUNK_SIZE = 50000
 MIN_HASH_PROCESSES = 1
 MAX_HASH_PROCESSES = 32
 MIN_TEST_RECORDS = 1
 MAX_TEST_RECORDS = 1000000
-MFT_RECORD_SIZE = 1024  # Standard MFT record size
-MFT_MAGIC_SIGNATURE = b'FILE'
+MFT_RECORD_SIZE = 1024MFT_MAGIC_SIGNATURE = b'FILE'
 
 def validate_mft_file(file_path: str) -> Path:
     """
@@ -67,21 +62,12 @@ def validate_mft_file(file_path: str) -> Path:
         PermissionError: If file isn't readable
     """
     try:
-        path = Path(file_path).resolve()
-        
-        # Check file existence
-        if not path.exists():
+        path = Path(file_path).resolve()        if not path.exists():
             raise FileNotFoundError(f"MFT file not found: {file_path}")
             
         if not path.is_file():
-            raise MFTValidationError(f"Path is not a file: {file_path}")
-            
-        # Check file permissions
-        if not os.access(path, os.R_OK):
-            raise PermissionError(f"Cannot read MFT file: {file_path}")
-            
-        # Check file size limits
-        file_size = path.stat().st_size
+            raise MFTValidationError(f"Path is not a file: {file_path}")        if not os.access(path, os.R_OK):
+            raise PermissionError(f"Cannot read MFT file: {file_path}")        file_size = path.stat().st_size
         max_size = MAX_FILE_SIZE_GB * 1024**3
         
         if file_size == 0:
@@ -90,21 +76,13 @@ def validate_mft_file(file_path: str) -> Path:
         if file_size > max_size:
             raise MFTValidationError(
                 f"MFT file too large ({file_size / 1024**3:.1f}GB > {MAX_FILE_SIZE_GB}GB): {file_path}"
-            )
-            
-        # Check minimum size (at least one MFT record)
-        if file_size < MFT_RECORD_SIZE:
+            )        if file_size < MFT_RECORD_SIZE:
             raise MFTValidationError(
                 f"MFT file too small ({file_size} bytes < {MFT_RECORD_SIZE} bytes): {file_path}"
-            )
-            
-        # Validate MFT magic number signature
-        try:
+            )        try:
             with open(path, 'rb') as f:
                 magic = f.read(4)
-                if magic != MFT_MAGIC_SIGNATURE:
-                    # Allow files without magic signature with warning (some MFT files may not start with FILE)
-                    logger.warning(
+                if magic != MFT_MAGIC_SIGNATURE:                    logger.warning(
                         f"File does not start with expected MFT signature 'FILE': {file_path}. "
                         f"Found: {magic.hex() if magic else 'empty'}. Proceeding with analysis."
                     )
@@ -130,17 +108,12 @@ def validate_output_path(output_path: str) -> Path:
     Raises:
         PathValidationError: If path validation fails
     """
-    try:
-        # Check for path traversal attempts before resolving
-        if '..' in output_path:
+    try:        if '..' in output_path:
             raise PathValidationError(
                 f"Path traversal detected in output path: {output_path}"
             )
         
-        path = Path(output_path).resolve()
-                
-        # Check parent directory exists and is writable
-        parent_dir = path.parent
+        path = Path(output_path).resolve()        parent_dir = path.parent
         if not parent_dir.exists():
             raise PathValidationError(
                 f"Output directory does not exist: {parent_dir}"
@@ -149,10 +122,7 @@ def validate_output_path(output_path: str) -> Path:
         if not os.access(parent_dir, os.W_OK):
             raise PermissionError(
                 f"Cannot write to output directory: {parent_dir}"
-            )
-            
-        # Check if output file already exists (warn but don't fail)
-        if path.exists():
+            )        if path.exists():
             logger.warning(f"Output file already exists and will be overwritten: {output_path}")
             
         logger.info(f"Output path validation successful: {output_path}")
@@ -175,37 +145,26 @@ def validate_numeric_bounds(chunk_size: int, hash_processes: Optional[int] = Non
         
     Raises:
         NumericValidationError: If any parameter is out of bounds
-    """
-    # Validate chunk size
-    if not isinstance(chunk_size, int):
+    """    if not isinstance(chunk_size, int):
         raise NumericValidationError(f"Chunk size must be an integer, got: {type(chunk_size).__name__}")
         
     if chunk_size < MIN_CHUNK_SIZE or chunk_size > MAX_CHUNK_SIZE:
         raise NumericValidationError(
             f"Chunk size must be between {MIN_CHUNK_SIZE} and {MAX_CHUNK_SIZE}, got: {chunk_size}"
-        )
-    
-    # Validate hash processes if specified
-    if hash_processes is not None:
+        )    if hash_processes is not None:
         if not isinstance(hash_processes, int):
             raise NumericValidationError(f"Hash processes must be an integer, got: {type(hash_processes).__name__}")
             
         if hash_processes < MIN_HASH_PROCESSES or hash_processes > MAX_HASH_PROCESSES:
             raise NumericValidationError(
                 f"Hash processes must be between {MIN_HASH_PROCESSES} and {MAX_HASH_PROCESSES}, got: {hash_processes}"
-            )
-    
-    # Validate test records
-    if not isinstance(test_records, int):
+            )    if not isinstance(test_records, int):
         raise NumericValidationError(f"Test records must be an integer, got: {type(test_records).__name__}")
         
     if test_records < MIN_TEST_RECORDS or test_records > MAX_TEST_RECORDS:
         raise NumericValidationError(
             f"Test records must be between {MIN_TEST_RECORDS:,} and {MAX_TEST_RECORDS:,}, got: {test_records:,}"
-        )
-    
-    # Validate verbosity and debug levels
-    if not isinstance(verbosity, int) or verbosity < 0 or verbosity > 5:
+        )    if not isinstance(verbosity, int) or verbosity < 0 or verbosity > 5:
         raise NumericValidationError(f"Verbosity level must be between 0 and 5, got: {verbosity}")
         
     if not isinstance(debug, int) or debug < 0 or debug > 5:
@@ -231,10 +190,7 @@ def validate_export_format(export_format: str, output_file: str) -> str:
     valid_formats = ['csv', 'json', 'xml', 'excel', 'body', 'timeline', 'l2t', 'sqlite', 'tsk']
     
     if export_format not in valid_formats:
-        raise ValidationError(f"Invalid export format: {export_format}. Valid formats: {', '.join(valid_formats)}")
-    
-    # Check format-extension compatibility (warn only)
-    ext_mapping = {
+        raise ValidationError(f"Invalid export format: {export_format}. Valid formats: {', '.join(valid_formats)}")    ext_mapping = {
         'csv': ['.csv'],
         'json': ['.json'],
         'xml': ['.xml'],
@@ -242,8 +198,7 @@ def validate_export_format(export_format: str, output_file: str) -> str:
         'sqlite': ['.db', '.sqlite', '.sqlite3'],
         'body': ['.body'],
         'timeline': ['.timeline'],
-        'l2t': ['.csv'],  # log2timeline uses CSV format
-        'tsk': ['.body', '.bodyfile']
+        'l2t': ['.csv'],        'tsk': ['.body', '.bodyfile']
     }
     
     if export_format in ext_mapping:
@@ -251,10 +206,7 @@ def validate_export_format(export_format: str, output_file: str) -> str:
         output_ext = Path(output_file).suffix.lower()
         if output_ext not in expected_exts:
             logger.warning(f"Output file extension '{output_ext}' may not match export format '{export_format}'. "
-                          f"Expected: {', '.join(expected_exts)}")
-    
-    # Check format-specific dependencies
-    if export_format == 'excel':
+                          f"Expected: {', '.join(expected_exts)}")    if export_format == 'excel':
         try:
             import openpyxl
         except ImportError:
@@ -275,25 +227,13 @@ def validate_attribute_length(attr_len: int, offset: int, record_size: int, attr
         
     Raises:
         ValidationError: If attribute length is invalid
-    """
-    # Check for negative or zero length
-    if attr_len <= 0:
-        raise ValidationError(f"Invalid attribute length: {attr_len} (must be > 0)")
-    
-    # Check for unreasonably large length
-    if attr_len > record_size:
-        raise ValidationError(f"Attribute length {attr_len} exceeds record size {record_size}")
-    
-    # Check if attribute extends beyond record boundary
-    if offset + attr_len > record_size:
+    """    if attr_len <= 0:
+        raise ValidationError(f"Invalid attribute length: {attr_len} (must be > 0)")    if attr_len > record_size:
+        raise ValidationError(f"Attribute length {attr_len} exceeds record size {record_size}")    if offset + attr_len > record_size:
         raise ValidationError(
             f"Attribute extends beyond record boundary: offset={offset}, length={attr_len}, "
             f"record_size={record_size}"
-        )
-    
-    # Check for reasonable attribute size limits
-    if attr_len > record_size // 2:  # Attribute shouldn't be more than half the record
-        logger.warning(f"Large attribute detected: type={attr_type}, length={attr_len}, "
+        )    if attr_len > record_size // 2:        logger.warning(f"Large attribute detected: type={attr_type}, length={attr_len}, "
                       f"record_size={record_size}")
 
 def validate_config_schema(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -308,9 +248,7 @@ def validate_config_schema(config: Dict[str, Any]) -> Dict[str, Any]:
         
     Raises:
         ConfigValidationError: If configuration is invalid
-    """
-    # Define allowed configuration keys and their validation rules
-    schema = {
+    """    schema = {
         'chunk_size': {'type': int, 'min': MIN_CHUNK_SIZE, 'max': MAX_CHUNK_SIZE},
         'verbosity': {'type': int, 'min': 0, 'max': 5},
         'debug': {'type': int, 'min': 0, 'max': 5},
@@ -328,24 +266,15 @@ def validate_config_schema(config: Dict[str, Any]) -> Dict[str, Any]:
             logger.warning(f"Unknown configuration key: {key}")
             continue
             
-        rules = schema[key]
-        
-        # Type validation
-        expected_type = rules['type']
+        rules = schema[key]        expected_type = rules['type']
         if not isinstance(value, expected_type):
             raise ConfigValidationError(
                 f"Configuration key '{key}' must be {expected_type.__name__}, got: {type(value).__name__}"
-            )
-        
-        # Range validation for integers
-        if expected_type == int:
+            )        if expected_type == int:
             if 'min' in rules and value < rules['min']:
                 raise ConfigValidationError(f"Configuration key '{key}' must be >= {rules['min']}, got: {value}")
             if 'max' in rules and value > rules['max']:
-                raise ConfigValidationError(f"Configuration key '{key}' must be <= {rules['max']}, got: {value}")
-        
-        # Allowed values validation for strings
-        if expected_type == str and 'allowed' in rules:
+                raise ConfigValidationError(f"Configuration key '{key}' must be <= {rules['max']}, got: {value}")        if expected_type == str and 'allowed' in rules:
             if value not in rules['allowed']:
                 raise ConfigValidationError(
                     f"Configuration key '{key}' must be one of {rules['allowed']}, got: {value}"
@@ -369,15 +298,7 @@ def validate_paths_secure(input_file: str, output_file: str) -> Tuple[Path, Path
         
     Raises:
         ValidationError: If validation fails
-    """
-    # Validate input file
-    input_path = validate_mft_file(input_file)
-    
-    # Validate output path
-    output_path = validate_output_path(output_file)
-    
-    # Additional security check: ensure input and output are different
-    if input_path.resolve() == output_path.resolve():
+    """    input_path = validate_mft_file(input_file)    output_path = validate_output_path(output_file)    if input_path.resolve() == output_path.resolve():
         raise PathValidationError("Input and output files cannot be the same")
     
     return input_path, output_path

@@ -54,64 +54,29 @@ jobs:
     - name: Quick validation tests
       if: github.event.inputs.test_intensity == 'quick' || github.event_name == 'pull_request'
       run: |
-        echo "🏃 Running quick validation tests..."
-        
-        # Generate small test files
-        python analyzeMFT.py --generate-test-mft quick_test.mft --test-records 20
-        
-        # Test core functionality
-        python analyzeMFT.py -f quick_test.mft -o quick.csv --csv
-        python analyzeMFT.py -f quick_test.mft -o quick.db --sqlite
-        
-        # Basic validation
-        [ -s quick.csv ] && echo "✅ CSV export working"
+        echo "🏃 Running quick validation tests..."        python analyzeMFT.py --generate-test-mft quick_test.mft --test-records 20        python analyzeMFT.py -f quick_test.mft -o quick.csv --csv
+        python analyzeMFT.py -f quick_test.mft -o quick.db --sqlite        [ -s quick.csv ] && echo "✅ CSV export working"
         [ -s quick.db ] && echo "✅ SQLite export working"
 
     - name: Standard validation tests
       if: github.event.inputs.test_intensity == 'standard' || github.event.inputs.test_intensity == ''
       run: |
-        echo "🧪 Running standard validation tests..."
-        
-        # Generate test files
-        python analyzeMFT.py --generate-test-mft std_normal.mft --test-records 100 --test-type normal
-        python analyzeMFT.py --generate-test-mft std_anomaly.mft --test-records 50 --test-type anomaly
-        
-        # Test all export formats
-        python analyzeMFT.py -f std_normal.mft -o std.csv --csv -v
+        echo "🧪 Running standard validation tests..."        python analyzeMFT.py --generate-test-mft std_normal.mft --test-records 100 --test-type normal
+        python analyzeMFT.py --generate-test-mft std_anomaly.mft --test-records 50 --test-type anomaly        python analyzeMFT.py -f std_normal.mft -o std.csv --csv -v
         python analyzeMFT.py -f std_normal.mft -o std.json --json -v
         python analyzeMFT.py -f std_normal.mft -o std.db --sqlite -v
-        python analyzeMFT.py -f std_normal.mft -o std.xml --xml -v
-        
-        # Test profiles
-        python analyzeMFT.py --list-profiles
+        python analyzeMFT.py -f std_normal.mft -o std.xml --xml -v        python analyzeMFT.py --list-profiles
         python analyzeMFT.py -f std_normal.mft -o std_quick.csv --profile quick -v
-        python analyzeMFT.py -f std_normal.mft -o std_forensic.csv --profile forensic -v
-        
-        # Test config
-        python analyzeMFT.py --create-config test_config.json
-        python analyzeMFT.py -f std_normal.mft -o std_config.csv --config test_config.json -v
-        
-        # Test chunking and hashing
-        python analyzeMFT.py -f std_normal.mft -o std_chunk.csv --chunk-size 25 -v
-        python analyzeMFT.py -f std_normal.mft -o std_hash.csv --hash -v
-        
-        # Validate outputs
-        python -c "
-import csv, json, sqlite3
-# Validate CSV
-with open('std.csv') as f:
+        python analyzeMFT.py -f std_normal.mft -o std_forensic.csv --profile forensic -v        python analyzeMFT.py --create-config test_config.json
+        python analyzeMFT.py -f std_normal.mft -o std_config.csv --config test_config.json -v        python analyzeMFT.py -f std_normal.mft -o std_chunk.csv --chunk-size 25 -v
+        python analyzeMFT.py -f std_normal.mft -o std_hash.csv --hash -v        python -c "
+import csv, json, sqlite3with open('std.csv') as f:
     rows = list(csv.reader(f))
     assert len(rows) > 1, 'CSV should have data'
-    print(f'✅ CSV has {len(rows)-1} records')
-
-# Validate JSON  
-with open('std.json') as f:
+    print(f'✅ CSV has {len(rows)-1} records')with open('std.json') as f:
     data = json.load(f)
     assert len(data) > 0, 'JSON should have data'
-    print(f'✅ JSON has {len(data)} records')
-
-# Validate SQLite
-conn = sqlite3.connect('std.db')
+    print(f'✅ JSON has {len(data)} records')conn = sqlite3.connect('std.db')
 cursor = conn.cursor()
 cursor.execute('SELECT COUNT(*) FROM mft_records')
 count = cursor.fetchone()[0]
@@ -123,14 +88,8 @@ conn.close()
     - name: Comprehensive validation tests
       if: github.event.inputs.test_intensity == 'comprehensive'
       run: |
-        echo "🔬 Running comprehensive validation tests..."
-        
-        # Generate larger test files
-        python analyzeMFT.py --generate-test-mft comp_normal.mft --test-records 500 --test-type normal
-        python analyzeMFT.py --generate-test-mft comp_anomaly.mft --test-records 200 --test-type anomaly
-        
-        # Test all export formats with both files
-        for format in csv json xml sqlite body timeline tsk; do
+        echo "🔬 Running comprehensive validation tests..."        python analyzeMFT.py --generate-test-mft comp_normal.mft --test-records 500 --test-type normal
+        python analyzeMFT.py --generate-test-mft comp_anomaly.mft --test-records 200 --test-type anomaly        for format in csv json xml sqlite body timeline tsk; do
           echo "Testing $format format..."
           case $format in
             csv) flag="--csv" ;;
@@ -144,18 +103,12 @@ conn.close()
           
           python analyzeMFT.py -f comp_normal.mft -o "comp_normal.$format" $flag -v
           python analyzeMFT.py -f comp_anomaly.mft -o "comp_anomaly.$format" $flag -v
-        done
-        
-        # Test all profiles with different chunk sizes
-        for profile in default quick forensic performance; do
+        done        for profile in default quick forensic performance; do
           for chunk in 10 50 100; do
             echo "Testing profile $profile with chunk size $chunk..."
             python analyzeMFT.py -f comp_normal.mft -o "comp_${profile}_${chunk}.csv" --profile $profile --chunk-size $chunk -v
           done
-        done
-        
-        # Memory and performance test
-        echo "Running performance test..."
+        done        echo "Running performance test..."
         python -c "
 import time, subprocess, os
 start = time.time()
@@ -167,17 +120,8 @@ print(f'⚡ Processed {size} bytes in {duration:.2f}s ({500/duration:.1f} rec/s)
 
     - name: Security and error handling tests
       run: |
-        echo "🔒 Running security and error handling tests..."
-        
-        # Test with invalid inputs
-        python analyzeMFT.py -f nonexistent.mft -o error.csv 2>&1 | grep -q "Error\|No such file" && echo "✅ Proper error handling for missing files"
-        
-        # Test with invalid MFT data
-        echo "Invalid MFT data" > invalid.mft
-        python analyzeMFT.py -f invalid.mft -o invalid.csv 2>&1 | grep -q "Error\|Invalid" && echo "✅ Proper error handling for invalid MFT files"
-        
-        # Test permission handling
-        touch readonly.mft
+        echo "🔒 Running security and error handling tests..."        python analyzeMFT.py -f nonexistent.mft -o error.csv 2>&1 | grep -q "Error\|No such file" && echo "✅ Proper error handling for missing files"        echo "Invalid MFT data" > invalid.mft
+        python analyzeMFT.py -f invalid.mft -o invalid.csv 2>&1 | grep -q "Error\|Invalid" && echo "✅ Proper error handling for invalid MFT files"        touch readonly.mft
         chmod 000 readonly.mft 2>/dev/null || echo "Skipping permission test on this platform"
         python analyzeMFT.py -f readonly.mft -o readonly.csv 2>&1 | grep -q "Error\|Permission" && echo "✅ Proper error handling for permission issues" || echo "⚠️ Permission test skipped"
         chmod 644 readonly.mft 2>/dev/null || true
@@ -271,39 +215,16 @@ print(f'⚡ Processed {size} bytes in {duration:.2f}s ({500/duration:.1f} rec/s)
       run: |
         gh release create "v${{ needs.pre-release-tests.outputs.version }}" \
           --title "Release v${{ needs.pre-release-tests.outputs.version }}" \
-          --notes "## analyzeMFT v${{ needs.pre-release-tests.outputs.version }}
-        
-        ### ✨ What's New
-        - Automated release with comprehensive testing
-        - All functionality validated across multiple platforms
-        
-        ### 🧪 Test Results
-        - ✅ All export formats working (CSV, JSON, XML, SQLite, Body, Timeline, TSK)
+          --notes "## analyzeMFT v${{ needs.pre-release-tests.outputs.version }}        - Automated release with comprehensive testing
+        - All functionality validated across multiple platforms        - ✅ All export formats working (CSV, JSON, XML, SQLite, Body, Timeline, TSK)
         - ✅ All analysis profiles working (Default, Quick, Forensic, Performance)
         - ✅ Configuration system working
         - ✅ Chunked processing working
         - ✅ Hash computation working
         - ✅ Error handling working
-        - ✅ Cross-platform compatibility verified
-        
-        ### 📦 Installation
-        \`\`\`bash
+        - ✅ Cross-platform compatibility verified        \`\`\`bash
         pip install analyzeMFT
-        \`\`\`
-        
-        ### 🚀 Quick Start
-        \`\`\`bash
-        # Generate test MFT file
-        python analyzeMFT.py --generate-test-mft test.mft --test-records 100
-        
-        # Analyze and export to CSV
-        python analyzeMFT.py -f test.mft -o output.csv --csv -v
-        
-        # Analyze and export to SQLite database
-        python analyzeMFT.py -f test.mft -o output.db --sqlite -v
-        
-        # Use forensic analysis profile
-        python analyzeMFT.py -f test.mft -o forensic.csv --profile forensic -v
+        \`\`\`        \`\`\`bash        python analyzeMFT.py --generate-test-mft test.mft --test-records 100        python analyzeMFT.py -f test.mft -o output.csv --csv -v        python analyzeMFT.py -f test.mft -o output.db --sqlite -v        python analyzeMFT.py -f test.mft -o forensic.csv --profile forensic -v
         \`\`\`"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

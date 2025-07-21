@@ -45,10 +45,7 @@ class TestMFTFileValidation:
     
     def test_validate_mft_file_valid_with_signature(self):
         """Test validation succeeds for valid MFT file with signature"""
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            # Create a file with MFT signature and minimum size
-            tmp.write(b"FILE" + b"\x00" * 1020)  # 1024 bytes total
-            tmp_path = tmp.name
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:            tmp.write(b"FILE" + b"\x00" * 1020)            tmp_path = tmp.name
         
         try:
             result = validate_mft_file(tmp_path)
@@ -58,10 +55,7 @@ class TestMFTFileValidation:
     
     def test_validate_mft_file_valid_without_signature(self):
         """Test validation succeeds for valid MFT file without signature (with warning)"""
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            # Create a file without MFT signature but valid size
-            tmp.write(b"XXXX" + b"\x00" * 1020)  # 1024 bytes total
-            tmp_path = tmp.name
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:            tmp.write(b"XXXX" + b"\x00" * 1020)            tmp_path = tmp.name
         
         try:
             with patch('src.analyzeMFT.validators.logger') as mock_logger:
@@ -71,13 +65,9 @@ class TestMFTFileValidation:
         finally:
             os.unlink(tmp_path)
     
-    @patch('src.analyzeMFT.validators.MAX_FILE_SIZE_GB', 0.000001)  # Very small limit
-    def test_validate_mft_file_too_large(self):
+    @patch('src.analyzeMFT.validators.MAX_FILE_SIZE_GB', 0.000001)    def test_validate_mft_file_too_large(self):
         """Test validation fails for file exceeding size limit"""
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            # Create a file larger than our tiny test limit
-            tmp.write(b"\x00" * 2048)  # Larger than 0.000001 GB
-            tmp_path = tmp.name
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:            tmp.write(b"\x00" * 2048)            tmp_path = tmp.name
         
         try:
             with pytest.raises(MFTValidationError, match="MFT file too large"):
@@ -121,8 +111,7 @@ class TestNumericValidation:
     
     def test_validate_chunk_size_valid(self):
         """Test valid chunk size passes validation"""
-        validate_numeric_bounds(chunk_size=1000)  # Should not raise
-    
+        validate_numeric_bounds(chunk_size=1000)    
     def test_validate_chunk_size_too_small(self):
         """Test chunk size below minimum fails"""
         with pytest.raises(NumericValidationError, match="Chunk size must be between"):
@@ -135,8 +124,7 @@ class TestNumericValidation:
     
     def test_validate_hash_processes_valid(self):
         """Test valid hash processes count passes validation"""
-        validate_numeric_bounds(chunk_size=1000, hash_processes=4)  # Should not raise
-    
+        validate_numeric_bounds(chunk_size=1000, hash_processes=4)    
     def test_validate_hash_processes_too_small(self):
         """Test hash processes below minimum fails"""
         with pytest.raises(NumericValidationError, match="Hash processes must be between"):
@@ -149,8 +137,7 @@ class TestNumericValidation:
     
     def test_validate_test_records_valid(self):
         """Test valid test records count passes validation"""
-        validate_numeric_bounds(chunk_size=1000, test_records=500)  # Should not raise
-    
+        validate_numeric_bounds(chunk_size=1000, test_records=500)    
     def test_validate_test_records_too_large(self):
         """Test test records above maximum fails"""
         with pytest.raises(NumericValidationError, match="Test records must be between"):
@@ -158,8 +145,7 @@ class TestNumericValidation:
     
     def test_validate_verbosity_debug_levels(self):
         """Test verbosity and debug level validation"""
-        validate_numeric_bounds(chunk_size=1000, verbosity=2, debug=1)  # Should not raise
-        
+        validate_numeric_bounds(chunk_size=1000, verbosity=2, debug=1)        
         with pytest.raises(NumericValidationError, match="Verbosity level must be between"):
             validate_numeric_bounds(chunk_size=1000, verbosity=10)
         
@@ -196,8 +182,7 @@ class TestAttributeLengthValidation:
     
     def test_validate_attribute_length_valid(self):
         """Test valid attribute length passes validation"""
-        validate_attribute_length(attr_len=100, offset=50, record_size=1024)  # Should not raise
-    
+        validate_attribute_length(attr_len=100, offset=50, record_size=1024)    
     def test_validate_attribute_length_zero(self):
         """Test zero attribute length fails validation"""
         with pytest.raises(ValidationError, match="Invalid attribute length: 0"):
@@ -268,9 +253,7 @@ class TestPathsSecureValidation:
     
     def test_validate_paths_secure_same_file(self):
         """Test validation fails when input and output are the same file"""
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            # Create valid MFT file
-            tmp.write(b"FILE" + b"\x00" * 1020)
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:            tmp.write(b"FILE" + b"\x00" * 1020)
             tmp_path = tmp.name
         
         try:
@@ -281,9 +264,7 @@ class TestPathsSecureValidation:
     
     def test_validate_paths_secure_valid(self):
         """Test validation succeeds for valid input and output paths"""
-        with tempfile.NamedTemporaryFile(delete=False) as input_tmp:
-            # Create valid MFT file
-            input_tmp.write(b"FILE" + b"\x00" * 1020)
+        with tempfile.NamedTemporaryFile(delete=False) as input_tmp:            input_tmp.write(b"FILE" + b"\x00" * 1020)
             input_path = input_tmp.name
         
         with tempfile.TemporaryDirectory() as tmpdir:

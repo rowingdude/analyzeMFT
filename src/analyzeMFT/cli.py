@@ -13,9 +13,7 @@ from .validators import (
     PathValidationError, NumericValidationError, ConfigValidationError
 )
 
-async def main():
-    # Setup basic logging configuration (will be refined by analyzer)
-    logging.basicConfig(
+async def main():    logging.basicConfig(
         level=logging.WARNING,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
@@ -66,10 +64,7 @@ async def main():
                                 help="Disable multiprocessing for hash computation", default=True)
     performance_group.add_option("--hash-processes", dest="hash_processes", type="int",
                                 help="Number of processes for hash computation (default: auto-detect)")
-    parser.add_option_group(performance_group)
-    
-    # Configuration options
-    config_group = OptionGroup(parser, "Configuration Options")
+    parser.add_option_group(performance_group)    config_group = OptionGroup(parser, "Configuration Options")
     config_group.add_option("-c", "--config", dest="config_file", metavar="FILE",
                            help="Load configuration from JSON/YAML file")
     config_group.add_option("--profile", dest="profile_name", metavar="NAME",
@@ -78,10 +73,7 @@ async def main():
                            help="List available analysis profiles and exit")
     config_group.add_option("--create-config", dest="create_config", metavar="FILE",
                            help="Create a sample configuration file and exit")
-    parser.add_option_group(config_group)
-    
-    # Test options
-    test_group = OptionGroup(parser, "Test Options")
+    parser.add_option_group(config_group)    test_group = OptionGroup(parser, "Test Options")
     test_group.add_option("--test-mode", action="store_true", dest="test_mode",
                          help="Generate test MFT file and run analysis")
     test_group.add_option("--generate-test-mft", dest="generate_test_mft", metavar="FILE",
@@ -92,13 +84,7 @@ async def main():
                          default="normal", help="Type of test MFT to generate (normal, anomaly)")
     parser.add_option_group(test_group)
 
-    (options, args) = parser.parse_args()
-    
-    # Initialize configuration manager
-    config_manager = ConfigManager()
-    
-    # Handle special actions first
-    if options.list_profiles:
+    (options, args) = parser.parse_args()    config_manager = ConfigManager()    if options.list_profiles:
         profiles = config_manager.list_profiles()
         print("\nAvailable analysis profiles:")
         for name, description in profiles.items():
@@ -126,10 +112,7 @@ async def main():
             sys.exit(0)
         except Exception as e:
             logging.error(f"Failed to generate test MFT file: {e}")
-            sys.exit(1)
-    
-    # Load configuration if specified
-    profile = None
+            sys.exit(1)    profile = None
     
     if options.config_file:
         try:
@@ -148,9 +131,7 @@ async def main():
             sys.exit(1)
         logging.info(f"Using profile: {options.profile_name}")
     
-    else:
-        # Try to find default configuration file
-        default_config = find_config_file()
+    else:        default_config = find_config_file()
         if default_config:
             try:
                 config_data = config_manager.load_config_file(default_config)
@@ -158,12 +139,7 @@ async def main():
                 logging.info(f"Loaded default configuration from {default_config}")
             except Exception as e:
                 logging.warning(f"Failed to load default configuration file {default_config}: {e}")
-                logging.warning("Continuing with command-line options only")
-    
-    # Apply configuration profile settings, with CLI options taking precedence
-    if profile:
-        # Update options with profile values where CLI didn't specify them
-        if not options.export_format:
+                logging.warning("Continuing with command-line options only")    if profile:        if not options.export_format:
             options.export_format = profile.export_format
         if options.compute_hashes is False and profile.compute_hashes:
             options.compute_hashes = profile.compute_hashes
@@ -171,25 +147,16 @@ async def main():
             options.verbosity = profile.verbosity
         if options.debug == 0:
             options.debug = profile.debug
-        if options.chunk_size == 1000:  # Default value
-            options.chunk_size = profile.chunk_size
-    
-    # Handle test mode
-    if options.test_mode:
+        if options.chunk_size == 1000:            options.chunk_size = profile.chunk_size    if options.test_mode:
         test_mft_file = "test_sample.mft"
         test_output_file = "test_output.csv"
         
-        try:
-            # Generate test MFT
-            logging.warning(f"Test mode: Generating test MFT file {test_mft_file}")
+        try:            logging.warning(f"Test mode: Generating test MFT file {test_mft_file}")
             create_test_mft(
                 output_path=test_mft_file,
                 num_records=options.test_records,
                 test_type=options.test_type
-            )
-            
-            # Override options for test
-            options.filename = test_mft_file
+            )            options.filename = test_mft_file
             if not options.output_file:
                 options.output_file = test_output_file
             
@@ -207,34 +174,16 @@ async def main():
     if not options.output_file:
         parser.print_help()
         logging.error("\nError: No output file specified. Use -o or --output to specify an output file.")
-        sys.exit(1)
-
-    # Default to CSV if no format specified
-    if not options.export_format:
-        options.export_format = "csv"  
-
-    # ========== INPUT VALIDATION ==========
-    # Comprehensive validation of all inputs before processing
-    try:
-        # Validate numeric parameters
-        validate_numeric_bounds(
+        sys.exit(1)    if not options.export_format:
+        options.export_format = "csv"    try:        validate_numeric_bounds(
             chunk_size=options.chunk_size,
             hash_processes=options.hash_processes,
             test_records=options.test_records,
             verbosity=options.verbosity,
             debug=options.debug
-        )
-        
-        # Validate export format and dependencies
-        validate_export_format(options.export_format, options.output_file)
-        
-        # Validate and secure file paths
-        validated_input, validated_output = validate_paths_secure(
+        )        validate_export_format(options.export_format, options.output_file)        validated_input, validated_output = validate_paths_secure(
             options.filename, options.output_file
-        )
-        
-        # Update options with validated paths
-        options.filename = str(validated_input)
+        )        options.filename = str(validated_input)
         options.output_file = str(validated_output)
         
         logging.info("All input validation checks passed successfully")
@@ -245,8 +194,6 @@ async def main():
     except Exception as e:
         logging.error(f"Unexpected error during validation: {e}")
         sys.exit(1)
-    # ========== END INPUT VALIDATION ==========
-
     try:
         analyzer = MftAnalyzer(
             options.filename, 

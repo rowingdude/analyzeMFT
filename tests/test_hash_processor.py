@@ -52,8 +52,7 @@ class TestHashProcessor:
         processor = HashProcessor()
         
         assert processor.num_processes > 0
-        assert processor.num_processes <= 8  # Should be capped
-        assert processor.logger is not None
+        assert processor.num_processes <= 8        assert processor.logger is not None
     
     def test_hash_processor_initialization_custom(self):
         """Test HashProcessor initialization with custom parameters."""
@@ -65,9 +64,7 @@ class TestHashProcessor:
     def test_hash_processor_initialization_auto_detect(self):
         """Test HashProcessor CPU core auto-detection."""
         with patch('multiprocessing.cpu_count', return_value=16):
-            processor = HashProcessor()
-            # Should be capped at 8 even with 16 cores
-            assert processor.num_processes == 8
+            processor = HashProcessor()            assert processor.num_processes == 8
         
         with patch('multiprocessing.cpu_count', return_value=2):
             processor = HashProcessor()
@@ -83,10 +80,7 @@ class TestHashProcessor:
         results = processor.compute_hashes_single_threaded(records)
         
         assert len(results) == 1
-        result = results[0]
-        
-        # Verify hash values
-        expected_md5 = hashlib.md5(test_data).hexdigest()
+        result = results[0]        expected_md5 = hashlib.md5(test_data).hexdigest()
         expected_sha256 = hashlib.sha256(test_data).hexdigest()
         expected_sha512 = hashlib.sha512(test_data).hexdigest()
         expected_crc32 = f"{zlib.crc32(test_data) & 0xffffffff:08x}"
@@ -110,10 +104,7 @@ class TestHashProcessor:
         
         results = processor.compute_hashes_single_threaded(test_records)
         
-        assert len(results) == len(test_records)
-        
-        # Verify each result corresponds to correct input
-        for i, (record_data, result) in enumerate(zip(test_records, results)):
+        assert len(results) == len(test_records)        for i, (record_data, result) in enumerate(zip(test_records, results)):
             expected_md5 = hashlib.md5(record_data).hexdigest()
             expected_sha256 = hashlib.sha256(record_data).hexdigest()
             
@@ -146,76 +137,43 @@ class TestHashProcessor:
     
     def test_compute_hashes_adaptive_small_batch(self):
         """Test adaptive processing with small batch (should use single-threaded)."""
-        processor = HashProcessor(num_processes=4, logger=self.logger)
-        
-        # Small batch should trigger single-threaded processing
-        small_batch = [b"data1", b"data2", b"data3"]  # Only 3 records
-        
+        processor = HashProcessor(num_processes=4, logger=self.logger)        small_batch = [b"data1", b"data2", b"data3"]        
         with patch.object(processor, 'compute_hashes_single_threaded') as mock_single:
             mock_single.return_value = [HashResult(0, "md5", "sha256", "sha512", "crc32", 0.001)] * 3
             
-            results = processor.compute_hashes_adaptive(small_batch)
-            
-            # Should call single-threaded method once
-            mock_single.assert_called_once_with(small_batch)
+            results = processor.compute_hashes_adaptive(small_batch)            mock_single.assert_called_once_with(small_batch)
     
     def test_compute_hashes_adaptive_large_batch(self):
         """Test adaptive processing with large batch (should use multiprocessing)."""
-        processor = HashProcessor(num_processes=2, logger=self.logger)
-        
-        # Large batch should trigger multiprocessing - need enough records to meet threshold
-        # Based on implementation: len(records) >= 50 AND cpu_count > 1 AND len(records) >= cpu_count * 10
-        with patch('multiprocessing.cpu_count', return_value=4):
-            large_batch = [f"data{i}".encode() for i in range(100)]  # 100 records > 50 and > 4*10
-            
+        processor = HashProcessor(num_processes=2, logger=self.logger)        with patch('multiprocessing.cpu_count', return_value=4):
+            large_batch = [f"data{i}".encode() for i in range(100)]            
             with patch.object(processor, 'compute_hashes_multiprocessed') as mock_multi:
                 mock_multi.return_value = [HashResult(i, "md5", "sha256", "sha512", "crc32", 0.001) for i in range(100)]
                 
-                results = processor.compute_hashes_adaptive(large_batch)
-                
-                # Should call multiprocessed method once
-                mock_multi.assert_called_once_with(large_batch)
+                results = processor.compute_hashes_adaptive(large_batch)                mock_multi.assert_called_once_with(large_batch)
     
     def test_compute_hashes_different_data_types(self):
         """Test computing hashes for different types of binary data."""
         processor = HashProcessor(num_processes=1, logger=self.logger)
         
         test_cases = [
-            b"",  # Empty data
-            b"a",  # Single byte
-            b"Hello" * 1000,  # Repeated pattern
-            bytes(range(256)),  # All possible byte values
-            b"\x00" * 1024,  # Null bytes
-        ]
+            b"",            b"a",            b"Hello" * 1000,            bytes(range(256)),            b"\x00" * 1024,        ]
         
         results = processor.compute_hashes_single_threaded(test_cases)
         
-        assert len(results) == len(test_cases)
-        
-        # Verify each result is valid
-        for i, result in enumerate(results):
+        assert len(results) == len(test_cases)        for i, result in enumerate(results):
             assert isinstance(result, HashResult)
-            assert len(result.md5) == 32  # MD5 hex length
-            assert len(result.sha256) == 64  # SHA256 hex length
-            assert len(result.sha512) == 128  # SHA512 hex length
-            assert len(result.crc32) == 8  # CRC32 hex length
-            assert result.record_index == i
+            assert len(result.md5) == 32            assert len(result.sha256) == 64            assert len(result.sha512) == 128            assert len(result.crc32) == 8            assert result.record_index == i
     
     def test_compute_hashes_large_record(self):
         """Test computing hashes for large individual record."""
-        processor = HashProcessor(num_processes=1, logger=self.logger)
-        
-        # Create 1MB of test data
-        large_data = b"A" * (1024 * 1024)
+        processor = HashProcessor(num_processes=1, logger=self.logger)        large_data = b"A" * (1024 * 1024)
         records = [large_data]
         
         results = processor.compute_hashes_single_threaded(records)
         
         assert len(results) == 1
-        result = results[0]
-        
-        # Verify hashes are computed correctly for large data
-        expected_md5 = hashlib.md5(large_data).hexdigest()
+        result = results[0]        expected_md5 = hashlib.md5(large_data).hexdigest()
         assert result.md5 == expected_md5
         assert result.record_index == 0
     
@@ -231,9 +189,7 @@ class TestHashProcessor:
         
         assert len(results1) == len(results2)
         
-        for r1, r2 in zip(results1, results2):
-            # Compare all fields except processing_time which may vary
-            assert r1.record_index == r2.record_index
+        for r1, r2 in zip(results1, results2):            assert r1.record_index == r2.record_index
             assert r1.md5 == r2.md5
             assert r1.sha256 == r2.sha256
             assert r1.sha512 == r2.sha512
@@ -245,49 +201,31 @@ class TestHashProcessor:
         
         test_data = [b"data1", b"data2", b"data3"]
         
-        results = processor.compute_hashes_single_threaded(test_data)
-        
-        # Should have logged performance information
-        # Check that stats were populated
-        stats = processor.get_performance_stats()
+        results = processor.compute_hashes_single_threaded(test_data)        stats = processor.get_performance_stats()
         assert stats['total_records'] == 3
         assert stats['total_processing_time'] > 0
         assert len(results) == 3
     
     def test_error_handling_invalid_data(self):
         """Test error handling for invalid input data."""
-        processor = HashProcessor(num_processes=1, logger=self.logger)
-        
-        # Test with None in the list
-        with pytest.raises((TypeError, AttributeError)):
+        processor = HashProcessor(num_processes=1, logger=self.logger)        with pytest.raises((TypeError, AttributeError)):
             processor.compute_hashes_single_threaded([b"valid", None, b"also valid"])
     
     def test_hash_processor_with_zero_processes(self):
-        """Test HashProcessor initialization with zero processes."""
-        # Should default to optimal value since None is passed
-        processor = HashProcessor(num_processes=None, logger=self.logger)
+        """Test HashProcessor initialization with zero processes."""        processor = HashProcessor(num_processes=None, logger=self.logger)
         assert processor.num_processes >= 1
     
     def test_hash_processor_with_negative_processes(self):
-        """Test HashProcessor initialization with negative processes."""
-        # Should default to auto-detected value since None is passed
-        processor = HashProcessor(num_processes=None, logger=self.logger)
+        """Test HashProcessor initialization with negative processes."""        processor = HashProcessor(num_processes=None, logger=self.logger)
         assert processor.num_processes > 0
     
     def test_compute_hashes_order_preservation(self):
         """Test that hash results maintain input order."""
-        processor = HashProcessor(num_processes=2, logger=self.logger)
-        
-        # Create test data with easily identifiable results
-        test_records = [f"record_{i:03d}".encode() for i in range(10)]
+        processor = HashProcessor(num_processes=2, logger=self.logger)        test_records = [f"record_{i:03d}".encode() for i in range(10)]
         
         results = processor.compute_hashes_single_threaded(test_records)
         
-        assert len(results) == len(test_records)
-        
-        # Verify order is preserved by checking that hash of record_i 
-        # matches the expected hash at position i
-        for i, (record_data, result) in enumerate(zip(test_records, results)):
+        assert len(results) == len(test_records)        for i, (record_data, result) in enumerate(zip(test_records, results)):
             expected_md5 = hashlib.md5(record_data).hexdigest()
             assert result.md5 == expected_md5
             assert result.record_index == i

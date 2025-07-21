@@ -237,6 +237,11 @@ async def main():
         logging.error(f"Error: Permission denied when trying to read '{options.filename}' or write to '{options.output_file}'.")
         sys.exit(1)
 
+    except KeyboardInterrupt:
+        
+        logging.warning("Operation interrupted by user")
+        sys.exit(1)
+
     except Exception as e:
         
         logging.error(f"An unexpected error occurred: {str(e)}")

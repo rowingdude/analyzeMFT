@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from typing import Dict, Any, Optional, Union
 from dataclasses import dataclass, asdict
+from .validators import validate_config_schema, ConfigValidationError
 
 try:
     import yaml
@@ -137,11 +138,19 @@ class ConfigManager:
     
     def load_profile_from_config(self, config: Dict[str, Any], profile_name: str = "custom") -> AnalysisProfile:
         """Create an AnalysisProfile from configuration dictionary"""
+        # Validate configuration schema first
+        try:
+            validated_config = validate_config_schema(config)
+            self.logger.info(f"Configuration validation successful for profile '{profile_name}'")
+        except ConfigValidationError as e:
+            self.logger.error(f"Configuration validation failed for profile '{profile_name}': {e}")
+            raise
+        
         # Start with default profile
         profile_data = asdict(self.profiles['default'])
         
-        # Update with configuration values
-        profile_data.update(config)
+        # Update with validated configuration values
+        profile_data.update(validated_config)
         profile_data['name'] = profile_name
         
         return AnalysisProfile(**profile_data)

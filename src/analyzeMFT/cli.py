@@ -7,6 +7,11 @@ from .mft_analyzer import MftAnalyzer
 from .constants import VERSION
 from .config import ConfigManager, find_config_file
 from .test_generator import create_test_mft
+from .validators import (
+    validate_paths_secure, validate_numeric_bounds, validate_export_format,
+    validate_config_schema, ValidationError, MFTValidationError, 
+    PathValidationError, NumericValidationError, ConfigValidationError
+)
 
 async def main():
     # Setup basic logging configuration (will be refined by analyzer)
@@ -207,6 +212,40 @@ async def main():
     # Default to CSV if no format specified
     if not options.export_format:
         options.export_format = "csv"  
+
+    # ========== INPUT VALIDATION ==========
+    # Comprehensive validation of all inputs before processing
+    try:
+        # Validate numeric parameters
+        validate_numeric_bounds(
+            chunk_size=options.chunk_size,
+            hash_processes=options.hash_processes,
+            test_records=options.test_records,
+            verbosity=options.verbosity,
+            debug=options.debug
+        )
+        
+        # Validate export format and dependencies
+        validate_export_format(options.export_format, options.output_file)
+        
+        # Validate and secure file paths
+        validated_input, validated_output = validate_paths_secure(
+            options.filename, options.output_file
+        )
+        
+        # Update options with validated paths
+        options.filename = str(validated_input)
+        options.output_file = str(validated_output)
+        
+        logging.info("All input validation checks passed successfully")
+        
+    except ValidationError as e:
+        logging.error(f"Validation Error: {e}")
+        sys.exit(1)
+    except Exception as e:
+        logging.error(f"Unexpected error during validation: {e}")
+        sys.exit(1)
+    # ========== END INPUT VALIDATION ==========
 
     try:
         analyzer = MftAnalyzer(

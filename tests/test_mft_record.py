@@ -311,8 +311,10 @@ def test_parse_security_descriptor(mft_record):
     assert mft_record.security_descriptor['dacl_offset'] == 80
 
 def test_parse_attribute_list(mft_record):
-    entry1 = struct.pack("<LHHBBQQ", 0x10, 24, 0, 0, 24, 0, 0, 1)
-    entry2 = struct.pack("<LHHBBQQ", 0x30, 24, 0, 0, 24, 0, 0, 2)
+    # Proper attribute list entry structure:
+    # DWORD type, WORD record length, BYTE name length, BYTE name offset, QWORD vcn, QWORD reference
+    entry1 = struct.pack("<LHBB", 0x10, 24, 0, 0) + struct.pack("<QQ", 0, 1)
+    entry2 = struct.pack("<LHBB", 0x30, 24, 0, 0) + struct.pack("<QQ", 0, 2)
     attr_list_data = entry1 + entry2
     offset = 56
     add_attribute(mft_record.raw_record, offset, ATTRIBUTE_LIST_ATTRIBUTE, attr_list_data)
@@ -327,11 +329,11 @@ def test_parse_attribute_list(mft_record):
 
 def test_parse_multiple_attributes(mft_record):
     offset = 56
-    si_data = struct.pack("<QQQQLLLQQQ", 
+    si_data = struct.pack("<QQQQLLL", 
         131092560000000000, 131092560000000001, 131092560000000002, 131092560000000003,
-        0x80, 0, 0, 0, 0, 0)
+        0x80, 0, 0) + struct.pack("<QQQ", 0, 0, 0)
     offset = add_attribute(mft_record.raw_record, offset, STANDARD_INFORMATION_ATTRIBUTE, si_data)
-    fn_data = struct.pack("<QQQQQQLLLLBB", 
+    fn_data = struct.pack("<QQQQQQQLLBB", 
         5, 131000000000000, 131000000000001, 131000000000002, 131000000000003,
         1024, 1024, FILE_RECORD_IN_USE, 0, 8, 0) + "test.txt".encode('utf-16le')
     offset = add_attribute(mft_record.raw_record, offset, FILE_NAME_ATTRIBUTE, fn_data)
@@ -348,7 +350,8 @@ def test_parse_multiple_attributes(mft_record):
     assert mft_record.data_attribute['content_size'] == len(data_content)
 
 def test_parse_directory_record(mft_record):
-    mft_record.flags = FILE_RECORD_IN_USE | FILE_RECORD_IS_DIRECTORY
+    # Set the directory flag in the raw record
+    struct.pack_into("<H", mft_record.raw_record, 22, FILE_RECORD_IN_USE | FILE_RECORD_IS_DIRECTORY)
     offset = 56
     ir_data = struct.pack("<LLLLBBHH", FILE_NAME_ATTRIBUTE, COLLATION_FILENAME, 4096, 1, 1, 0, 0, 0)
     offset = add_attribute(mft_record.raw_record, offset, INDEX_ROOT_ATTRIBUTE, ir_data)
@@ -368,11 +371,12 @@ def test_parse_directory_record(mft_record):
     assert mft_record.bitmap['size'] == 8
 
 def test_parse_volume_record(mft_record):
-    mft_record.recordnum = 3
+    # Set record number in raw record as well
+    struct.pack_into("<I", mft_record.raw_record, 44, 3)
     offset = 56
-    vn_data = "TestVolume".encode('utf-16le')
+    vn_data = struct.pack("<H", len("TestVolume")) + "TestVolume".encode('utf-16le')
     offset = add_attribute(mft_record.raw_record, offset, VOLUME_NAME_ATTRIBUTE, vn_data)
-    vi_data = struct.pack('<BBBBBBH', 0, 0, 0, 0, 3, 1, 0x0001)
+    vi_data = struct.pack('<QBBH', 0, 3, 1, 0x0001)
     offset = add_attribute(mft_record.raw_record, offset, VOLUME_INFORMATION_ATTRIBUTE, vi_data)
     
     mft_record.parse_record()
@@ -394,7 +398,7 @@ def test_parse_reparse_point_record(mft_record):
     assert REPARSE_POINT_ATTRIBUTE in mft_record.attribute_types
     assert mft_record.reparse_point['reparse_tag'] == 0x80000000
     assert mft_record.reparse_point['data_length'] == 12
-    assert mft_record.reparse_point['data'] == b'\x00' * 2 + b"Reparse data"
+    assert mft_record.reparse_point['data'] == b"Reparse data"
 
 def test_parse_extended_attributes(mft_record):
     offset = 56
@@ -451,9 +455,28 @@ def test_parse_incomplete_record():
 
 def test_parse_large_attribute():
     large_attr_record = bytearray(MFT_RECORD_SIZE)
-    large_attr_record[:4] = MFT_RECORD_MAGIC
-    large_attr_data = b'\x80' + struct.pack('<I', MFT_RECORD_SIZE - 24) + b'\x00' * (MFT_RECORD_SIZE - 28)
-    large_attr_record[24:] = large_attr_data
+    # Set up proper MFT record header
+    struct.pack_into("<I", large_attr_record, 0, int.from_bytes(MFT_RECORD_MAGIC, BYTE_ORDER))
+    struct.pack_into("<H", large_attr_record, 4, 42)  # upd_off
+    struct.pack_into("<H", large_attr_record, 6, 3)   # upd_cnt
+    struct.pack_into("<Q", large_attr_record, 8, 12345)  # lsn
+    struct.pack_into("<H", large_attr_record, 16, 1)  # seq
+    struct.pack_into("<H", large_attr_record, 18, 1)  # link
+    struct.pack_into("<H", large_attr_record, 20, 56)  # attr_off - start attributes at offset 56
+    struct.pack_into("<H", large_attr_record, 22, FILE_RECORD_IN_USE)
+    struct.pack_into("<I", large_attr_record, 24, MFT_RECORD_SIZE)
+    struct.pack_into("<I", large_attr_record, 28, MFT_RECORD_SIZE)
+    struct.pack_into("<Q", large_attr_record, 32, 0)  # base_ref
+    struct.pack_into("<H", large_attr_record, 40, 2)  # next_attrid
+    struct.pack_into("<I", large_attr_record, 44, 5)  # recordnum
+    
+    # Create a large data attribute that takes up most of the remaining space
+    remaining_space = MFT_RECORD_SIZE - 56 - 8  # space minus header minus terminator
+    large_data = b'A' * (remaining_space - 24)  # attribute content
+    
+    # Add the large data attribute
+    offset = 56
+    add_attribute(large_attr_record, offset, DATA_ATTRIBUTE, large_data)
     
     record = MftRecord(large_attr_record)
     assert DATA_ATTRIBUTE in record.attribute_types

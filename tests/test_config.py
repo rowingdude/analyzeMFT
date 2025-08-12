@@ -170,13 +170,8 @@ class TestConfigManager:
 
     def test_create_sample_config_yaml_fallback_to_json(self, monkeypatch):
         """Test that create_sample_config falls back to JSON when YAML is not available."""
-        def mock_import_error(name, *args, **kwargs):
-            if name == "yaml":
-                raise ImportError("No module named 'yaml'")
-            return original_import(name, *args, **kwargs)
-
-        original_import = __import__
-        monkeypatch.setattr("builtins.__import__", mock_import_error)
+        # Patch the HAS_YAML flag to simulate YAML not being available
+        monkeypatch.setattr("src.analyzeMFT.config.HAS_YAML", False)
 
         config_path = self.temp_dir / "test_config.yaml"
 

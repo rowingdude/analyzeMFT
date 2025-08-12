@@ -528,3 +528,29 @@ class MftAnalyzer:
         except Exception as e:
             self.logger.error(f"Error writing to SQLite: {e}")
             raise
+    
+    async def write_csv_block(self) -> None:
+        if self.csv_writer and self.mft_records:
+            try:
+                for record in self.mft_records.values():
+                    csv_data = record.to_csv()
+                    self.csv_writer.writerow(csv_data)
+                
+                self.mft_records.clear()
+                
+            except Exception as e:
+                self.logger.error(f"Error writing CSV block: {e}")
+                raise
+    
+    def handle_interrupt(self) -> None:
+        try:
+            loop = asyncio.get_event_loop()
+            if hasattr(loop, 'add_signal_handler'):
+                loop.add_signal_handler(signal.SIGINT, self._handle_signal)
+                loop.add_signal_handler(signal.SIGTERM, self._handle_signal)
+        except Exception as e:
+            self.logger.warning(f"Could not set up signal handlers: {e}")
+    
+    def _handle_signal(self) -> None:
+        self.interrupt_flag.set()
+        self.logger.warning("Interrupt signal received")

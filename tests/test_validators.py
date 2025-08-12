@@ -163,7 +163,16 @@ class TestExportFormatValidation:
     
     def test_validate_export_format_valid(self):
         """Test valid export formats pass validation"""
-        for format_name in ['csv', 'json', 'xml', 'excel', 'body', 'timeline', 'l2t', 'sqlite', 'tsk']:
+        formats_to_test = ['csv', 'json', 'xml', 'body', 'timeline', 'l2t', 'sqlite', 'tsk']
+        
+        # Test excel separately since it has a dependency
+        try:
+            import openpyxl
+            formats_to_test.append('excel')
+        except ImportError:
+            pass
+            
+        for format_name in formats_to_test:
             result = validate_export_format(format_name, f"output.{format_name}")
             assert result == format_name
     
@@ -181,7 +190,13 @@ class TestExportFormatValidation:
     
     def test_validate_export_format_excel_dependency(self):
         """Test Excel format dependency checking"""
-        with patch('builtins.__import__', side_effect=ImportError("No module named 'openpyxl'")):
+        def mock_import(name, *args, **kwargs):
+            if name == 'openpyxl':
+                raise ImportError("No module named 'openpyxl'")
+            return original_import(name, *args, **kwargs)
+        
+        original_import = __import__
+        with patch('builtins.__import__', side_effect=mock_import):
             with pytest.raises(ValidationError, match="Excel export requires 'openpyxl' package"):
                 validate_export_format("excel", "output.xlsx")
 

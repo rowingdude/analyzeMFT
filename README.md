@@ -230,7 +230,7 @@ pytest tests/ --cov=src --cov-report=html
 
 ## Version
 
-Current version: 3.0.6.6
+Current version: 3.1.0
 
 ## Author
 

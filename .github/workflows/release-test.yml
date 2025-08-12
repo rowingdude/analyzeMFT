@@ -276,15 +276,15 @@ assert records_per_second > 10, f'Processing too slow: {records_per_second} rec/
       run: |
         echo "🧪 Running final verification tests..."        python analyzeMFT.py --generate-test-mft final_test.mft --test-records 100 --test-type normal        python analyzeMFT.py -f final_test.mft -o final.csv --csv -v
         python analyzeMFT.py -f final_test.mft -o final.json --json -v  
-        python analyzeMFT.py -f final_test.mft -o final.db --sqlite -v        [ -s final.csv ] && echo "✅ CSV export working"
-        [ -s final.json ] && echo "✅ JSON export working" 
-        [ -s final.db ] && echo "✅ SQLite export working"        python -c "
+        python analyzeMFT.py -f final_test.mft -o final.db --sqlite -v        [ -s final.csv ] && echo "[[ Success ]] CSV export working"
+        [ -s final.json ] && echo "[[ Success ]] JSON export working" 
+        [ -s final.db ] && echo "[[ Success ]] SQLite export working"        python -c "
 import sqlite3
 conn = sqlite3.connect('final.db')
 cursor = conn.cursor()
 cursor.execute('SELECT COUNT(*) FROM mft_records')
 count = cursor.fetchone()[0]
-print(f'✅ SQLite database contains {count} records')
+print(f'[[ Success ]] SQLite database contains {count} records')
 conn.close()
 "
         

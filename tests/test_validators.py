@@ -45,7 +45,9 @@ class TestMFTFileValidation:
     
     def test_validate_mft_file_valid_with_signature(self):
         """Test validation succeeds for valid MFT file with signature"""
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:            tmp.write(b"FILE" + b"\x00" * 1020)            tmp_path = tmp.name
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(b"FILE" + b"\x00" * 1020)
+            tmp_path = tmp.name
         
         try:
             result = validate_mft_file(tmp_path)
@@ -55,7 +57,9 @@ class TestMFTFileValidation:
     
     def test_validate_mft_file_valid_without_signature(self):
         """Test validation succeeds for valid MFT file without signature (with warning)"""
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:            tmp.write(b"XXXX" + b"\x00" * 1020)            tmp_path = tmp.name
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(b"XXXX" + b"\x00" * 1020)
+            tmp_path = tmp.name
         
         try:
             with patch('src.analyzeMFT.validators.logger') as mock_logger:
@@ -65,9 +69,12 @@ class TestMFTFileValidation:
         finally:
             os.unlink(tmp_path)
     
-    @patch('src.analyzeMFT.validators.MAX_FILE_SIZE_GB', 0.000001)    def test_validate_mft_file_too_large(self):
+    @patch('src.analyzeMFT.validators.MAX_FILE_SIZE_GB', 0.000001)
+    def test_validate_mft_file_too_large(self):
         """Test validation fails for file exceeding size limit"""
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:            tmp.write(b"\x00" * 2048)            tmp_path = tmp.name
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(b"\x00" * 2048)
+            tmp_path = tmp.name
         
         try:
             with pytest.raises(MFTValidationError, match="MFT file too large"):
@@ -253,7 +260,8 @@ class TestPathsSecureValidation:
     
     def test_validate_paths_secure_same_file(self):
         """Test validation fails when input and output are the same file"""
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:            tmp.write(b"FILE" + b"\x00" * 1020)
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(b"FILE" + b"\x00" * 1020)
             tmp_path = tmp.name
         
         try:
@@ -264,7 +272,8 @@ class TestPathsSecureValidation:
     
     def test_validate_paths_secure_valid(self):
         """Test validation succeeds for valid input and output paths"""
-        with tempfile.NamedTemporaryFile(delete=False) as input_tmp:            input_tmp.write(b"FILE" + b"\x00" * 1020)
+        with tempfile.NamedTemporaryFile(delete=False) as input_tmp:
+            input_tmp.write(b"FILE" + b"\x00" * 1020)
             input_path = input_tmp.name
         
         with tempfile.TemporaryDirectory() as tmpdir:

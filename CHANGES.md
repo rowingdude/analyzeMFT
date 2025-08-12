@@ -1,3 +1,7 @@
+## Version 3.1.1
+
+Recent updates have significantly enhanced the test suite to ensure robustness, reliability, and comprehensive coverage of the analyzeMFT tool. The testing framework has been expanded to include quick, standard, and comprehensive validation levels, enabling flexible execution based on development or release needs. Tests now cover core functionality across all output formats (CSV, JSON, XML, SQLite, Body, Timeline, TSK), analysis profiles (Quick, Forensic, Default, Performance), and edge cases including error handling and cross-platform path compatibility. Integration and performance tests validate end-to-end workflows, while security checks and dependency scanning ensure code quality. These improvements guarantee consistent behavior across Python versions and operating systems, providing confidence in every release.
+
 
 ## Version 3.1.0
 

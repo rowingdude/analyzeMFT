@@ -1,0 +1,69 @@
+name: ❓ Question
+description: Ask a question about using analyzeMFT
+title: "[Question]: "
+labels: ["question", "needs-response"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question about using analyzeMFT? We're here to help!
+        
+        **Before asking:** Please check the README and existing issues to see if your question has already been answered.
+
+  - type: dropdown
+    id: question-type
+    attributes:
+      label: Question Type
+      description: What type of question is this?
+      options:
+        - Usage - How to use a feature
+        - Troubleshooting - Something isn't working as expected
+        - Best Practices - Recommended approaches
+        - Compatibility - Platform or file format support
+        - Performance - Optimization questions
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+      placeholder: How do I...?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Provide context about your forensic analysis scenario or use case
+      placeholder: I'm trying to analyze an MFT from...
+
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What have you tried?
+      description: What approaches have you already attempted?
+      placeholder: I tried using the command...
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment (if relevant)
+      description: Your system details
+      value: |
+        - OS: [e.g. Windows 11, Ubuntu 22.04]
+        - Python version: [e.g. 3.11.5]
+        - analyzeMFT version: [e.g. 3.1.0]
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have searched existing issues and discussions
+        - label: I have read the README documentation
+        - label: This is a question, not a bug report or feature request

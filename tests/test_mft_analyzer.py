@@ -1,6 +1,6 @@
 import pytest
 import asyncio
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock, AsyncMock, mock_open
 from io import StringIO
 from src.analyzeMFT.mft_analyzer import MftAnalyzer
 from src.analyzeMFT.mft_record import MftRecord

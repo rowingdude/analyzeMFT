@@ -1,0 +1,234 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.changes.outputs.src }}
+      tests: ${{ steps.changes.outputs.tests }}
+      docs: ${{ steps.changes.outputs.docs }}
+      workflows: ${{ steps.changes.outputs.workflows }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v3
+      id: changes
+      with:
+        filters: |
+          src:
+            - 'src/**'
+            - 'setup.py'
+            - 'requirements.txt'
+          tests:
+            - 'tests/**'
+            - 'pytest.ini'
+          docs:
+            - '*.md'
+            - 'docs/**'
+          workflows:
+            - '.github/**'
+
+  validate-pr:
+    name: Validate PR
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Validate PR title
+      run: |
+        PR_TITLE="${{ github.event.pull_request.title }}"
+        
+        # Check if title follows conventional commits
+        if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|perf|test|chore|ci|build)(\(.+\))?!?:\ .+ ]]; then
+          echo "::error::PR title should follow conventional commits format"
+          echo "Examples:"
+          echo "  feat: add new export format"
+          echo "  fix: resolve memory leak in parser"
+          echo "  docs: update installation instructions"
+          exit 1
+        fi
+
+    - name: Check PR description
+      run: |
+        if [ -z "${{ github.event.pull_request.body }}" ]; then
+          echo "::error::PR description is required"
+          exit 1
+        fi
+
+  quick-test:
+    name: Quick Test
+    runs-on: ubuntu-latest
+    needs: [changes, validate-pr]
+    if: needs.changes.outputs.src == 'true' || needs.changes.outputs.tests == 'true'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio flake8
+        pip install -e .
+
+    - name: Quick syntax check
+      run: |
+        python -m py_compile src/analyzeMFT/*.py
+        python -m py_compile tests/*.py
+
+    - name: Lint changed files
+      if: needs.changes.outputs.src == 'true'
+      run: |
+        flake8 src/ --max-line-length=120 --ignore=E203,W503
+
+    - name: Run critical tests
+      run: |
+        pytest tests/test_constants.py tests/test_validators.py tests/test_windows_time.py -v
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.src == 'true'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install security tools
+      run: |
+        pip install bandit safety
+
+    - name: Run bandit
+      run: |
+        bandit -r src/ -ll -f json
+      continue-on-error: true
+
+    - name: Check dependencies
+      run: |
+        pip install -r requirements.txt
+        safety check
+      continue-on-error: true
+
+  docs-check:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.docs == 'true' || needs.changes.outputs.src == 'true'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check README links
+      run: |
+        # Check for broken internal links (basic check)
+        grep -n "](\./" *.md || true
+        
+        # Verify version mentions are consistent
+        if grep -q "version:" README.md; then
+          echo "Found version references in README"
+        fi
+
+    - name: Spell check
+      uses: streetsidesoftware/cspell-action@v6
+      with:
+        files: "**/*.md"
+        config: |
+          {
+            "version": "0.2",
+            "language": "en",
+            "words": [
+              "analyzeMFT", "NTFS", "MFT", "forensics", "timestamping",
+              "metadata", "filesystem", "timestamps", "argv", "kwargs",
+              "csv", "json", "xml", "xlsx", "sqlite", "yaml", "yml",
+              "multiprocessing", "pytest", "codecov", "mypy", "flake8"
+            ],
+            "ignorePaths": ["node_modules/**", ".git/**", "*.pyc"]
+          }
+      continue-on-error: true
+
+  coverage-diff:
+    name: Coverage Diff
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.src == 'true' || needs.changes.outputs.tests == 'true'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-asyncio
+        pip install -e .
+
+    - name: Run coverage on PR
+      run: |
+        pytest tests/ --cov=src/analyzeMFT --cov-report=xml:coverage-pr.xml
+
+    - name: Checkout base branch
+      run: |
+        git checkout ${{ github.event.pull_request.base.sha }}
+
+    - name: Install dependencies (base)
+      run: |
+        pip install -e . --force-reinstall
+
+    - name: Run coverage on base
+      run: |
+        pytest tests/ --cov=src/analyzeMFT --cov-report=xml:coverage-base.xml
+      continue-on-error: true
+
+    - name: Compare coverage
+      run: |
+        pip install coverage-diff || pip install coverage
+        echo "Coverage comparison would go here"
+        # This is a placeholder - would need actual coverage diff tool
+      continue-on-error: true
+
+  approve-dependabot:
+    name: Auto-approve Dependabot
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    
+    steps:
+    - name: Approve dependabot PR
+      run: |
+        gh pr review --approve "${{ github.event.pull_request.html_url }}"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

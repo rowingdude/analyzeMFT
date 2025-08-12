@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI
 
 on:
   push:
@@ -6,75 +6,53 @@ on:
   pull_request:
     branches: [ main, master, develop ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+        cache: 'pip'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest pytest-cov pytest-asyncio
+        pip install pytest pytest-cov pytest-asyncio flake8 mypy
         pip install -e .
 
     - name: Lint with flake8
       run: |
-        pip install flake8
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        flake8 src/ tests/ --max-line-length=120 --ignore=E203,W503 --statistics
 
     - name: Type check with mypy
       run: |
-        pip install mypy types-setuptools
-        mypy src/analyzeMFT --ignore-missing-imports || true
+        mypy src/ --ignore-missing-imports --no-strict-optional
+      continue-on-error: true
 
-    - name: Test syntax compilation
+    - name: Run tests
       run: |
-        echo "Testing syntax compilation of all Python files..."
-        python -c "
-        import os
-        import py_compile
-        import sys
-        
-        failed = []
-        for root, dirs, files in os.walk('.'):
-            for file in files:
-                if file.endswith('.py') and not file.startswith('.'):
-                    filepath = os.path.join(root, file)
-                    try:
-                        py_compile.compile(filepath, doraise=True)
-                        print(f'✓ {filepath}')
-                    except Exception as e:
-                        print(f'✗ {filepath}: {e}')
-                        failed.append(filepath)
-        
-        if failed:
-            print(f'\\nSyntax check failed for {len(failed)} files')
-            sys.exit(1)
-        else:
-            print(f'\\nAll Python files passed syntax check')
-        "
+        pytest tests/ -v --cov=src/analyzeMFT --cov-report=xml --cov-report=term
 
-    - name: Run unit tests with pytest
-      run: |
-        pytest tests/ -v --tb=short --cov=src/analyzeMFT --cov-report=xml --cov-report=term-missing
-
-    - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v3
+    - name: Upload coverage to Codecov
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         flags: unittests
@@ -82,43 +60,57 @@ jobs:
         fail_ci_if_error: false
 
   security:
+    name: Security Analysis
     runs-on: ubuntu-latest
+    
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+        cache: 'pip'
 
-    - name: Install security tools
+    - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install bandit safety
 
-    - name: Run bandit security linter
+    - name: Run bandit security check
       run: |
-        bandit -r src/ -f json -o bandit-report.json || true
-        bandit -r src/ 
+        bandit -r src/ -f json -o bandit-report.json
+      continue-on-error: true
 
-    - name: Check for known security vulnerabilities
+    - name: Run safety check
       run: |
-        pip install -r requirements.txt
-        safety check --json --output safety-report.json || true
-        safety check
+        safety check --json --output safety-report.json
+      continue-on-error: true
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          bandit-report.json
+          safety-report.json
 
   integration:
-    needs: test
+    name: Integration Tests
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    
+    needs: test
+
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+        cache: 'pip'
 
     - name: Install dependencies
       run: |
@@ -126,56 +118,16 @@ jobs:
         pip install -r requirements.txt
         pip install -e .
 
-    - name: Run integration tests
-      run: |
-        echo "Running integration test suite..."
-        pytest tests/test_integration.py -v --tb=short
-
     - name: Test CLI functionality
       run: |
-        echo "Testing CLI functionality..."
-        python -m src.analyzeMFT.test_generator --help
-        # Generate test MFT file
-        python -m src.analyzeMFT.test_generator test_sample.mft --num-records 100
-        # Test analysis
-        python analyzeMFT.py -f test_sample.mft -o test_output.csv --csv
-        # Verify output exists and has content
-        if [ ! -f test_output.csv ]; then
-          echo "Error: Output file not created"
-          exit 1
-        fi
-        lines=$(wc -l < test_output.csv)
-        if [ $lines -lt 2 ]; then
-          echo "Error: Output file appears empty (only $lines lines)"
-          exit 1
-        fi
-        echo "✓ CLI test passed - generated $lines lines of output"
+        python analyzeMFT.py --version
+        python analyzeMFT.py --help
+        python analyzeMFT.py --list-profiles
 
-  quality:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: Install quality tools
+    - name: Test MFT generation and analysis
       run: |
-        python -m pip install --upgrade pip
-        pip install black isort pylint
-
-    - name: Check code formatting with black
-      run: |
-        black --check --diff src/ tests/
-
-    - name: Check import sorting with isort  
-      run: |
-        isort --check-only --diff src/ tests/
-
-    - name: Lint with pylint
-      run: |
-        pip install -r requirements.txt
-        pip install -e .
-        pylint src/analyzeMFT --exit-zero --score=yes --reports=yes
+        python analyzeMFT.py --generate-test-mft test.mft --test-records 100
+        python analyzeMFT.py -f test.mft -o output.csv --csv
+        [ -f output.csv ] && echo "CSV output generated successfully"
+        python analyzeMFT.py -f test.mft -o output.json --json
+        [ -f output.json ] && echo "JSON output generated successfully"

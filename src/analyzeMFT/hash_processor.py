@@ -62,7 +62,10 @@ def compute_hashes_for_record(data: Tuple[int, bytes]) -> HashResult:
 class HashProcessor:
 
     def __init__(self, num_processes: Optional[int] = None, logger: Optional[logging.Logger] = None):
-        self.num_processes = num_processes or get_optimal_process_count()
+        if num_processes is not None and num_processes <= 0:
+            self.num_processes = 1
+        else:
+            self.num_processes = num_processes or get_optimal_process_count()
         self.logger = logger or logging.getLogger('analyzeMFT.hash_processor')
         self.stats = {
             'total_records': 0,
@@ -183,7 +186,10 @@ class HashProcessor:
             return []
             
         mp_threshold = 50
-        cpu_count = mp.cpu_count()
+        try:
+            cpu_count = mp.cpu_count()
+        except (NotImplementedError, OSError):
+            cpu_count = 1
         
         use_multiprocessing = (
             len(raw_records) >= mp_threshold and
@@ -221,7 +227,11 @@ class HashProcessor:
 
 
 def get_optimal_process_count() -> int:
-    cpu_count = mp.cpu_count()
+    try:
+        cpu_count = mp.cpu_count()
+    except (NotImplementedError, OSError):
+        # Fallback to 1 if cpu_count is not available
+        return 1
 
     if cpu_count <= 2:
         return cpu_count

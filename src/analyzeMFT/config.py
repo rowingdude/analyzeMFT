@@ -158,8 +158,8 @@ class ConfigManager:
         config_path = Path(config_path)
         
         sample_config = {
-            "name": "sample",
-            "description": "Sample configuration file",
+            "name": "default",
+            "description": "Default configuration file",
             "export_format": "csv",
             "compute_hashes": False,
             "verbosity": 1,
@@ -183,7 +183,6 @@ class ConfigManager:
             with open(config_path, 'w', encoding='utf-8') as f:
                 if config_path.suffix.lower() in ['.yml', '.yaml']:
                     if not HAS_YAML:
-                        config_path = config_path.with_suffix('.json')
                         json.dump(sample_config, f, indent=2)
                     else:
                         yaml.dump(sample_config, f, default_flow_style=False, indent=2)

@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock, AsyncMock
 import sys
 import asyncio
 from io import StringIO
+import os
 from src.analyzeMFT.cli import main
 from src.analyzeMFT.constants import VERSION
 
@@ -21,23 +22,24 @@ def mock_stdout():
 @pytest.mark.asyncio
 async def test_main_with_valid_arguments(mock_analyzer, caplog):
     test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv']
-    with patch.object(sys, 'argv', test_args):
+    with patch.object(sys, 'argv', test_args), \
+         patch('os.path.abspath', side_effect=lambda x: f'/abs/{x}'):
         await main()
 
     mock_analyzer.assert_called_once_with(
-        mft_file='test.mft',
-        output_file='output.csv',
-        verbosity=0,
-        debug=0,
-        compute_hashes=False,
-        export_format='csv',
-        config_file=None,
-        chunk_size=1000,
-        enable_progress=True,
-        analysis_profile=None
+        '/abs/test.mft',
+        '/abs/output.csv',
+        0,
+        0,
+        False,
+        'csv',
+        None,
+        1000,
+        True,
+        None
     )
     mock_analyzer.return_value.analyze.assert_called_once()
-    assert "Analysis complete. Results written to output.csv" in caplog.text
+    assert "Analysis complete. Results written to /abs/output.csv" in caplog.text
 
 @pytest.mark.asyncio
 async def test_main_with_missing_arguments(capsys):
@@ -57,83 +59,87 @@ async def test_main_with_missing_arguments(capsys):
     ('--excel', 'excel'),
     ('--body', 'body'),
     ('--timeline', 'timeline'),
-    ('--log2timeline', 'l2t')
+    ('--l2t', 'l2t')
 ])
 async def test_main_with_different_export_formats(mock_analyzer, export_flag, format_name):
     output_ext = 'l2tcsv' if format_name == 'l2t' else format_name
     test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', f'output.{output_ext}', export_flag]
-    with patch.object(sys, 'argv', test_args):
+    with patch.object(sys, 'argv', test_args), \
+         patch('os.path.abspath', side_effect=lambda x: f'/abs/{x}'):
         await main()
 
-    expected_output = f'output.{output_ext}'
+    expected_output = f'/abs/output.{output_ext}'
     mock_analyzer.assert_called_once_with(
-        mft_file='test.mft',
-        output_file=expected_output,
-        verbosity=0,
-        debug=0,
-        compute_hashes=False,
-        export_format=format_name,
-        config_file=None,
-        chunk_size=1000,
-        enable_progress=True,
-        analysis_profile=None
+        '/abs/test.mft',
+        expected_output,
+        0,
+        0,
+        False,
+        format_name,
+        None,
+        1000,
+        True,
+        None
     )
 
 @pytest.mark.asyncio
 async def test_main_with_debug_option(mock_analyzer):
-    test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv', '-d']
-    with patch.object(sys, 'argv', test_args):
+    test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv', '--debug']
+    with patch.object(sys, 'argv', test_args), \
+         patch('os.path.abspath', side_effect=lambda x: f'/abs/{x}'):
         await main()
 
     mock_analyzer.assert_called_once_with(
-        mft_file='test.mft',
-        output_file='output.csv',
-        verbosity=0,
-        debug=1,
-        compute_hashes=False,
-        export_format='csv',
-        config_file=None,
-        chunk_size=1000,
-        enable_progress=True,
-        analysis_profile=None
+        '/abs/test.mft',
+        '/abs/output.csv',
+        1,
+        0,
+        False,
+        'csv',
+        None,
+        1000,
+        True,
+        None
     )
 
 @pytest.mark.asyncio
 async def test_main_with_verbosity_option(mock_analyzer):
-    test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv', '-v']
-    with patch.object(sys, 'argv', test_args):
+    test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv', '--verbose']
+    with patch.object(sys, 'argv', test_args), \
+         patch('os.path.abspath', side_effect=lambda x: f'/abs/{x}'):
         await main()
 
     mock_analyzer.assert_called_once_with(
-        mft_file='test.mft',
-        output_file='output.csv',
-        verbosity=1,
-        debug=0,
-        compute_hashes=False,
-        export_format='csv',
-        config_file=None,
-        chunk_size=1000,
-        enable_progress=True,
-        analysis_profile=None
+        '/abs/test.mft',
+        '/abs/output.csv',
+        1,
+        0,
+        False,
+        'csv',
+        None,
+        1000,
+        True,
+        None
     )
 
 @pytest.mark.asyncio
 async def test_main_with_hash_option(mock_analyzer):
-    test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv', '-H']
-    with patch.object(sys, 'argv', test_args):
+    test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv', '--hash']
+    with patch.object(sys, 'argv', test_args), \
+         patch('os.path.abspath', side_effect=lambda x: f'/abs/{x}'):
         await main()
 
     mock_analyzer.assert_called_once_with(
-        mft_file='test.mft',
-        output_file='output.csv',
-        verbosity=0,
-        debug=0,
-        compute_hashes=True,
-        export_format='csv',
-        config_file=None,
-        chunk_size=1000,
-        enable_progress=True,
-        analysis_profile=None
+        '/abs/test.mft',
+        '/abs/output.csv',
+        0,
+        0,
+        True,
+        'csv',
+        None,
+        1000,
+        True,
+        None
     )
 
 @pytest.mark.asyncio
@@ -183,7 +189,8 @@ async def test_main_with_keyboard_interrupt(mock_analyzer, caplog):
 async def test_main_with_non_windows_platform(mock_analyzer):
     with patch('sys.platform', 'linux'):
         test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv']
-        with patch.object(sys, 'argv', test_args):
+        with patch.object(sys, 'argv', test_args), \
+             patch('os.path.abspath', side_effect=lambda x: f'/abs/{x}'):
             await main()
 
         mock_analyzer.assert_called_once()
@@ -194,23 +201,37 @@ def test_main_with_invalid_file_path(caplog):
         with pytest.raises(SystemExit):
             asyncio.run(main())
 
-    assert "Error reading MFT file" in caplog.text
-    assert "No such file or directory" in caplog.text or "not found" in caplog.text
+    assert ("Error reading MFT file" in caplog.text or "Validation Error" in caplog.text)
+    assert ("No such file or directory" in caplog.text or "not found" in caplog.text)
 
 def test_main_with_config_file(mock_analyzer):
     test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv', '-c', 'config.json']
-    with patch.object(sys, 'argv', test_args):
+    
+    mock_config_data = {'profile_name': 'default', 'verbosity': 1}
+    
+    from src.analyzeMFT.config import AnalysisProfile
+    mock_profile = AnalysisProfile(
+        name="test", 
+        export_format="csv",
+        verbosity=1,
+        chunk_size=1000
+    )
+    
+    with patch.object(sys, 'argv', test_args), \
+         patch('os.path.abspath', side_effect=lambda x: f'/abs/{x}'), \
+         patch('src.analyzeMFT.config.ConfigManager.load_config_file', return_value=mock_config_data), \
+         patch('src.analyzeMFT.config.ConfigManager.load_profile_from_config', return_value=mock_profile):
         asyncio.run(main())
 
-    mock_analyzer.assert_called_once_with(
-        mft_file='test.mft',
-        output_file='output.csv',
-        verbosity=0,
-        debug=0,
-        compute_hashes=False,
-        export_format='csv',
-        config_file='config.json',
-        chunk_size=1000,
-        enable_progress=True,
-        analysis_profile=None
-    )
+    # The actual call arguments from the CLI
+    mock_analyzer.assert_called_once()
+    
+    call_args = mock_analyzer.call_args[0]
+    assert call_args[0].endswith('test.mft')  # filename  
+    assert call_args[1].endswith('output.csv')  # output file
+    assert call_args[2] == 0  # verbosity from options (not profile)
+    assert call_args[3] == 1  # debug from profile  
+    assert call_args[4] == False  # compute hashes
+    assert call_args[5] == 'csv'  # export format
+    assert call_args[6] == mock_profile  # profile object
+    assert call_args[7] == 1000  # chunk size

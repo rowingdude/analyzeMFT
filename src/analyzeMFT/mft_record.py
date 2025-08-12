@@ -14,6 +14,9 @@ from .validators import validate_attribute_length, ValidationError
 class MftRecord:
     
     def __init__(self, raw_record: bytes, compute_hashes: bool = False, debug_level: int = 0, logger=None):
+        
+        if len(raw_record) < MFT_RECORD_SIZE:
+            raise ValueError(f"MFT record too short: {len(raw_record)} bytes, expected {MFT_RECORD_SIZE}")
 
         self.raw_record = raw_record
         self.debug_level = debug_level
@@ -249,7 +252,7 @@ class MftRecord:
                         name = ""
                     
                     vcn = struct.unpack("<Q", self.raw_record[attr_content_offset+8:attr_content_offset+16])[0]
-                    ref = struct.unpack("<Q", self.raw_record[attr_content_offset+16:attr_content_offset+24])[0]
+                    ref = struct.unpack("<Q", self.raw_record[attr_content_offset+16:attr_content_offset+24])[0] & 0x0000FFFFFFFFFFFF
                     
                     self.attribute_list.append({
                         'type': attr_type,
@@ -291,8 +294,16 @@ class MftRecord:
     def parse_volume_name(self, offset: int) -> None:
         try:
             vn_data = self.raw_record[offset+24:]
-            name_length = struct.unpack("<H", vn_data[:2])[0]
-            self.volume_name = vn_data[2:2+name_length*2].decode('utf-16-le', errors='replace')
+            if len(vn_data) >= 2:
+                try:
+                    name_length = struct.unpack("<H", vn_data[:2])[0]
+                    if name_length * 2 + 2 <= len(vn_data):
+                        self.volume_name = vn_data[2:2+name_length*2].decode('utf-16-le', errors='replace')
+                        return
+                except (struct.error, UnicodeDecodeError):
+                    pass
+            
+            self.volume_name = vn_data.decode('utf-16-le', errors='replace').rstrip('\x00')
         except struct.error as e:
             self.log(f"Error parsing Volume Name attribute for record {self.recordnum}: {e}", 1)
 
@@ -530,3 +541,6 @@ class MftRecord:
             return "Special Index"
         else:
             return "File"
+    
+    def parse_object_id(self, offset: int) -> None:
+        return self.parse_object_id_attribute(offset)

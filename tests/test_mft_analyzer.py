@@ -20,16 +20,19 @@ def mock_mft_record():
 
 @pytest.fixture
 def analyzer():
-    return MftAnalyzer("test.mft", "output.csv", debug=False, compute_hashes=False, export_format="csv")
+    return MftAnalyzer("test.mft", "output.csv", debug=0, verbosity=0, compute_hashes=False, export_format="csv")
 
 @pytest.mark.asyncio
 async def test_analyze(analyzer, mock_mft_file, mock_mft_record):
     with patch("builtins.open", mock_open(read_data=mock_mft_file)):
         with patch("src.analyzeMFT.mft_analyzer.MftRecord", return_value=mock_mft_record):
-            with patch("src.analyzeMFT.mft_analyzer.FileWriters") as mock_file_writers:
+            with patch("src.analyzeMFT.mft_analyzer.get_writer") as mock_get_writer:
+                mock_writer = AsyncMock()
+                mock_get_writer.return_value = mock_writer
                 await analyzer.analyze()
                 
-                mock_file_writers.write_csv.assert_called_once()
+                mock_get_writer.assert_called_once_with('csv')
+                mock_writer.assert_called_once()
                 assert len(analyzer.mft_records) == 1
                 assert analyzer.stats['total_records'] == 1
                 assert analyzer.stats['active_records'] == 1
@@ -38,22 +41,27 @@ async def test_analyze(analyzer, mock_mft_file, mock_mft_record):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("export_format", ["csv", "json", "xml", "excel", "body", "timeline", "l2t"])
 async def test_analyze_with_different_export_formats(export_format, mock_mft_file, mock_mft_record):
-    analyzer = MftAnalyzer("test.mft", f"output.{export_format}", debug=False, compute_hashes=False, export_format=export_format)
+    analyzer = MftAnalyzer("test.mft", f"output.{export_format}", debug=0, verbosity=0, compute_hashes=False, export_format=export_format)
     
     with patch("builtins.open", mock_open(read_data=mock_mft_file)):
         with patch("src.analyzeMFT.mft_analyzer.MftRecord", return_value=mock_mft_record):
-            with patch("src.analyzeMFT.mft_analyzer.FileWriters") as mock_file_writers:
+            with patch("src.analyzeMFT.mft_analyzer.get_writer") as mock_get_writer:
+                mock_writer = AsyncMock()
+                mock_get_writer.return_value = mock_writer
                 await analyzer.analyze()
                 
-                getattr(mock_file_writers, f"write_{export_format}").assert_called_once()
+                mock_get_writer.assert_called_once_with(export_format)
+                mock_writer.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_analyze_with_compute_hashes(mock_mft_file, mock_mft_record):
-    analyzer = MftAnalyzer("test.mft", "output.csv", debug=False, compute_hashes=True, export_format="csv")
+    analyzer = MftAnalyzer("test.mft", "output.csv", debug=0, verbosity=0, compute_hashes=True, export_format="csv")
     
     with patch("builtins.open", mock_open(read_data=mock_mft_file)):
         with patch("src.analyzeMFT.mft_analyzer.MftRecord", return_value=mock_mft_record):
-            with patch("src.analyzeMFT.mft_analyzer.FileWriters"):
+            with patch("src.analyzeMFT.mft_analyzer.get_writer") as mock_get_writer:
+                mock_writer = AsyncMock()
+                mock_get_writer.return_value = mock_writer
                 await analyzer.analyze()
                 
                 assert 'unique_md5' in analyzer.stats
@@ -63,11 +71,13 @@ async def test_analyze_with_compute_hashes(mock_mft_file, mock_mft_record):
 
 @pytest.mark.asyncio
 async def test_analyze_with_debug(capsys, mock_mft_file, mock_mft_record):
-    analyzer = MftAnalyzer("test.mft", "output.csv", debug=True, compute_hashes=False, export_format="csv")
+    analyzer = MftAnalyzer("test.mft", "output.csv", debug=1, verbosity=0, compute_hashes=False, export_format="csv")
     
     with patch("builtins.open", mock_open(read_data=mock_mft_file)):
         with patch("src.analyzeMFT.mft_analyzer.MftRecord", return_value=mock_mft_record):
-            with patch("src.analyzeMFT.mft_analyzer.FileWriters"):
+            with patch("src.analyzeMFT.mft_analyzer.get_writer") as mock_get_writer:
+                mock_writer = AsyncMock()
+                mock_get_writer.return_value = mock_writer
                 await analyzer.analyze()
                 
                 captured = capsys.readouterr()
@@ -79,7 +89,9 @@ async def test_analyze_with_invalid_record(analyzer, mock_mft_file):
     
     with patch("builtins.open", mock_open(read_data=invalid_record)):
         with patch("src.analyzeMFT.mft_analyzer.MftRecord", side_effect=Exception("Invalid record")):
-            with patch("src.analyzeMFT.mft_analyzer.FileWriters"):
+            with patch("src.analyzeMFT.mft_analyzer.get_writer") as mock_get_writer:
+                mock_writer = AsyncMock()
+                mock_get_writer.return_value = mock_writer
                 await analyzer.analyze()
                 
                 assert analyzer.stats['total_records'] == 1
@@ -89,7 +101,9 @@ async def test_analyze_with_invalid_record(analyzer, mock_mft_file):
 async def test_analyze_with_interrupt(analyzer, mock_mft_file, mock_mft_record):
     with patch("builtins.open", mock_open(read_data=mock_mft_file * 2)):
         with patch("src.analyzeMFT.mft_analyzer.MftRecord", return_value=mock_mft_record):
-            with patch("src.analyzeMFT.mft_analyzer.FileWriters"):
+            with patch("src.analyzeMFT.mft_analyzer.get_writer") as mock_get_writer:
+                mock_writer = AsyncMock()
+                mock_get_writer.return_value = mock_writer
                 def interrupt_analysis():
                     analyzer.interrupt_flag.set()
                 
@@ -130,6 +144,8 @@ async def test_print_statistics(analyzer, capsys):
         'active_records': 90,
         'directories': 10,
         'files': 80,
+        'bytes_processed': 1024000,
+        'chunks_processed': 10,
         'unique_md5': set(['hash1', 'hash2']),
         'unique_sha256': set(['hash3', 'hash4']),
         'unique_sha512': set(['hash5', 'hash6']),
@@ -165,7 +181,9 @@ async def test_analyze_large_number_of_records(analyzer, mock_mft_file, mock_mft
     large_mft_file = mock_mft_file * 10000
     with patch("builtins.open", mock_open(read_data=large_mft_file)):
         with patch("src.analyzeMFT.mft_analyzer.MftRecord", return_value=mock_mft_record):
-            with patch("src.analyzeMFT.mft_analyzer.FileWriters"):
+            with patch("src.analyzeMFT.mft_analyzer.get_writer") as mock_get_writer:
+                mock_writer = AsyncMock()
+                mock_get_writer.return_value = mock_writer
                 await analyzer.analyze()
                 
                 assert analyzer.stats['total_records'] == 10000
@@ -178,12 +196,15 @@ async def test_handle_interrupt(analyzer):
 
 @pytest.mark.asyncio
 async def test_analyze_with_all_flags(mock_mft_file, mock_mft_record):
-    analyzer = MftAnalyzer("test.mft", "output.csv", debug=True, compute_hashes=True, export_format="json")
+    analyzer = MftAnalyzer("test.mft", "output.csv", debug=1, verbosity=0, compute_hashes=True, export_format="json")
     
     with patch("builtins.open", mock_open(read_data=mock_mft_file)):
         with patch("src.analyzeMFT.mft_analyzer.MftRecord", return_value=mock_mft_record):
-            with patch("src.analyzeMFT.mft_analyzer.FileWriters") as mock_file_writers:
+            with patch("src.analyzeMFT.mft_analyzer.get_writer") as mock_get_writer:
+                mock_writer = AsyncMock()
+                mock_get_writer.return_value = mock_writer
                 await analyzer.analyze()
                 
-                mock_file_writers.write_json.assert_called_once()
+                mock_get_writer.assert_called_once_with('json')
+                mock_writer.assert_called_once()
                 assert 'unique_md5' in analyzer.stats

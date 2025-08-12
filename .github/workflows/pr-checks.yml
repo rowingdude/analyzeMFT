@@ -1,0 +1,141 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [ main, master ]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  pr-validation:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-asyncio
+        pip install -e .
+
+    - name: Check for breaking syntax changes
+      run: |
+        echo "Checking for syntax errors in modified files..."
+        # Get list of modified Python files
+        git diff --name-only origin/main...HEAD | grep '\.py$' > modified_files.txt || echo "No Python files modified"
+        
+        if [ -s modified_files.txt ]; then
+          echo "Modified Python files:"
+          cat modified_files.txt
+          
+          echo -e "\nTesting syntax of modified files:"
+          while read file; do
+            if [ -f "$file" ]; then
+              echo "Checking $file..."
+              python -m py_compile "$file"
+              echo "✓ $file - OK"
+            fi
+          done < modified_files.txt
+        else
+          echo "No Python files were modified in this PR"
+        fi
+
+    - name: Run tests on affected modules
+      run: |
+        echo "Running targeted tests..."
+        if [ -s modified_files.txt ]; then
+          # Run all tests to ensure no regressions
+          pytest tests/ -v --tb=short
+        else
+          echo "No tests needed - no Python files modified"
+        fi
+
+    - name: Verify test coverage for new code
+      run: |
+        echo "Checking test coverage..."
+        pytest tests/ --cov=src/analyzeMFT --cov-report=term-missing --cov-fail-under=80
+
+  test-matrix-pr:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.9', '3.11']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio
+        pip install -e .
+
+    - name: Run critical test suite
+      run: |
+        pytest tests/test_mft_record.py tests/test_hash_processor.py tests/test_sqlite_writer.py -v
+
+  security-review:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Security scan
+      run: |
+        pip install bandit
+        bandit -r src/ -ll  # Only report high and medium confidence issues
+
+  check-documentation:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Check if documentation needs updating
+      run: |
+        echo "Checking if code changes require documentation updates..."
+        
+        # Check if any major modules were modified
+        git diff --name-only origin/main...HEAD | grep -E "(cli\.py|mft_analyzer\.py|config\.py)" > critical_files.txt || true
+        
+        if [ -s critical_files.txt ]; then
+          echo "Critical files modified:"
+          cat critical_files.txt
+          echo ""
+          echo "[[ WARNING ]]  Please consider updating documentation for these changes:"
+          echo "  - README.md for user-facing changes"
+          echo "  - USAGE.md for CLI/API changes"
+          echo "  - CHANGES.md for version history"
+        else
+          echo "✓ No critical files requiring documentation updates"
+        fi
+
+    - name: Verify README and docs are current
+      run: |
+        echo "Checking documentation files exist..."
+        for doc in README.md USAGE.md CHANGES.md; do
+          if [ -f "$doc" ]; then
+            echo "✓ $doc exists"
+          else
+            echo "[[ WARNING ]]  $doc missing"
+          fi
+        done

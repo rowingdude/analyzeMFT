@@ -33,4 +33,6 @@ Planned export formats include STIX/TAXII for threat intelligence sharing, and i
 
 Contributions to the project are accepted via GitHub pull requests. Developers must ensure compatibility with Python 3.8 and above. All new code must include type hints and comprehensive unit tests. The test suite is run using pytest, and coverage must remain above 80%. Code should follow PEP 8 guidelines and be cross-platform compatible. Documentation must be updated for any new features or changes. 
 
-The current version is 3.1.1. The tool is authored by Benjamin Cance and is distributed under the MIT License. Full license terms are included in the LICENSE.txt file. Users are responsible for complying with applicable laws and regulations when using this software. The author disclaims liability for any misuse or unauthorized application of the tool. 
+## Disclaimer
+
+This tool is provided as-is for legitimate forensic and security analysis purposes. Users are responsible for ensuring they have proper authorization before analyzing any file systems or MFT data. The authors assume no liability for misuse of this software.

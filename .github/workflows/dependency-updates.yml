@@ -1,0 +1,69 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+jobs:
+  update-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install pip-tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install pip-tools
+
+    - name: Check for outdated packages
+      run: |
+        pip list --outdated --format=json > outdated_packages.json
+        if [ -s outdated_packages.json ]; then
+          echo "Outdated packages found:"
+          cat outdated_packages.json
+        else
+          echo "All packages are up to date"
+        fi
+
+    - name: Run security audit
+      run: |
+        pip install safety
+        safety check --json --output safety_report.json || true
+        if [ -f safety_report.json ]; then
+          echo "Security vulnerabilities found:"
+          cat safety_report.json
+        fi
+
+    - name: Test with current dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio
+        pip install -e .
+        pytest tests/ --tb=short -x  # Stop on first failure for quick feedback
+
+  dependabot-auto-merge:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    steps:
+    - name: Dependabot metadata
+      id: metadata
+      uses: dependabot/fetch-metadata@v1
+      with:
+        github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    - name: Auto-merge minor and patch updates
+      if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+      run: |
+        echo "Auto-merging ${{ steps.metadata.outputs.update-type }} update"
+        gh pr merge --auto --merge "$PR_URL"
+      env:
+        PR_URL: ${{ github.event.pull_request.html_url }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

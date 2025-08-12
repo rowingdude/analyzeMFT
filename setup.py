@@ -7,7 +7,7 @@ setup(
     name='analyzeMFT',
     version='3.1.0',
     author='Benjamin Cance',
-    author_email='bjc@tdx.li',
+    author_email='kc8bws@kc8bws.com',
     package_dir={'': 'src'},
     packages=find_packages(where='src'),
     package_data={
@@ -27,6 +27,10 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
     ],
     python_requires=">=3.7",
     install_requires=[

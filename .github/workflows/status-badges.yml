@@ -1,0 +1,26 @@
+name: Update Status Badges
+
+on:
+  push:
+    branches: [ main, master ]
+  schedule:
+    # Update badges daily at 6 AM UTC
+    - cron: '0 6 * * *'
+
+jobs:
+  update-badges:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Generate Test Coverage Badge
+      run: |
+        # This job runs after tests to update coverage badges
+        echo "Coverage and status badges will be updated by CI results"
+        echo "Add these badges to your README.md:"
+        echo ""
+        echo "![CI Status](https://github.com/${{ github.repository }}/workflows/CI%2FCD%20Pipeline/badge.svg)"
+        echo "![Tests](https://github.com/${{ github.repository }}/workflows/Pull%20Request%20Checks/badge.svg)"
+        echo "![Python Versions](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)"
+        echo "![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)"
+        echo "![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)"

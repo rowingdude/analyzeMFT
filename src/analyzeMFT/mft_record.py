@@ -3,19 +3,22 @@ import uuid
 import hashlib
 import zlib
 import logging
+import traceback
+from typing import Dict, Set, List, Optional, Any, Union
+
 from .constants import *
 from .windows_time import WindowsTime
 from .validators import validate_attribute_length, ValidationError
 
-from typing import Dict, Set, List, Optional, Any, Union
-
-
 
 class MftRecord:
+    
     def __init__(self, raw_record: bytes, compute_hashes: bool = False, debug_level: int = 0, logger=None):
+
         self.raw_record = raw_record
         self.debug_level = debug_level
         self.logger = logger or logging.getLogger('analyzeMFT.mft_record')
+        
         self.magic = 0
         self.upd_off = 0
         self.upd_cnt = 0
@@ -30,6 +33,9 @@ class MftRecord:
         self.next_attrid = 0
         self.recordnum = 0
         self.filename = ''
+        self.parent_ref = 0
+        self.filesize = 0
+        
         self.si_times = {
             'crtime': WindowsTime(0, 0),
             'mtime': WindowsTime(0, 0),
@@ -42,46 +48,37 @@ class MftRecord:
             'atime': WindowsTime(0, 0),
             'ctime': WindowsTime(0, 0)
         }
-        self.filesize = 0
-        self.attribute_types = set()
-        self.attribute_list = []
+        self.attribute_types: Set[int] = set()
+        self.attribute_list: List[Dict] = []
         self.object_id = ''
         self.birth_volume_id = ''
         self.birth_object_id = ''
         self.birth_domain_id = ''
-        self.parent_ref = 0
-        self.md5 = None
-        self.sha256 = None
-        self.sha512 = None
-        self.crc32 = None
+
+        self.security_descriptor: Optional[Dict] = None
+        self.volume_name: Optional[str] = None
+        self.volume_info: Optional[Dict] = None
+        self.data_attribute: Optional[Dict] = None
+        self.index_root: Optional[Dict] = None
+        self.index_allocation: Optional[Dict] = None
+        self.bitmap: Optional[Dict] = None
+        self.reparse_point: Optional[Dict] = None
+        self.ea_information: Optional[Dict] = None
+        self.ea: Optional[Dict] = None
+        self.logged_utility_stream: Optional[Dict] = None
+        self.md5: Optional[str] = None
+        self.sha256: Optional[str] = None
+        self.sha512: Optional[str] = None
+        self.crc32: Optional[str] = None
+        
         if compute_hashes:
             self.compute_hashes()
         self.parse_record()
-        self.security_descriptor = None
-        self.volume_name = None
-        self.volume_info = None
-        self.data_attribute = None
-        self.index_root = None
-        self.index_allocation = None
-        self.bitmap = None
-        self.reparse_point = None
-        self.ea_information = None
-        self.ea = None
-        self.logged_utility_stream = None
 
-    def _default_logger(self, message: str, level: int = 0):
-        logger = logging.getLogger('analyzeMFT.mft_record')
-        if level == 0:
-            logger.error(message)
-        elif level == 1:
-            logger.warning(message)
-        elif level == 2:
-            logger.info(message)
-        else:
-            logger.debug(message)
+    def log(self, message: str, level: int = 0) -> None:
 
-    def log(self, message: str, level: int = 0):
-        if hasattr(self.logger, 'error'):            if level == 0:
+        if hasattr(self.logger, 'error'):
+            if level == 0:
                 self.logger.error(message)
             elif level == 1:
                 self.logger.warning(message)
@@ -89,7 +86,8 @@ class MftRecord:
                 self.logger.info(message)
             else:
                 self.logger.debug(message)
-        else:            self.logger(message, level)
+        else:
+            self.logger(message, level)
 
     def parse_record(self) -> None:
         try:
@@ -106,17 +104,21 @@ class MftRecord:
             self.base_ref = struct.unpack("<Q", self.raw_record[MFT_RECORD_FILE_REFERENCE_OFFSET:MFT_RECORD_FILE_REFERENCE_OFFSET+MFT_RECORD_FILE_REFERENCE_SIZE])[0]
             self.next_attrid = struct.unpack("<H", self.raw_record[MFT_RECORD_NEXT_ATTRIBUTE_ID_OFFSET:MFT_RECORD_NEXT_ATTRIBUTE_ID_OFFSET+MFT_RECORD_NEXT_ATTRIBUTE_ID_SIZE])[0]
             self.recordnum = struct.unpack("<I", self.raw_record[MFT_RECORD_RECORD_NUMBER_OFFSET:MFT_RECORD_RECORD_NUMBER_OFFSET+MFT_RECORD_RECORD_NUMBER_SIZE])[0]
+            
             self.parse_attributes()
 
-        except struct.error:
-            if hasattr(self, 'debug') and self.debug:
-                self.logger.error(f"Error parsing MFT record header for record {self.recordnum}")
+        except struct.error as e:
+            self.log(f"Error parsing MFT record header for record {self.recordnum}: {e}", 0)
+        except Exception as e:
+            self.log(f"Unexpected error parsing MFT record {self.recordnum}: {e}", 0)
 
-    def parse_attributes(self):
+    def parse_attributes(self) -> None:
         offset = int(self.attr_off)
+        
         while offset < len(self.raw_record) - 8:
             try:
                 self.log(f"Parsing attribute at offset {offset}", 3)
+                
                 attr_type = int(struct.unpack("<L", self.raw_record[offset:offset+4])[0])
                 attr_len = int(struct.unpack("<L", self.raw_record[offset+4:offset+8])[0])
                 
@@ -124,7 +126,9 @@ class MftRecord:
 
                 if attr_type == 0xffffffff or attr_len == 0:
                     self.log("End of attributes reached", 3)
-                    break                try:
+                    break
+                
+                try:
                     validate_attribute_length(
                         attr_len=attr_len,
                         offset=offset,
@@ -132,7 +136,9 @@ class MftRecord:
                         attr_type=attr_type
                     )
                 except ValidationError as e:
-                    self.logger.error(f"Attribute validation failed at record {getattr(self, 'recordnum', 'unknown')}: {e}")                    offset += 8                    continue
+                    self.log(f"Attribute validation failed at record {getattr(self, 'recordnum', 'unknown')}: {e}", 0)
+                    offset += 8
+                    continue
                 
                 self.attribute_types.add(attr_type)
 
@@ -170,95 +176,100 @@ class MftRecord:
                 offset += attr_len
 
             except Exception as e:
-                self.logger.error(f"Error processing record {self.recordnum}: {str(e)}")
-                self.logger.error(f"attr_type: {attr_type} (type: {type(attr_type)})")
-                self.logger.error(f"attr_len: {attr_len} (type: {type(attr_len)})")
-                self.logger.error(f"offset: {offset}")
-                if self.debug >= 2:
+                self.log(f"Error processing record {self.recordnum}: {str(e)}", 0)
+                self.log(f"attr_type: {attr_type} (type: {type(attr_type)})", 3)
+                self.log(f"attr_len: {attr_len} (type: {type(attr_len)})", 3)
+                self.log(f"offset: {offset}", 3)
+                if self.debug_level >= 2:
                     traceback.print_exc()
                 offset += 1
 
     def parse_si_attribute(self, offset: int) -> None:
-        si_data = self.raw_record[offset+24:offset+72]
-        if len(si_data) >= 32:
-            try:                timestamps = struct.unpack("<QQQQ", si_data[:32])
+        try:
+            si_data = self.raw_record[offset+24:offset+72]
+            if len(si_data) >= 32:
+                timestamps = struct.unpack("<QQQQ", si_data[:32])
                 self.si_times = {
                     'crtime': WindowsTime(timestamps[0] & 0xFFFFFFFF, timestamps[0] >> 32),
                     'mtime': WindowsTime(timestamps[1] & 0xFFFFFFFF, timestamps[1] >> 32),
                     'ctime': WindowsTime(timestamps[2] & 0xFFFFFFFF, timestamps[2] >> 32),
                     'atime': WindowsTime(timestamps[3] & 0xFFFFFFFF, timestamps[3] >> 32)
                 }
-            except struct.error:
-                pass
+        except struct.error as e:
+            self.log(f"Error parsing SI attribute for record {self.recordnum}: {e}", 1)
 
     def parse_fn_attribute(self, offset: int) -> None:
-        fn_data = self.raw_record[offset+24:]
-        if len(fn_data) >= 64:
-            try:                self.parent_ref = struct.unpack("<Q", fn_data[:8])[0] & 0x0000FFFFFFFFFFFF                timestamps = struct.unpack("<QQQQ", fn_data[8:40])
+        try:
+            fn_data = self.raw_record[offset+24:]
+            if len(fn_data) >= 64:
+                self.parent_ref = struct.unpack("<Q", fn_data[:8])[0] & 0x0000FFFFFFFFFFFF
+                timestamps = struct.unpack("<QQQQ", fn_data[8:40])
                 self.fn_times = {
                     'crtime': WindowsTime(timestamps[0] & 0xFFFFFFFF, timestamps[0] >> 32),
                     'mtime': WindowsTime(timestamps[1] & 0xFFFFFFFF, timestamps[1] >> 32),
                     'ctime': WindowsTime(timestamps[2] & 0xFFFFFFFF, timestamps[2] >> 32),
                     'atime': WindowsTime(timestamps[3] & 0xFFFFFFFF, timestamps[3] >> 32)
-                }                self.filesize = struct.unpack("<Q", fn_data[48:56])[0]                name_len = struct.unpack("B", fn_data[64:65])[0]
+                }
+                self.filesize = struct.unpack("<Q", fn_data[48:56])[0]
+                name_len = struct.unpack("B", fn_data[64:65])[0]
                 if len(fn_data) >= 66 + name_len * 2:
                     self.filename = fn_data[66:66+name_len*2].decode('utf-16-le', errors='replace')
-            except struct.error:
-                pass
+        except struct.error as e:
+            self.log(f"Error parsing FN attribute for record {self.recordnum}: {e}", 1)
 
     def parse_object_id_attribute(self, offset: int) -> None:
-        obj_id_data = self.raw_record[offset+24:offset+88]
-        if len(obj_id_data) >= 64:
-            try:
+        try:
+            obj_id_data = self.raw_record[offset+24:offset+88]
+            if len(obj_id_data) >= 64:
                 self.object_id = str(uuid.UUID(bytes_le=bytes(obj_id_data[:16])))
                 self.birth_volume_id = str(uuid.UUID(bytes_le=bytes(obj_id_data[16:32])))
                 self.birth_object_id = str(uuid.UUID(bytes_le=bytes(obj_id_data[32:48])))
                 self.birth_domain_id = str(uuid.UUID(bytes_le=bytes(obj_id_data[48:64])))
-            except (struct.error, ValueError):
-                if self.debug:
-                    self.logger.error(f"Error parsing Object ID attribute for record {self.recordnum}")
-    
-    def parse_object_id(self, offset: int) -> None:
-        """Alias for parse_object_id_attribute for backward compatibility"""
-        self.parse_object_id_attribute(offset)
+        except (struct.error, ValueError) as e:
+            self.log(f"Error parsing Object ID attribute for record {self.recordnum}: {e}", 1)
     
     def get_parent_record_num(self) -> int:
         return self.parent_ref & 0x0000FFFFFFFFFFFF
 
     def parse_attribute_list(self, offset: int) -> None:
-        attr_content_offset = offset + struct.unpack("<H", self.raw_record[offset+20:offset+22])[0]
-        attr_content_end = offset + struct.unpack("<L", self.raw_record[offset+4:offset+8])[0]
-        
-        while attr_content_offset < attr_content_end:
-            try:
-                attr_type = struct.unpack("<L", self.raw_record[attr_content_offset:attr_content_offset+4])[0]
-                attr_len = struct.unpack("<H", self.raw_record[attr_content_offset+4:attr_content_offset+6])[0]
-                name_len = struct.unpack("B", self.raw_record[attr_content_offset+6:attr_content_offset+7])[0]
-                name_offset = struct.unpack("B", self.raw_record[attr_content_offset+7:attr_content_offset+8])[0]
-                
-                if name_len > 0:
-                    name = self.raw_record[attr_content_offset+name_offset:attr_content_offset+name_offset+name_len*2].decode('utf-16-le', errors='replace')
-                else:
-                    name = ""
-                
-                vcn = struct.unpack("<Q", self.raw_record[attr_content_offset+8:attr_content_offset+16])[0]
-                ref = struct.unpack("<Q", self.raw_record[attr_content_offset+16:attr_content_offset+24])[0]
-                
-                self.attribute_list.append({
-                    'type': attr_type,
-                    'name': name,
-                    'vcn': vcn,
-                    'reference': ref
-                })
-                
-                attr_content_offset += attr_len
-            except struct.error:
-                break
+        try:
+            attr_content_offset = offset + struct.unpack("<H", self.raw_record[offset+20:offset+22])[0]
+            attr_content_end = offset + struct.unpack("<L", self.raw_record[offset+4:offset+8])[0]
+            
+            while attr_content_offset < attr_content_end:
+                try:
+                    attr_type = struct.unpack("<L", self.raw_record[attr_content_offset:attr_content_offset+4])[0]
+                    attr_len = struct.unpack("<H", self.raw_record[attr_content_offset+4:attr_content_offset+6])[0]
+                    name_len = struct.unpack("B", self.raw_record[attr_content_offset+6:attr_content_offset+7])[0]
+                    name_offset = struct.unpack("B", self.raw_record[attr_content_offset+7:attr_content_offset+8])[0]
+                    
+                    if name_len > 0:
+                        name = self.raw_record[attr_content_offset+name_offset:attr_content_offset+name_offset+name_len*2].decode('utf-16-le', errors='replace')
+                    else:
+                        name = ""
+                    
+                    vcn = struct.unpack("<Q", self.raw_record[attr_content_offset+8:attr_content_offset+16])[0]
+                    ref = struct.unpack("<Q", self.raw_record[attr_content_offset+16:attr_content_offset+24])[0]
+                    
+                    self.attribute_list.append({
+                        'type': attr_type,
+                        'name': name,
+                        'vcn': vcn,
+                        'reference': ref
+                    })
+                    
+                    attr_content_offset += attr_len
+                    if attr_len == 0: 
+                        break
+                except struct.error:
+                    break
+        except struct.error as e:
+            self.log(f"Error parsing Attribute List for record {self.recordnum}: {e}", 1)
 
     def parse_security_descriptor(self, offset: int) -> None:
-        sd_data = self.raw_record[offset+24:]
-        if len(sd_data) >= 20:
-            try:
+        try:
+            sd_data = self.raw_record[offset+24:]
+            if len(sd_data) >= 20:
                 revision = struct.unpack("B", sd_data[0:1])[0]
                 control = struct.unpack("<H", sd_data[2:4])[0]
                 owner_offset = struct.unpack("<L", sd_data[4:8])[0]
@@ -274,49 +285,52 @@ class MftRecord:
                     'sacl_offset': sacl_offset,
                     'dacl_offset': dacl_offset
                 }
-            except struct.error:
-                if self.debug:
-                    self.logger.error(f"Error parsing Security Descriptor attribute for record {self.recordnum}")
+        except struct.error as e:
+            self.log(f"Error parsing Security Descriptor attribute for record {self.recordnum}: {e}", 1)
 
     def parse_volume_name(self, offset: int) -> None:
-        vn_data = self.raw_record[offset+24:]
         try:
+            vn_data = self.raw_record[offset+24:]
             name_length = struct.unpack("<H", vn_data[:2])[0]
             self.volume_name = vn_data[2:2+name_length*2].decode('utf-16-le', errors='replace')
-        except struct.error:
-            if self.debug:
-                self.logger.error(f"Error parsing Volume Name attribute for record {self.recordnum}")
+        except struct.error as e:
+            self.log(f"Error parsing Volume Name attribute for record {self.recordnum}: {e}", 1)
 
     def parse_volume_information(self, offset: int) -> None:
-        vi_data = self.raw_record[offset+24:offset+48]
-        if len(vi_data) >= 12:
-            try:
+        try:
+            vi_data = self.raw_record[offset+24:offset+48]
+            if len(vi_data) >= 12:
                 self.volume_info = {
                     'major_version': struct.unpack("B", vi_data[8:9])[0],
                     'minor_version': struct.unpack("B", vi_data[9:10])[0],
                     'flags': struct.unpack("<H", vi_data[10:12])[0]
                 }
-            except struct.error:
-                if self.debug:
-                    self.logger.error(f"Error parsing Volume Information attribute for record {self.recordnum}")
+        except struct.error as e:
+            self.log(f"Error parsing Volume Information attribute for record {self.recordnum}: {e}", 1)
 
-    def parse_data(self, offset):
-        data_header = self.raw_record[offset:offset+24]
+    def parse_data(self, offset: int) -> None:
         try:
+            data_header = self.raw_record[offset:offset+24]
             non_resident_flag = struct.unpack("B", data_header[8:9])[0]
             name_length = struct.unpack("B", data_header[9:10])[0]
             name_offset = struct.unpack("<H", data_header[10:12])[0]
+            
             if name_length > 0:
                 name = self.raw_record[offset+name_offset:offset+name_offset+name_length*2].decode('utf-16-le', errors='replace')
             else:
                 name = ""
             
-            if non_resident_flag == 0:                content_size = struct.unpack("<L", data_header[16:20])[0]
+            content_size = None
+            start_vcn = None
+            last_vcn = None
+            
+            if non_resident_flag == 0: 
+                content_size = struct.unpack("<L", data_header[16:20])[0]
                 content_offset = struct.unpack("<H", data_header[20:22])[0]
-                content = self.raw_record[offset+content_offset:offset+content_offset+content_size]
-            else:                start_vcn = struct.unpack("<Q", data_header[16:24])[0]
+            else:  
+                start_vcn = struct.unpack("<Q", data_header[16:24])[0]
                 last_vcn = struct.unpack("<Q", self.raw_record[offset+24:offset+32])[0]
-                
+            
             self.data_attribute = {
                 'name': name,
                 'non_resident': bool(non_resident_flag),
@@ -324,13 +338,12 @@ class MftRecord:
                 'start_vcn': start_vcn if non_resident_flag != 0 else None,
                 'last_vcn': last_vcn if non_resident_flag != 0 else None
             }
-        except struct.error:
-            if self.debug:
-                self.logger.error(f"Error parsing Data attribute for record {self.recordnum}")
+        except struct.error as e:
+            self.log(f"Error parsing Data attribute for record {self.recordnum}: {e}", 1)
 
     def parse_index_root(self, offset: int) -> None:
-        ir_data = self.raw_record[offset+24:]
         try:
+            ir_data = self.raw_record[offset+24:]
             attr_type = struct.unpack("<L", ir_data[:4])[0]
             collation_rule = struct.unpack("<L", ir_data[4:8])[0]
             index_alloc_size = struct.unpack("<L", ir_data[8:12])[0]
@@ -342,36 +355,33 @@ class MftRecord:
                 'index_alloc_size': index_alloc_size,
                 'clusters_per_index': clusters_per_index
             }
-        except struct.error:
-            if self.debug:
-                self.logger.error(f"Error parsing Index Root attribute for record {self.recordnum}")
+        except struct.error as e:
+            self.log(f"Error parsing Index Root attribute for record {self.recordnum}: {e}", 1)
 
     def parse_index_allocation(self, offset: int) -> None:
-        ia_data = self.raw_record[offset+24:]
         try:
+            ia_data = self.raw_record[offset+24:]
             data_runs_offset = struct.unpack("<H", ia_data[:2])[0]
             self.index_allocation = {
                 'data_runs_offset': data_runs_offset
             }
-        except struct.error:
-            if self.debug:
-                self.logger.error(f"Error parsing Index Allocation attribute for record {self.recordnum}")
+        except struct.error as e:
+            self.log(f"Error parsing Index Allocation attribute for record {self.recordnum}: {e}", 1)
 
     def parse_bitmap(self, offset: int) -> None:
-        bitmap_data = self.raw_record[offset+24:]
         try:
+            bitmap_data = self.raw_record[offset+24:]
             bitmap_size = struct.unpack("<L", bitmap_data[:4])[0]
             self.bitmap = {
                 'size': bitmap_size,
                 'data': bitmap_data[4:4+bitmap_size]
             }
-        except struct.error:
-            if self.debug:
-                self.logger.error(f"Error parsing Bitmap attribute for record {self.recordnum}")
+        except struct.error as e:
+            self.log(f"Error parsing Bitmap attribute for record {self.recordnum}: {e}", 1)
 
     def parse_reparse_point(self, offset: int) -> None:
-        rp_data = self.raw_record[offset+24:]
         try:
+            rp_data = self.raw_record[offset+24:]
             reparse_tag = struct.unpack("<L", rp_data[:4])[0]
             reparse_data_length = struct.unpack("<H", rp_data[4:6])[0]
             self.reparse_point = {
@@ -379,26 +389,24 @@ class MftRecord:
                 'data_length': reparse_data_length,
                 'data': rp_data[8:8+reparse_data_length]
             }
-        except struct.error:
-            if self.debug:
-                self.logger.error(f"Error parsing Reparse Point attribute for record {self.recordnum}")
+        except struct.error as e:
+            self.log(f"Error parsing Reparse Point attribute for record {self.recordnum}: {e}", 1)
 
     def parse_ea_information(self, offset: int) -> None:
-        eai_data = self.raw_record[offset+24:]
         try:
+            eai_data = self.raw_record[offset+24:]
             ea_size = struct.unpack("<L", eai_data[:4])[0]
             ea_count = struct.unpack("<L", eai_data[4:8])[0]
             self.ea_information = {
                 'ea_size': ea_size,
                 'ea_count': ea_count
             }
-        except struct.error:
-            if self.debug:
-                self.logger.error(f"Error parsing EA Information attribute for record {self.recordnum}")
+        except struct.error as e:
+            self.log(f"Error parsing EA Information attribute for record {self.recordnum}: {e}", 1)
 
     def parse_ea(self, offset: int) -> None:
-        ea_data = self.raw_record[offset+24:]
         try:
+            ea_data = self.raw_record[offset+24:]
             next_entry_offset = struct.unpack("<L", ea_data[:4])[0]
             flags = struct.unpack("B", ea_data[4:5])[0]
             name_length = struct.unpack("B", ea_data[5:6])[0]
@@ -412,22 +420,19 @@ class MftRecord:
                 'name': name,
                 'value': value
             }
-        except struct.error:
-            if self.debug:
-                self.logger.error(f"Error parsing EA attribute for record {self.recordnum}")
+        except struct.error as e:
+            self.log(f"Error parsing EA attribute for record {self.recordnum}: {e}", 1)
 
     def parse_logged_utility_stream(self, offset: int) -> None:
-        lus_data = self.raw_record[offset+24:]
         try:
+            lus_data = self.raw_record[offset+24:]
             stream_size = struct.unpack("<Q", lus_data[:8])[0]
             self.logged_utility_stream = {
                 'size': stream_size,
                 'data': lus_data[8:8+stream_size]
             }
-        except struct.error:
-            if self.debug:
-                self.logger.error(f"Error parsing Logged Utility Stream attribute for record {self.recordnum}")
-
+        except struct.error as e:
+            self.log(f"Error parsing Logged Utility Stream attribute for record {self.recordnum}: {e}", 1)
 
     def to_csv(self) -> List[Union[str, int]]:
         row = [
@@ -439,8 +444,8 @@ class MftRecord:
             self.get_parent_record_num(),
             self.base_ref >> 48,
             
-            self.filename,
-            "",            
+            self.filename, "",  
+            
             self.si_times['crtime'].dtstr,
             self.si_times['mtime'].dtstr,
             self.si_times['atime'].dtstr,
@@ -472,7 +477,7 @@ class MftRecord:
             
             str(self.attribute_list),
             str(self.security_descriptor),
-            self.volume_name,
+            self.volume_name or "",
             str(self.volume_info),
             str(self.data_attribute),
             str(self.index_root),
@@ -483,45 +488,40 @@ class MftRecord:
             str(self.ea),
             str(self.logged_utility_stream)
         ]
+        
         if self.md5 is not None:
             row.extend([self.md5, self.sha256, self.sha512, self.crc32])
         else:
-            row.extend([""] * 4)        return row
+            row.extend([""] * 4)
+            
+        return row
 
     def compute_hashes(self) -> None:
-        """
-        Compute hashes for this MFT record using single-threaded approach.
-        For better performance with multiple records, use HashProcessor class.
-        """
-        md5 = hashlib.md5()
-        sha256 = hashlib.sha256()
-        sha512 = hashlib.sha512()
-        
-        md5.update(self.raw_record)
-        sha256.update(self.raw_record)
-        sha512.update(self.raw_record)
-        
-        self.md5 = md5.hexdigest()
-        self.sha256 = sha256.hexdigest()
-        self.sha512 = sha512.hexdigest()
-        self.crc32 = format(zlib.crc32(self.raw_record) & 0xFFFFFFFF, '08x')
-        
+
+        try:
+            md5 = hashlib.md5()
+            sha256 = hashlib.sha256()
+            sha512 = hashlib.sha512()
+            
+            md5.update(self.raw_record)
+            sha256.update(self.raw_record)
+            sha512.update(self.raw_record)
+            
+            self.md5 = md5.hexdigest()
+            self.sha256 = sha256.hexdigest()
+            self.sha512 = sha512.hexdigest()
+            self.crc32 = format(zlib.crc32(self.raw_record) & 0xFFFFFFFF, '08x')
+        except Exception as e:
+            self.log(f"Error computing hashes for record {self.recordnum}: {e}", 0)
+
     def set_hashes(self, md5: str, sha256: str, sha512: str, crc32: str) -> None:
-        """
-        Set hash values from external computation (e.g., multiprocessing).
-        
-        Args:
-            md5: MD5 hash as hex string
-            sha256: SHA256 hash as hex string  
-            sha512: SHA512 hash as hex string
-            crc32: CRC32 hash as hex string
-        """
+
         self.md5 = md5
         self.sha256 = sha256
         self.sha512 = sha512
         self.crc32 = crc32
 
-    def get_file_type(self)-> str:
+    def get_file_type(self) -> str:
         if self.flags & FILE_RECORD_IS_DIRECTORY:
             return "Directory"
         elif self.flags & FILE_RECORD_IS_EXTENSION:

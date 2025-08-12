@@ -8,28 +8,45 @@ import os
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from .mft_record import MftRecord
+from .constants import FILE_RECORD_IN_USE, FILE_RECORD_IS_DIRECTORY
 
 
 class SQLiteWriter:
-    """Handles writing MFT analysis results to SQLite database"""
+    """SQLite database writer for MFT analysis results."""
     
     def __init__(self, database_path: str, logger: Optional[logging.Logger] = None):
+        """
+        Initialize SQLite writer.
+        
+        Args:
+            database_path: Path to SQLite database file
+            logger: Logger instance
+        """
         self.database_path = Path(database_path)
         self.logger = logger or logging.getLogger('analyzeMFT.sqlite')
         self.conn: Optional[sqlite3.Connection] = None
         self.cursor: Optional[sqlite3.Cursor] = None
         
     def __enter__(self):
+        """Context manager entry."""
         self.connect()
         return self
         
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
         self.close()
         
     def connect(self) -> None:
-        """Connect to SQLite database and initialize schema"""
-        try:            self.database_path.parent.mkdir(parents=True, exist_ok=True)            self.conn = sqlite3.connect(str(self.database_path))
-            self.cursor = self.conn.cursor()            self.cursor.execute("PRAGMA foreign_keys = ON")            self._initialize_schema()
+        """Connect to SQLite database and initialize schema."""
+        try:
+            # Create parent directories if needed
+            self.database_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Connect to database
+            self.conn = sqlite3.connect(str(self.database_path))
+            self.cursor = self.conn.cursor()
+            self.cursor.execute("PRAGMA foreign_keys = ON")
+            self._initialize_schema()
             
             self.logger.info(f"Connected to SQLite database: {self.database_path}")
             
@@ -38,21 +55,28 @@ class SQLiteWriter:
             raise
             
     def close(self) -> None:
-        """Close database connection"""
+        """Close database connection."""
         if self.conn:
-            self.conn.commit()
-            self.conn.close()
-            self.logger.info("SQLite database connection closed")
+            try:
+                self.conn.commit()
+                self.conn.close()
+                self.logger.info("SQLite database connection closed")
+            except Exception as e:
+                self.logger.warning(f"Error closing database connection: {e}")
             
     def _initialize_schema(self) -> None:
-        """Initialize database schema"""
-        try:            self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='mft_records'")
+        """Initialize database schema if it doesn't exist."""
+        try:
+            # Check if tables already exist
+            self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='mft_records'")
             if self.cursor.fetchone():
                 self.logger.info("Database schema already exists, skipping initialization")
                 return
-            
-            self.logger.info("Initializing new database schema")            self._create_tables()            self._populate_reference_tables()
-            
+
+            self.logger.info("Initializing new database schema")
+            self._create_tables()
+            self._populate_reference_tables()
+
             self.conn.commit()
             self.logger.info("Database schema initialized successfully")
             
@@ -63,17 +87,22 @@ class SQLiteWriter:
             raise
 
     def _create_tables(self) -> None:
-        """Create all database tables"""        self.cursor.execute("""
+        """Create database tables and indexes."""
+        # Create tables
+        table_definitions = [
+            """
             CREATE TABLE IF NOT EXISTS attribute_types (
                 id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL
             )
-        """)        self.cursor.execute("""
+            """,
+            """
             CREATE TABLE IF NOT EXISTS file_record_flags (
                 id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL
             )
-        """)        self.cursor.execute("""
+            """,
+            """
             CREATE TABLE IF NOT EXISTS mft_records (
                 record_number INTEGER PRIMARY KEY,
                 sequence_number INTEGER,
@@ -125,7 +154,8 @@ class SQLiteWriter:
                 -- Analysis timestamp
                 analyzed_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
-        """)        self.cursor.execute("""
+            """,
+            """
             CREATE TABLE IF NOT EXISTS mft_attributes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 record_number INTEGER,
@@ -138,7 +168,14 @@ class SQLiteWriter:
                 FOREIGN KEY (record_number) REFERENCES mft_records(record_number),
                 FOREIGN KEY (attribute_type) REFERENCES attribute_types(id)
             )
-        """)        indexes = [
+            """
+        ]
+        
+        for table_sql in table_definitions:
+            self.cursor.execute(table_sql)
+        
+        # Create indexes
+        indexes = [
             "CREATE INDEX IF NOT EXISTS idx_mft_records_filepath ON mft_records(filepath)",
             "CREATE INDEX IF NOT EXISTS idx_mft_records_filename ON mft_records(filename)",
             "CREATE INDEX IF NOT EXISTS idx_mft_records_parent ON mft_records(parent_record_number)",
@@ -149,7 +186,10 @@ class SQLiteWriter:
         ]
         
         for index_sql in indexes:
-            self.cursor.execute(index_sql)        self.cursor.execute("""
+            self.cursor.execute(index_sql)
+        
+        # Create views
+        self.cursor.execute("""
             CREATE VIEW IF NOT EXISTS active_files AS
             SELECT * FROM mft_records 
             WHERE is_active = 1 AND is_directory = 0
@@ -168,7 +208,8 @@ class SQLiteWriter:
         """)
 
     def _populate_reference_tables(self) -> None:
-        """Populate reference tables with static data"""        attribute_types = [
+        """Populate reference tables with static data."""
+        attribute_types = [
             (16, '$STANDARD_INFORMATION'),
             (32, '$ATTRIBUTE_LIST'),
             (48, '$FILE_NAME'),
@@ -189,7 +230,9 @@ class SQLiteWriter:
         self.cursor.executemany(
             "INSERT OR IGNORE INTO attribute_types (id, name) VALUES (?, ?)",
             attribute_types
-        )        file_record_flags = [
+        )
+        
+        file_record_flags = [
             (1, 'FILE_RECORD_IN_USE'),
             (2, 'FILE_RECORD_IS_DIRECTORY'),
             (4, 'FILE_RECORD_IS_EXTENSION'),
@@ -202,8 +245,17 @@ class SQLiteWriter:
         )
         
     def write_record(self, record: MftRecord, filepath: str = "") -> None:
-        """Write a single MFT record to database"""
-        try:            record_data = self._prepare_record_data(record, filepath)            self.cursor.execute("""
+        """
+        Write a single MFT record to the database.
+        
+        Args:
+            record: MFT record to write
+            filepath: Full file path
+        """
+        try:
+            record_data = self._prepare_record_data(record, filepath)
+            
+            self.cursor.execute("""
                 INSERT OR REPLACE INTO mft_records (
                     record_number, sequence_number, flags, used_size, allocated_size,
                     base_record_number, next_attribute_id, filepath, filename,
@@ -215,24 +267,34 @@ class SQLiteWriter:
                     md5_hash, sha256_hash, sha512_hash, crc32_hash,
                     is_active, is_directory, is_deleted, has_ads
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, record_data)            self._write_attributes(record)
+            """, record_data)
             
         except Exception as e:
             self.logger.error(f"Error writing record {record.recordnum}: {e}")
             raise
             
     def write_records_batch(self, records: List[MftRecord], filepaths: Dict[int, str] = None) -> None:
-        """Write multiple records in a batch"""
+        """
+        Write a batch of MFT records to the database.
+        
+        Args:
+            records: List of MFT records to write
+            filepaths: Dictionary mapping record numbers to file paths
+        """
         if filepaths is None:
             filepaths = {}
             
         try:
-            self.logger.info(f"Writing batch of {len(records)} records to SQLite database")            for record in records:
+            self.logger.info(f"Writing batch of {len(records)} records to SQLite database")
+            
+            for record in records:
                 try:
                     filepath = filepaths.get(getattr(record, 'recordnum', 0), "")
                     recordnum = getattr(record, 'recordnum', 0)
                     filename = getattr(record, 'filename', None)
-                    flags = getattr(record, 'flags', 0)                    self.cursor.execute("""
+                    flags = getattr(record, 'flags', 0)
+                    
+                    self.cursor.execute("""
                         INSERT OR REPLACE INTO mft_records (
                             record_number, filepath, filename, flags, is_active, is_directory, is_deleted
                         ) VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -241,7 +303,9 @@ class SQLiteWriter:
                         filepath,
                         filename, 
                         flags,
-                        bool(flags & 1) if flags else False,                        bool(flags & 2) if flags else False,                        not bool(flags & 1) if flags else True
+                        bool(flags & FILE_RECORD_IN_USE) if flags else False,
+                        bool(flags & FILE_RECORD_IS_DIRECTORY) if flags else False,
+                        not bool(flags & FILE_RECORD_IN_USE) if flags else True
                     ))
                     
                 except Exception as e:
@@ -258,106 +322,107 @@ class SQLiteWriter:
             raise
             
     def _prepare_record_data(self, record: MftRecord, filepath: str) -> tuple:
-        """Prepare record data for database insertion"""
-        from .constants import FILE_RECORD_IN_USE, FILE_RECORD_IS_DIRECTORY        def safe_getattr(obj, attr, default=None):
+        """
+        Prepare record data for database insertion.
+        
+        Args:
+            record: MFT record
+            filepath: Full file path
+            
+        Returns:
+            Tuple of record data
+        """
+        def safe_getattr(obj, attr, default=None):
             try:
                 return getattr(obj, attr, default)
             except (AttributeError, TypeError):
-                return default        parent_record_num = None
+                return default
+
+        parent_record_num = None
         try:
             if hasattr(record, 'get_parent_record_num'):
                 parent_record_num = record.get_parent_record_num()
         except Exception:
             pass
             
-        parent_seq_num = safe_getattr(record, 'parent_sequence_number', None)        si_times = (None, None, None, None)        fn_times = (None, None, None, None)        file_info = (None, None, None)        object_info = (None, None, None, None)        hash_info = (
+        parent_seq_num = safe_getattr(record, 'parent_sequence_number', None)
+        
+        # Extract timestamps
+        si_times = (
+            safe_getattr(record.si_times.get('crtime'), 'dtstr', None) if hasattr(record, 'si_times') else None,
+            safe_getattr(record.si_times.get('mtime'), 'dtstr', None) if hasattr(record, 'si_times') else None,
+            safe_getattr(record.si_times.get('atime'), 'dtstr', None) if hasattr(record, 'si_times') else None,
+            safe_getattr(record.si_times.get('ctime'), 'dtstr', None) if hasattr(record, 'si_times') else None
+        )
+        
+        fn_times = (
+            safe_getattr(record.fn_times.get('crtime'), 'dtstr', None) if hasattr(record, 'fn_times') else None,
+            safe_getattr(record.fn_times.get('mtime'), 'dtstr', None) if hasattr(record, 'fn_times') else None,
+            safe_getattr(record.fn_times.get('atime'), 'dtstr', None) if hasattr(record, 'fn_times') else None,
+            safe_getattr(record.fn_times.get('ctime'), 'dtstr', None) if hasattr(record, 'fn_times') else None
+        )
+        
+        # Extract file info
+        file_info = (
+            safe_getattr(record, 'file_attributes', None),
+            safe_getattr(record, 'allocated_file_size', None),
+            safe_getattr(record, 'filesize', None)
+        )
+        
+        # Extract object info
+        object_info = (
+            safe_getattr(record, 'object_id', None),
+            safe_getattr(record, 'birth_volume_id', None),
+            safe_getattr(record, 'birth_object_id', None),
+            safe_getattr(record, 'birth_domain_id', None)
+        )
+        
+        # Extract hash info
+        hash_info = (
             safe_getattr(record, 'md5', None),
             safe_getattr(record, 'sha256', None),
             safe_getattr(record, 'sha512', None),
             safe_getattr(record, 'crc32', None)
-        )        flags = safe_getattr(record, 'flags', 0)
+        )
+        
+        flags = safe_getattr(record, 'flags', 0)
         is_active = bool(flags & FILE_RECORD_IN_USE) if flags else False
         is_directory = bool(flags & FILE_RECORD_IS_DIRECTORY) if flags else False
         is_deleted = not is_active
         has_ads = safe_getattr(record, 'has_ads', False)
         
         return (
-            safe_getattr(record, 'recordnum', 0),            safe_getattr(record, 'sequence_number', None),            flags,            safe_getattr(record, 'used_size', None),            safe_getattr(record, 'allocated_size', None),            safe_getattr(record, 'base_record_number', None),            safe_getattr(record, 'next_attribute_id', None),            filepath,            safe_getattr(record, 'filename', None),            parent_record_num,            parent_seq_num,            si_times[0], si_times[1], si_times[2], si_times[3],            fn_times[0], fn_times[1], fn_times[2], fn_times[3],            file_info[0], file_info[1], file_info[2],            object_info[0], object_info[1], object_info[2], object_info[3],            hash_info[0], hash_info[1], hash_info[2], hash_info[3],            is_active, is_directory, is_deleted, has_ads        )
-        
-    def _extract_si_times(self, record: MftRecord) -> tuple:
-        """Extract Standard Information timestamps"""
-        si_times = (None, None, None, None)
-        
-        if hasattr(record, 'standard_information') and record.standard_information:
-            si = record.standard_information
-            si_times = (
-                getattr(si, 'creation_time', None),
-                getattr(si, 'modification_time', None),
-                getattr(si, 'access_time', None),
-                getattr(si, 'entry_time', None)
-            )
-        
-        return si_times
-        
-    def _extract_fn_times(self, record: MftRecord) -> tuple:
-        """Extract File Name timestamps"""
-        fn_times = (None, None, None, None)
-        
-        if hasattr(record, 'file_name') and record.file_name:
-            fn = record.file_name
-            fn_times = (
-                getattr(fn, 'creation_time', None),
-                getattr(fn, 'modification_time', None),
-                getattr(fn, 'access_time', None),
-                getattr(fn, 'entry_time', None)
-            )
-        
-        return fn_times
-        
-    def _extract_file_info(self, record: MftRecord) -> tuple:
-        """Extract file attributes and size information"""
-        file_attributes = None
-        allocated_size = None
-        real_size = None
-        
-        if hasattr(record, 'file_name') and record.file_name:
-            fn = record.file_name
-            file_attributes = getattr(fn, 'file_attributes', None)
-            allocated_size = getattr(fn, 'allocated_size', None)
-            real_size = getattr(fn, 'real_size', None)
-        
-        return (file_attributes, allocated_size, real_size)
-        
-    def _extract_object_info(self, record: MftRecord) -> tuple:
-        """Extract Object ID information"""
-        object_id = None
-        birth_volume_id = None
-        birth_object_id = None
-        birth_domain_id = None
-        
-        if hasattr(record, 'object_id') and record.object_id:
-            oid = record.object_id
-            object_id = getattr(oid, 'object_id', None)
-            birth_volume_id = getattr(oid, 'birth_volume_id', None)
-            birth_object_id = getattr(oid, 'birth_object_id', None)
-            birth_domain_id = getattr(oid, 'birth_domain_id', None)
-        
-        return (object_id, birth_volume_id, birth_object_id, birth_domain_id)
-        
-    def _extract_hash_info(self, record: MftRecord) -> tuple:
-        """Extract hash information"""
-        md5_hash = getattr(record, 'md5', None)
-        sha256_hash = getattr(record, 'sha256', None)
-        sha512_hash = getattr(record, 'sha512', None)
-        crc32_hash = getattr(record, 'crc32', None)
-        
-        return (md5_hash, sha256_hash, sha512_hash, crc32_hash)
+            safe_getattr(record, 'recordnum', 0),
+            safe_getattr(record, 'seq', None),
+            flags,
+            safe_getattr(record, 'size', None),
+            safe_getattr(record, 'alloc_sizef', None),
+            safe_getattr(record, 'base_ref', None),
+            safe_getattr(record, 'next_attrid', None),
+            filepath,
+            safe_getattr(record, 'filename', None),
+            parent_record_num,
+            parent_seq_num,
+            si_times[0], si_times[1], si_times[2], si_times[3],
+            fn_times[0], fn_times[1], fn_times[2], fn_times[3],
+            file_info[0], file_info[1], file_info[2],
+            object_info[0], object_info[1], object_info[2], object_info[3],
+            hash_info[0], hash_info[1], hash_info[2], hash_info[3],
+            is_active, is_directory, is_deleted, has_ads
+        )
         
     def _write_attributes(self, record: MftRecord) -> None:
-        """Write attribute information for a record"""        pass
-            
+        """
+        Write record attributes to the database.
+        
+        Args:
+            record: MFT record
+        """
+        # Implementation for writing attributes would go here
+        pass
+        
     def create_indexes(self) -> None:
-        """Create additional performance indexes"""
+        """Create additional indexes for performance."""
         indexes = [
             "CREATE INDEX IF NOT EXISTS idx_record_active ON mft_records(is_active)",
             "CREATE INDEX IF NOT EXISTS idx_record_directory ON mft_records(is_directory)", 
@@ -376,10 +441,16 @@ class SQLiteWriter:
         self.logger.info("Additional indexes created")
         
     def get_statistics(self) -> Dict[str, Any]:
-        """Get database statistics"""
+        """
+        Get database statistics.
+        
+        Returns:
+            Dictionary of statistics
+        """
         stats = {}
         
-        try:            self.cursor.execute("SELECT COUNT(*) FROM mft_records")
+        try:
+            self.cursor.execute("SELECT COUNT(*) FROM mft_records")
             stats['total_records'] = self.cursor.fetchone()[0]
             
             self.cursor.execute("SELECT COUNT(*) FROM mft_records WHERE is_active = 1")
@@ -389,7 +460,9 @@ class SQLiteWriter:
             stats['directories'] = self.cursor.fetchone()[0]
             
             self.cursor.execute("SELECT COUNT(*) FROM mft_records WHERE is_deleted = 1")
-            stats['deleted_records'] = self.cursor.fetchone()[0]            self.cursor.execute("SELECT AVG(real_file_size), MAX(real_file_size) FROM mft_records WHERE real_file_size > 0")
+            stats['deleted_records'] = self.cursor.fetchone()[0]
+            
+            self.cursor.execute("SELECT AVG(real_file_size), MAX(real_file_size) FROM mft_records WHERE real_file_size > 0")
             avg_size, max_size = self.cursor.fetchone()
             stats['avg_file_size'] = avg_size
             stats['max_file_size'] = max_size

@@ -1,247 +1,36 @@
-# AnalyzeMFT
+### Brief Introduction
+**AnalyzeMFT** is a Python-based tool designed for parsing and analyzing the NTFS Master File Table (MFT). 
 
-AnalyzeMFT is a comprehensive Python tool for parsing and analyzing NTFS Master File Table (MFT) files. It converts binary MFT data into human-readable formats suitable for digital forensics investigations, file system analysis, and incident response activities.
+It transforms raw binary MFT data into structured, human-readable output suitable for digital forensics, incident response, and file system analysis. The tool supports a wide range of output formats and provides detailed metadata extraction, enabling investigators to examine file timestamps, attributes, and structural properties of NTFS volumes. 
 
-## Project Synopsis
+The primary purpose of AnalyzeMFT is to assist forensic analysts in reconstructing file system activity by decoding MFT records. Each record contains critical information such as file names, creation and modification times, file sizes, and directory relationships. The tool handles both active and deleted entries, allowing for comprehensive timeline analysis and artifact recovery. It includes robust error handling to manage corrupted or incomplete MFT entries, ensuring reliable processing even on damaged file systems. 
 
-This tool provides forensic analysts and security professionals with the ability to extract detailed file system metadata from NTFS volumes. AnalyzeMFT supports multiple output formats, configurable analysis profiles, and advanced features including hash computation, chunked processing for large files, and comprehensive timeline analysis.
+### Outputs
+Multiple output formats are supported to integrate with common forensic workflows. Users can export results as CSV, JSON, XML, or Excel files for review and reporting. For timeline analysis, the body file format compatible with mactime and other tools is available. SQLite export creates a relational database structure for querying and long-term storage. The TSK timeline and log2timeline CSV formats allow direct ingestion into established forensic platforms. 
 
-The project has evolved from a simple MFT parser into a full-featured forensic analysis platform with SQLite database integration, multiprocessing support, and extensive export capabilities.
+### Optimization
+Performance optimizations are built into the tool to handle large MFT files efficiently. Processing occurs in configurable chunks to manage memory usage, particularly important when analyzing MFTs that are hundreds of megabytes in size. Multiprocessing is used during hash computation to reduce processing time. Users can adjust the number of worker processes and chunk size based on system resources. Progress indicators provide real-time feedback during long-running operations. 
 
-## Features
+### Features
+The tool supports configurable analysis profiles to suit different operational needs. The default profile provides balanced processing for general use. The quick profile minimizes processing overhead for rapid triage. The forensic profile enables maximum data extraction, including all timestamp variants and extended attributes. The performance profile adjusts internal settings to prioritize speed and resource efficiency on large datasets. 
 
-### Core Analysis
-- Parse NTFS MFT files of any size
-- Extract file metadata, timestamps, and attributes
-- Support for all standard NTFS attribute types
-- Comprehensive record parsing with error handling
+Hash computation is available for file record attributes that include data runs. MD5, SHA256, SHA512, and CRC32 hashes can be generated for resident and non-resident data. This feature supports file identification and integrity verification. Hashing runs in parallel by default, with the number of processes configurable. Users can disable multiprocessing if running in constrained environments. 
 
-### Export Formats
-- CSV (Comma Separated Values)
-- JSON (JavaScript Object Notation)
-- XML (eXtensible Markup Language)
-- SQLite database with relational schema
-- Excel spreadsheets (.xlsx)
-- Body file format (for mactime)
-- TSK timeline format
-- Log2timeline CSV format
+Configuration is managed through command-line options or external files in JSON or YAML format. A configuration file can define output settings, analysis profiles, hash options, and filtering criteria. Sample configuration files can be generated using the --create-config option. The --list-profiles option displays all available built-in profiles and their descriptions. 
 
-### Performance Features
-- Streaming/chunked processing for large MFT files
-- Multiprocessing support for hash computation
-- Configurable chunk sizes for memory optimization
-- Progress tracking for long-running operations
+Input is specified using the -f option followed by the path to the MFT file. Output format is determined by the file extension or explicit export flags. The -o option sets the output destination. When exporting to SQLite, the --sqlite flag must be used. For CSV output, no additional flag is required if the output file ends in .csv. 
 
-### Analysis Profiles
-- **Default**: Standard analysis suitable for most use cases
-- **Quick**: Minimal processing for rapid triage
-- **Forensic**: Comprehensive analysis with all metadata
-- **Performance**: Optimized settings for large MFT files
+A test MFT generator is included for development and training purposes. Using the --generate-test-mft option, users can create synthetic MFT files with a specified number of records. This feature is useful for validating tool functionality, testing parsers, or creating demonstration data. 
 
-### Advanced Features
-- Hash computation (MD5, SHA256, SHA512, CRC32)
-- Configuration file support (JSON/YAML)
-- Test MFT generation for development and training
-- Extensible plugin architecture
-- Cross-platform compatibility
+Command-line options include verbosity controls with -v for increased output and -d for debug-level logging. These help diagnose issues during processing. Export options allow selection of format without relying on file extensions. Performance tuning options include --chunk-size for record batch size and --hash-processes to set the number of hashing threads. 
 
-## Requirements
+The tool includes a structured help system. Running the script with --help displays all available options and their descriptions. The usage summary shows required and optional arguments. Detailed explanations are provided for each category of options, including export, performance, configuration, and debugging settings. 
 
-- Python 3.8 or higher
-- Required dependencies listed in requirements.txt
-- Optional: PyYAML for YAML configuration support
+### Development
+Future development will focus on improving processing speed through parallel parsing of MFT records. Enhanced progress reporting with estimated time to completion will be added. Memory management will be further optimized for systems with limited RAM. New analysis features will include detection of timestamp anomalies, orphaned records, and directory hierarchy reconstruction. 
 
-## Installation
+Planned export formats include STIX/TAXII for threat intelligence sharing, and integration with Elasticsearch and Splunk for centralized log analysis. Graph database export to Neo4j will enable visualization of file system relationships. Users will be able to filter output by date range, file type, and size directly within the tool. An interactive mode may be introduced to allow step-by-step examination of records. 
 
-### From Source
-```bash
-git clone https://github.com/rowingdude/analyzeMFT.git
-cd analyzeMFT
-pip install -e .
-```
+Contributions to the project are accepted via GitHub pull requests. Developers must ensure compatibility with Python 3.8 and above. All new code must include type hints and comprehensive unit tests. The test suite is run using pytest, and coverage must remain above 80%. Code should follow PEP 8 guidelines and be cross-platform compatible. Documentation must be updated for any new features or changes. 
 
-### Dependencies
-Install required dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-Optional dependencies:
-```bash
-pip install PyYAML  # For YAML configuration support
-```
-
-## Usage
-
-### Basic Usage
-```bash
-# Analyze MFT and export to CSV
-python analyzeMFT.py -f /path/to/MFT -o output.csv
-
-# Export to SQLite database
-python analyzeMFT.py -f /path/to/MFT -o database.db --sqlite
-
-# Use forensic analysis profile
-python analyzeMFT.py -f /path/to/MFT -o output.csv --profile forensic
-
-# Compute file hashes during analysis
-python analyzeMFT.py -f /path/to/MFT -o output.csv --hash
-```
-
-### Advanced Usage
-```bash
-# Use configuration file
-python analyzeMFT.py -f /path/to/MFT -o output.csv --config config.json
-
-# Process large files with custom chunk size
-python analyzeMFT.py -f /path/to/MFT -o output.csv --chunk-size 500
-
-# Generate test MFT for development
-python analyzeMFT.py --generate-test-mft test.mft --test-records 1000
-
-# List available analysis profiles
-python analyzeMFT.py --list-profiles
-```
-
-### Command Line Options
-```
-Usage: analyzeMFT.py -f <mft_file> -o <output_file> [options]
-
-Export Options:
-  --csv               Export as CSV (default)
-  --json              Export as JSON
-  --xml               Export as XML
-  --excel             Export as Excel
-  --body              Export as body file (for mactime)
-  --timeline          Export as TSK timeline
-  --sqlite            Export as SQLite database
-  --tsk               Export as TSK bodyfile format
-
-Performance Options:
-  --chunk-size=SIZE   Number of records per chunk (default: 1000)
-  -H, --hash          Compute hashes (MD5, SHA256, SHA512, CRC32)
-  --no-multiprocessing-hashes
-                      Disable multiprocessing for hash computation
-  --hash-processes=N  Number of hash computation processes
-
-Configuration Options:
-  -c FILE, --config=FILE
-                      Load configuration from JSON/YAML file
-  --profile=NAME      Use analysis profile (default, quick, forensic, performance)
-  --list-profiles     List available analysis profiles
-  --create-config=FILE
-                      Create sample configuration file
-
-Verbosity Options:
-  -v                  Increase output verbosity
-  -d                  Increase debug output
-```
-
-## Output Example
-
-```
-Starting MFT analysis...
-Processing MFT file: /evidence/MFT
-Using chunk size: 1000 records
-MFT file size: 83,886,080 bytes, estimated 81,920 records
-Processed 10000 records...
-Processed 20000 records...
-MFT processing complete. Total records processed: 81,920
-Writing output in csv format to analysis_results.csv
-Analysis complete.
-
-MFT Analysis Statistics:
-Total records processed: 81,920
-Active records: 45,231
-Directories: 12,847
-Files: 69,073
-Unique MD5 hashes: 31,256
-Analysis complete. Results written to analysis_results.csv
-```
-
-## Upcoming Features
-
-The following enhancements are planned for future releases:
-
-### Performance & Scalability
-- Parallel processing for record parsing
-- Progress bars with ETA calculations
-- Enhanced memory optimization
-
-### Analysis Features
-- Anomaly detection for timeline gaps
-- Suspicious file size detection
-- Parent-child directory tree mapping
-- Orphaned file detection
-- Timestamp comparison analysis
-
-### User Experience
-- Date range filtering
-- File type and size filtering
-- Interactive web interface
-- Enhanced CLI with auto-completion
-
-### Export & Integration
-- STIX/TAXII format support
-- Elasticsearch/Splunk integration
-- Neo4j graph database export
-- Custom field selection
-
-## Contributing
-
-Contributions are welcome and encouraged. To contribute:
-
-### Requirements for Contributions
-- Python 3.8+ compatibility
-- Comprehensive unit tests for new features
-- Type hints for all new code
-- Documentation for new functionality
-- Cross-platform compatibility (Windows, Linux, macOS)
-
-### Development Setup
-```bash
-git clone https://github.com/rowingdude/analyzeMFT.git
-cd analyzeMFT
-pip install -e .
-pip install -r requirements-dev.txt
-```
-
-### Testing
-```bash
-# Run all tests
-pytest tests/
-
-# Run with coverage
-pytest tests/ --cov=src --cov-report=html
-```
-
-### Code Quality
-- Follow PEP 8 style guidelines
-- Use type hints throughout
-- Maintain test coverage above 80%
-- Document all public APIs
-
-### Submitting Changes
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes with tests
-4. Ensure all tests pass
-5. Submit a pull request
-
-## Version
-
-Current version: 3.0.6.6
-
-## Author
-
-Benjamin Cance (bjc@tdx.li)
-
-## License
-
-Copyright Benjamin Cance 2024
-
-Licensed under the MIT License. See LICENSE.txt for details.
-
-## Disclaimer
-
-This tool is provided as-is for legitimate forensic and security analysis purposes. Users are responsible for ensuring they have proper authorization before analyzing any file systems or MFT data. The authors assume no liability for misuse of this software.
+The current version is 3.1.1. The tool is authored by Benjamin Cance and is distributed under the MIT License. Full license terms are included in the LICENSE.txt file. Users are responsible for complying with applicable laws and regulations when using this software. The author disclaims liability for any misuse or unauthorized application of the tool. 

@@ -43,8 +43,26 @@ async def test_analyze(analyzer, mock_mft_file, mock_mft_record):
                 assert analyzer.stats['files'] == 1
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("export_format", ["csv", "json", "xml", "excel", "body", "timeline", "l2t"])
-async def test_analyze_with_different_export_formats(export_format, mock_mft_file, mock_mft_record):
+@pytest.mark.parametrize("export_format", ["csv", "body", "timeline", "l2t"])
+async def test_analyze_with_different_export_formats_fast(export_format, mock_mft_file, mock_mft_record):
+    analyzer = MftAnalyzer("test.mft", f"output.{export_format}", debug=0, verbosity=0, compute_hashes=False, export_format=export_format)
+    
+    with patch("builtins.open", mock_open(read_data=mock_mft_file)), \
+         patch("os.path.exists", return_value=True), \
+         patch("os.path.getsize", return_value=len(mock_mft_file)):
+        with patch("src.analyzeMFT.mft_analyzer.MftRecord", return_value=mock_mft_record):
+            with patch("src.analyzeMFT.mft_analyzer.get_writer") as mock_get_writer:
+                mock_writer = AsyncMock()
+                mock_get_writer.return_value = mock_writer
+                await analyzer.analyze()
+                
+                mock_get_writer.assert_called_once_with(export_format)
+                mock_writer.assert_called_once()
+
+@pytest.mark.asyncio
+@pytest.mark.slow
+@pytest.mark.parametrize("export_format", ["json", "xml", "excel"])
+async def test_analyze_with_different_export_formats_slow(export_format, mock_mft_file, mock_mft_record):
     analyzer = MftAnalyzer("test.mft", f"output.{export_format}", debug=0, verbosity=0, compute_hashes=False, export_format=export_format)
     
     with patch("builtins.open", mock_open(read_data=mock_mft_file)), \
@@ -216,6 +234,7 @@ async def test_handle_interrupt(analyzer):
         mock_loop.return_value.add_signal_handler.assert_called()
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_analyze_with_all_flags(mock_mft_file, mock_mft_record):
     analyzer = MftAnalyzer("test.mft", "output.csv", debug=1, verbosity=0, compute_hashes=True, export_format="json")
     

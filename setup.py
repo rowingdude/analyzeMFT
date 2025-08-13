@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='analyzeMFT',
-    version='3.1.0',
+    version='3.1.1',
     author='Benjamin Cance',
     author_email='kc8bws@kc8bws.com',
     package_dir={'': 'src'},
@@ -24,7 +24,6 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
@@ -32,7 +31,7 @@ setup(
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
     ],
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     install_requires=[
         "pywin32;platform_system=='Windows'",
         "openpyxl==3.1.5",

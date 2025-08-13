@@ -53,7 +53,7 @@ Command-line options include verbosity controls with -v for increased output and
 The tool includes a structured help system. Running the script with --help displays all available options and their descriptions. The usage summary shows required and optional arguments. Detailed explanations are provided for each category of options, including export, performance, configuration, and debugging settings. 
 
 ### Development
-Version 3.1.0 includes significant improvements to code quality and test coverage. The test suite now includes 224 comprehensive tests covering all major components. GitHub Actions CI/CD pipelines ensure code quality across Python 3.8-3.12 on Linux, Windows, and macOS. Security scanning with Bandit and dependency checking with Safety are integrated into the build process. Code coverage reporting through Codecov tracks test effectiveness. 
+Version 3.1.1 includes significant improvements to code quality and test coverage. The test suite now includes 224 comprehensive tests covering all major components. GitHub Actions CI/CD pipelines ensure code quality across Python 3.8-3.12 on Linux, Windows, and macOS. Security scanning with Bandit and dependency checking with Safety are integrated into the build process. Code coverage reporting through Codecov tracks test effectiveness. 
 
 Planned export formats include STIX/TAXII for threat intelligence sharing, and integration with Elasticsearch and Splunk for centralized log analysis. Graph database export to Neo4j will enable visualization of file system relationships. Users will be able to filter output by date range, file type, and size directly within the tool. An interactive mode may be introduced to allow step-by-step examination of records. 
 

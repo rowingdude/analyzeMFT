@@ -9,7 +9,7 @@ try:
     from importlib.metadata import version
     VERSION: Final[str] = version('analyzeMFT')
 except Exception:
-    VERSION: Final[str] = '3.1.0'  # Fallback version
+    VERSION: Final[str] = '3.1.1'  # Fallback version
 
 # =============================================================================
 # ENUM-LIKE CLASSES FOR BETTER TYPE SAFETY

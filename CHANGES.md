@@ -1,6 +1,16 @@
 ## Version 3.1.1
 
-Recent updates have significantly enhanced the test suite to ensure robustness, reliability, and comprehensive coverage of the analyzeMFT tool. The testing framework has been expanded to include quick, standard, and comprehensive validation levels, enabling flexible execution based on development or release needs. Tests now cover core functionality across all output formats (CSV, JSON, XML, SQLite, Body, Timeline, TSK), analysis profiles (Quick, Forensic, Default, Performance), and edge cases including error handling and cross-platform path compatibility. Integration and performance tests validate end-to-end workflows, while security checks and dependency scanning ensure code quality. These improvements guarantee consistent behavior across Python versions and operating systems, providing confidence in every release.
+### Testing & CI/CD
+- Fixed critical asyncio event loop errors in Python 3.8/3.9 test environments
+- Split slow tests (JSON/XML/Excel) from fast tests to prevent CI timeouts
+- All tests now pass across Python 3.8-3.12 on Windows, macOS, and Linux
+- Enhanced GitHub Actions workflows with proper test categorization
+- Improved test coverage to 77%+ across all modules
+
+### Bug Fixes
+- Resolved module import path issues in CLI entry point
+- Fixed asyncio.Event initialization in MftAnalyzer for older Python versions
+- Enhanced path resolution robustness for different deployment environments
 
 
 ## Version 3.1.0

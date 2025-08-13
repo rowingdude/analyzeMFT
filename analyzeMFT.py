@@ -30,7 +30,28 @@ def setup_path():
 
 def main():
     setup_path()
-    from analyzeMFT.cli import main as cli_main
+    # Debug information for GitHub Actions
+    import sys
+    print(f"Python version: {sys.version}")
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"sys.path (first 5): {sys.path[:5]}")
+    print(f"Contents of current directory: {os.listdir('.')}")
+    if os.path.exists('src'):
+        print(f"Contents of src directory: {os.listdir('src')}")
+        if os.path.exists('src/analyzeMFT'):
+            print(f"Contents of src/analyzeMFT directory: {os.listdir('src/analyzeMFT')}")
+    
+    try:
+        from analyzeMFT.cli import main as cli_main
+    except ImportError as e:
+        print(f"Import error: {e}")
+        # Try alternative import
+        try:
+            from src.analyzeMFT.cli import main as cli_main
+            print("Successfully imported using src.analyzeMFT.cli")
+        except ImportError as e2:
+            print(f"Alternative import also failed: {e2}")
+            raise
     
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())

@@ -62,9 +62,9 @@ jobs:
                     filepath = os.path.join(root, file)
                     try:
                         py_compile.compile(filepath, doraise=True)
-                        print(f'✓ {filepath}')
+                        print(f'OK {filepath}')
                     except Exception as e:
-                        print(f'✗ {filepath}: {e}')
+                        print(f'FAIL {filepath}: {e}')
                         failed.append(filepath)
         
         if failed:
@@ -153,7 +153,7 @@ jobs:
           echo "Error: Output file appears empty (only $lines lines)"
           exit 1
         fi
-        echo "✓ CLI test passed - generated $lines lines of output"
+        echo "SUCCESS: CLI test passed - generated $lines lines of output"
 
   quality:
     runs-on: ubuntu-latest

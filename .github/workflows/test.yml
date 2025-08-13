@@ -129,7 +129,7 @@ jobs:
         python analyzeMFT.py -f test.mft -o test_output.json --json
         test -f test_output.json || exit 1
         
-        echo "✓ CLI tests passed"
+        echo "SUCCESS: CLI tests passed"
 
   lint-and-security:
     name: Code Quality & Security
@@ -172,7 +172,7 @@ with open('bandit-report.json') as f:
             print(f\"  - {issue['filename']}:{issue['line_number']}: {issue['issue_text']}\")
         exit(1)
     else:
-        print('✓ No high severity security issues found')
+        print('SUCCESS: No high severity security issues found')
         "
 
   test-summary:

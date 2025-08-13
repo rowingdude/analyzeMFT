@@ -1,0 +1,198 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, master, develop, fix-git ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  fast-tests:
+    name: Fast Tests - Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-asyncio pytest-timeout
+        pip install -e .
+
+    - name: Run fast unit tests
+      run: |
+        pytest tests/ -v --tb=short \
+          --cov=src/analyzeMFT \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          --timeout=30 \
+          -m "not slow and not integration" \
+          --maxfail=10
+
+    - name: Upload coverage to Codecov
+      if: matrix.python-version == '3.11'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-${{ matrix.python-version }}
+        fail_ci_if_error: false
+
+  cross-platform-tests:
+    name: Platform Tests - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.11']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-timeout
+        pip install -e .
+
+    - name: Run core tests
+      run: |
+        pytest tests/test_config.py tests/test_constants.py tests/test_validators.py \
+          -v --tb=short --timeout=30
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: fast-tests
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-timeout
+        pip install -e .
+
+    - name: Run integration tests
+      run: |
+        pytest tests/test_integration.py -v --tb=short --timeout=60
+
+    - name: Test CLI
+      run: |
+        # Create test MFT
+        python -c "from src.analyzeMFT.test_generator import create_test_mft; create_test_mft('test.mft', 50)"
+        
+        # Test CSV export
+        python analyzeMFT.py -f test.mft -o test_output.csv --csv
+        test -f test_output.csv || exit 1
+        
+        # Test JSON export
+        python analyzeMFT.py -f test.mft -o test_output.json --json
+        test -f test_output.json || exit 1
+        
+        echo "✓ CLI tests passed"
+
+  lint-and-security:
+    name: Code Quality & Security
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 bandit
+
+    - name: Lint with flake8
+      run: |
+        # Stop on Python syntax errors or undefined names
+        flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Report all other issues as warnings
+        flake8 src/ --count --exit-zero --max-complexity=15 --max-line-length=120 --statistics
+
+    - name: Security check with bandit
+      run: |
+        # Run bandit excluding test assertion warnings
+        bandit -r src/ --skip B101,B311 -f json -o bandit-report.json || true
+        
+        # Check for high severity issues only
+        python -c "
+import json
+with open('bandit-report.json') as f:
+    report = json.load(f)
+    high_issues = [r for r in report.get('results', []) if r['issue_severity'] == 'HIGH']
+    if high_issues:
+        print('Found HIGH severity security issues:')
+        for issue in high_issues:
+            print(f\"  - {issue['filename']}:{issue['line_number']}: {issue['issue_text']}\")
+        exit(1)
+    else:
+        print('✓ No high severity security issues found')
+        "
+
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [fast-tests, cross-platform-tests, integration-tests, lint-and-security]
+    if: always()
+
+    steps:
+    - name: Check test results
+      run: |
+        echo "Test suite completed!"
+        echo "Fast tests: ${{ needs.fast-tests.result }}"
+        echo "Cross-platform: ${{ needs.cross-platform-tests.result }}"
+        echo "Integration: ${{ needs.integration-tests.result }}"
+        echo "Quality: ${{ needs.lint-and-security.result }}"
+        
+        if [ "${{ needs.fast-tests.result }}" != "success" ] || \
+           [ "${{ needs.cross-platform-tests.result }}" != "success" ] || \
+           [ "${{ needs.integration-tests.result }}" != "success" ]; then
+          echo "Some required tests failed"
+          exit 1
+        fi

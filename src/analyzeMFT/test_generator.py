@@ -39,7 +39,7 @@ class MFTTestGenerator:
             self.windows_time(modification_time),
             self.windows_time(entry_time),
             self.windows_time(access_time),
-            FILE_ATTRIBUTE_NORMAL if random.random() > 0.5 else FILE_ATTRIBUTE_HIDDEN
+            FILE_ATTRIBUTE_NORMAL if random.random() > 0.5 else FILE_ATTRIBUTE_HIDDEN  # nosec B311
         )
         
         si_data += b'\x00' * (48 - len(si_data))
@@ -61,7 +61,7 @@ class MFTTestGenerator:
         filename_bytes = filename.encode('utf-16le')
         filename_length = len(filename)
         now = datetime.now()
-        file_size = random.randint(0, 1048576)
+        file_size = random.randint(0, 1048576)  # nosec B311
         
         
         fn_data = struct.pack('<Q', parent_ref)
@@ -154,8 +154,8 @@ class MFTTestGenerator:
         record[0:4] = MFT_RECORD_MAGIC
         struct.pack_into('<H', record, 4, 48)  
         struct.pack_into('<H', record, 6, 3)   
-        struct.pack_into('<Q', record, 8, random.randint(1, 1000000))  
-        struct.pack_into('<H', record, 16, random.randint(1, 100))     
+        struct.pack_into('<Q', record, 8, random.randint(1, 1000000))  # nosec B311
+        struct.pack_into('<H', record, 16, random.randint(1, 100))     # nosec B311     
         struct.pack_into('<H', record, 18, 1 if not is_deleted else 0) 
         struct.pack_into('<H', record, 20, 56)  
         flags = FILE_RECORD_IN_USE if not is_deleted else 0
@@ -183,14 +183,14 @@ class MFTTestGenerator:
                 filename = f"TestDir_{record_number}"
             else:
                 extensions = ['.txt', '.doc', '.exe', '.dll', '.log', '.dat']
-                filename = f"TestFile_{record_number}{random.choice(extensions)}"
+                filename = f"TestFile_{record_number}{random.choice(extensions)}"  # nosec B311
         
         fn_attr = self.create_filename_attribute(filename, parent_ref)
         record[offset:offset+len(fn_attr)] = fn_attr
         offset += len(fn_attr)
         
         if not is_directory:
-            data_size = random.choice([0, 512, 4096, 65536, 1048576])
+            data_size = random.choice([0, 512, 4096, 65536, 1048576])  # nosec B311
             data_attr = self.create_data_attribute(data_size)
             record[offset:offset+len(data_attr)] = data_attr
             offset += len(data_attr)
@@ -238,9 +238,9 @@ class MFTTestGenerator:
                 start_record = 0
             
             for i in range(start_record, num_records):
-                is_directory = random.random() < directory_rate
-                is_deleted = random.random() < deletion_rate
-                parent_ref = random.choice(directories) if directories else 5
+                is_directory = random.random() < directory_rate  # nosec B311
+                is_deleted = random.random() < deletion_rate    # nosec B311
+                parent_ref = random.choice(directories) if directories else 5  # nosec B311
                 
                 record = self.create_mft_record(
                     i,
@@ -301,8 +301,8 @@ class MFTTestGenerator:
             for i in range(12, 100):
                 record = self.create_mft_record(
                     i,
-                    is_directory=(random.random() < 0.2),
-                    is_deleted=(random.random() < 0.1)
+                    is_directory=(random.random() < 0.2),  # nosec B311
+                    is_deleted=(random.random() < 0.1)    # nosec B311
                 )
                 f.write(record)
         

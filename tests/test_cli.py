@@ -72,10 +72,16 @@ async def test_main_with_different_export_formats(mock_analyzer, export_flag, fo
         expected_output = f'/abs/output.{output_ext}'
         mock_validate.return_value = ('/abs/test.mft', expected_output)
         
-        # Excel format requires openpyxl, so expect validation failure
+        # Excel format might work if openpyxl is available (especially in CI)
         if format_name == 'excel':
-            with pytest.raises(SystemExit):
+            try:
+                import openpyxl
+                # openpyxl is available, should succeed
                 await main()
+            except ImportError:
+                # openpyxl not available, should fail
+                with pytest.raises(SystemExit):
+                    await main()
             return
         
         await main()
@@ -186,7 +192,17 @@ async def test_main_with_help_option(capsys):
 async def test_main_with_analyzer_exception(mock_analyzer, caplog):
     mock_analyzer.return_value.analyze = AsyncMock(side_effect=Exception("Test error"))
     test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv']
-    with patch.object(sys, 'argv', test_args):
+    
+    with patch.object(sys, 'argv', test_args), \
+         patch('src.analyzeMFT.cli.validate_mft_file') as mock_validate_mft, \
+         patch('src.analyzeMFT.cli.validate_output_path') as mock_validate_output, \
+         patch('src.analyzeMFT.cli.validate_paths_secure') as mock_validate_paths:
+        
+        # Mock validation to pass
+        mock_validate_mft.return_value = True
+        mock_validate_output.return_value = True
+        mock_validate_paths.return_value = ('test.mft', 'output.csv')
+        
         with pytest.raises(SystemExit):
             await main()
 
@@ -196,7 +212,17 @@ async def test_main_with_analyzer_exception(mock_analyzer, caplog):
 async def test_main_with_keyboard_interrupt(mock_analyzer, caplog):
     mock_analyzer.return_value.analyze = AsyncMock(side_effect=KeyboardInterrupt())
     test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv']
-    with patch.object(sys, 'argv', test_args):
+    
+    with patch.object(sys, 'argv', test_args), \
+         patch('src.analyzeMFT.cli.validate_mft_file') as mock_validate_mft, \
+         patch('src.analyzeMFT.cli.validate_output_path') as mock_validate_output, \
+         patch('src.analyzeMFT.cli.validate_paths_secure') as mock_validate_paths:
+        
+        # Mock validation to pass
+        mock_validate_mft.return_value = True
+        mock_validate_output.return_value = True
+        mock_validate_paths.return_value = ('test.mft', 'output.csv')
+        
         with pytest.raises(SystemExit):
             await main()
 

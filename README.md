@@ -6,6 +6,22 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+## Quick Start
+
+```bash
+# Install
+pip install analyzeMFT
+
+# Basic usage
+python analyzeMFT.py -f MFT_FILE -o output.csv --csv
+
+# Generate test MFT for testing
+python -c "from src.analyzeMFT.test_generator import create_test_mft; create_test_mft('test.mft', 100)"
+
+# Analyze with multiple outputs
+python analyzeMFT.py -f test.mft -o output.json --json --hash
+```
+
 ### Brief Introduction
 **AnalyzeMFT** is a Python-based tool designed for parsing and analyzing the NTFS Master File Table (MFT). 
 

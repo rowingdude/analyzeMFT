@@ -1,0 +1,64 @@
+name: Slow Tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run slow tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  slow-tests:
+    name: Slow Tests - ${{ matrix.os }} Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.11']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-timeout
+        pip install -e .
+
+    - name: Run slow integration tests
+      run: |
+        pytest tests/ -v --tb=short \
+          --timeout=300 \
+          -m "slow" \
+          --maxfail=3
+
+    - name: Test large record processing
+      run: |
+        # Test with a larger synthetic MFT
+        python -c "
+from src.analyzeMFT.test_generator import create_test_mft
+create_test_mft('large_test.mft', 5000)
+"
+        python analyzeMFT.py -f large_test.mft -o large_output.csv --csv
+        
+        # Verify output
+        python -c "
+import csv
+with open('large_output.csv') as f:
+    reader = csv.reader(f)
+    rows = list(reader)
+    print(f'Processed {len(rows)-1} records')  # -1 for header
+    assert len(rows) > 5000, f'Expected >5000 rows, got {len(rows)}'
+"
+        
+        echo "Large test completed successfully"

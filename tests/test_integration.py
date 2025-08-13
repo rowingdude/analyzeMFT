@@ -96,6 +96,8 @@ def test_synthetic_mft_analysis(analyzed_output):
     # assert any(record['Filename'] == 'Windows' and record['File Type'] == 'Directory' for record in records), "Windows directory not found"
     print("Synthetic MFT analysis test passed successfully!")
 
+@pytest.mark.slow
+@pytest.mark.integration  
 def test_synthetic_mft_statistics(synthetic_mft):
     analyzer = MftAnalyzer(synthetic_mft, "temp_output.csv", debug=False, compute_hashes=True, export_format="csv")
     asyncio.run(analyzer.analyze())

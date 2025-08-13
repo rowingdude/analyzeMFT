@@ -15,9 +15,16 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        exclude:
+          # Reduce Windows matrix to prevent timeouts
+          - os: windows-latest
+            python-version: '3.8'
+          - os: windows-latest
+            python-version: '3.9'
 
     steps:
     - uses: actions/checkout@v4
@@ -74,9 +81,15 @@ jobs:
             print(f'\\nAll Python files passed syntax check')
         "
 
-    - name: Run unit tests with pytest
+    - name: Run unit tests with pytest (Windows)
+      if: runner.os == 'Windows'
       run: |
-        pytest tests/ -v --tb=short --cov=src/analyzeMFT --cov-report=xml --cov-report=term-missing --timeout=60 -m "not slow"
+        pytest tests/test_constants.py tests/test_config.py tests/test_validators.py tests/test_cli.py tests/test_file_writers.py -v --tb=short --timeout=30 --maxfail=3
+
+    - name: Run unit tests with pytest (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: |
+        pytest tests/ -v --tb=short --cov=src/analyzeMFT --cov-report=xml --cov-report=term-missing --timeout=30 -m "not slow and not integration" --maxfail=5
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3

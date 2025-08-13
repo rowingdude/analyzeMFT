@@ -195,6 +195,7 @@ async def test_write_csv_block(analyzer, mock_mft_record):
     assert len(analyzer.mft_records) == 0
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_analyze_large_number_of_records(analyzer, mock_mft_file, mock_mft_record):
     large_mft_file = mock_mft_file * 10000
     with patch("builtins.open", mock_open(read_data=large_mft_file)), \

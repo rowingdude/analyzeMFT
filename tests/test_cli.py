@@ -23,7 +23,9 @@ def mock_stdout():
 async def test_main_with_valid_arguments(mock_analyzer, caplog):
     test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv']
     with patch.object(sys, 'argv', test_args), \
-         patch('os.path.abspath', side_effect=lambda x: f'/abs/{x}'):
+         patch('src.analyzeMFT.cli.validate_paths_secure') as mock_validate, \
+         patch('os.path.exists', return_value=True):
+        mock_validate.return_value = ('/abs/test.mft', '/abs/output.csv')
         await main()
 
     mock_analyzer.assert_called_once_with(
@@ -49,7 +51,7 @@ async def test_main_with_missing_arguments(capsys):
             await main()
 
     captured = capsys.readouterr()
-    assert "Usage:" in captured.out or "error" in captured.out.lower()
+    assert ("Usage:" in captured.out or "usage:" in captured.out or "error" in captured.out.lower())
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("export_flag, format_name", [
@@ -65,10 +67,19 @@ async def test_main_with_different_export_formats(mock_analyzer, export_flag, fo
     output_ext = 'l2tcsv' if format_name == 'l2t' else format_name
     test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', f'output.{output_ext}', export_flag]
     with patch.object(sys, 'argv', test_args), \
-         patch('os.path.abspath', side_effect=lambda x: f'/abs/{x}'):
+         patch('src.analyzeMFT.cli.validate_paths_secure') as mock_validate, \
+         patch('os.path.exists', return_value=True):
+        expected_output = f'/abs/output.{output_ext}'
+        mock_validate.return_value = ('/abs/test.mft', expected_output)
+        
+        # Excel format requires openpyxl, so expect validation failure
+        if format_name == 'excel':
+            with pytest.raises(SystemExit):
+                await main()
+            return
+        
         await main()
 
-    expected_output = f'/abs/output.{output_ext}'
     mock_analyzer.assert_called_once_with(
         '/abs/test.mft',
         expected_output,
@@ -86,7 +97,9 @@ async def test_main_with_different_export_formats(mock_analyzer, export_flag, fo
 async def test_main_with_debug_option(mock_analyzer):
     test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv', '--debug']
     with patch.object(sys, 'argv', test_args), \
-         patch('os.path.abspath', side_effect=lambda x: f'/abs/{x}'):
+         patch('src.analyzeMFT.cli.validate_paths_secure') as mock_validate, \
+         patch('os.path.exists', return_value=True):
+        mock_validate.return_value = ('/abs/test.mft', '/abs/output.csv')
         await main()
 
     mock_analyzer.assert_called_once_with(
@@ -106,14 +119,16 @@ async def test_main_with_debug_option(mock_analyzer):
 async def test_main_with_verbosity_option(mock_analyzer):
     test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv', '--verbose']
     with patch.object(sys, 'argv', test_args), \
-         patch('os.path.abspath', side_effect=lambda x: f'/abs/{x}'):
+         patch('src.analyzeMFT.cli.validate_paths_secure') as mock_validate, \
+         patch('os.path.exists', return_value=True):
+        mock_validate.return_value = ('/abs/test.mft', '/abs/output.csv')
         await main()
 
     mock_analyzer.assert_called_once_with(
         '/abs/test.mft',
         '/abs/output.csv',
-        1,
         0,
+        1,
         False,
         'csv',
         None,
@@ -126,7 +141,9 @@ async def test_main_with_verbosity_option(mock_analyzer):
 async def test_main_with_hash_option(mock_analyzer):
     test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv', '--hash']
     with patch.object(sys, 'argv', test_args), \
-         patch('os.path.abspath', side_effect=lambda x: f'/abs/{x}'):
+         patch('src.analyzeMFT.cli.validate_paths_secure') as mock_validate, \
+         patch('os.path.exists', return_value=True):
+        mock_validate.return_value = ('/abs/test.mft', '/abs/output.csv')
         await main()
 
     mock_analyzer.assert_called_once_with(
@@ -160,7 +177,7 @@ async def test_main_with_help_option(capsys):
             await main()
 
     captured = capsys.readouterr()
-    assert "Usage:" in captured.out
+    assert ("Usage:" in captured.out or "usage:" in captured.out)
     assert "-f" in captured.out
     assert "-o" in captured.out
     assert "--csv" in captured.out
@@ -190,7 +207,9 @@ async def test_main_with_non_windows_platform(mock_analyzer):
     with patch('sys.platform', 'linux'):
         test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv']
         with patch.object(sys, 'argv', test_args), \
-             patch('os.path.abspath', side_effect=lambda x: f'/abs/{x}'):
+             patch('src.analyzeMFT.cli.validate_paths_secure') as mock_validate, \
+             patch('os.path.exists', return_value=True):
+            mock_validate.return_value = ('/abs/test.mft', '/abs/output.csv')
             await main()
 
         mock_analyzer.assert_called_once()

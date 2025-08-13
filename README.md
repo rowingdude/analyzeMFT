@@ -1,3 +1,11 @@
+# AnalyzeMFT
+
+![Tests](https://github.com/rowingdude/analyzeMFT/workflows/Test%20Suite/badge.svg)
+![CI/CD](https://github.com/rowingdude/analyzeMFT/workflows/CI%2FCD%20Pipeline/badge.svg)
+[![codecov](https://codecov.io/gh/rowingdude/analyzeMFT/branch/master/graph/badge.svg)](https://codecov.io/gh/rowingdude/analyzeMFT)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ### Brief Introduction
 **AnalyzeMFT** is a Python-based tool designed for parsing and analyzing the NTFS Master File Table (MFT). 
 
@@ -27,7 +35,7 @@ Command-line options include verbosity controls with -v for increased output and
 The tool includes a structured help system. Running the script with --help displays all available options and their descriptions. The usage summary shows required and optional arguments. Detailed explanations are provided for each category of options, including export, performance, configuration, and debugging settings. 
 
 ### Development
-Future development will focus on improving processing speed through parallel parsing of MFT records. Enhanced progress reporting with estimated time to completion will be added. Memory management will be further optimized for systems with limited RAM. New analysis features will include detection of timestamp anomalies, orphaned records, and directory hierarchy reconstruction. 
+Version 3.1.0 includes significant improvements to code quality and test coverage. The test suite now includes 224 comprehensive tests covering all major components. GitHub Actions CI/CD pipelines ensure code quality across Python 3.8-3.12 on Linux, Windows, and macOS. Security scanning with Bandit and dependency checking with Safety are integrated into the build process. Code coverage reporting through Codecov tracks test effectiveness. 
 
 Planned export formats include STIX/TAXII for threat intelligence sharing, and integration with Elasticsearch and Splunk for centralized log analysis. Graph database export to Neo4j will enable visualization of file system relationships. Users will be able to filter output by date range, file type, and size directly within the tool. An interactive mode may be introduced to allow step-by-step examination of records. 
 

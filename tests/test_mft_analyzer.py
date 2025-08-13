@@ -26,7 +26,9 @@ def analyzer():
 
 @pytest.mark.asyncio
 async def test_analyze(analyzer, mock_mft_file, mock_mft_record):
-    with patch("builtins.open", mock_open(read_data=mock_mft_file)):
+    with patch("builtins.open", mock_open(read_data=mock_mft_file)), \
+         patch("os.path.exists", return_value=True), \
+         patch("os.path.getsize", return_value=len(mock_mft_file)):
         with patch("src.analyzeMFT.mft_analyzer.MftRecord", return_value=mock_mft_record):
             with patch("src.analyzeMFT.mft_analyzer.get_writer") as mock_get_writer:
                 mock_writer = AsyncMock()
@@ -45,7 +47,9 @@ async def test_analyze(analyzer, mock_mft_file, mock_mft_record):
 async def test_analyze_with_different_export_formats(export_format, mock_mft_file, mock_mft_record):
     analyzer = MftAnalyzer("test.mft", f"output.{export_format}", debug=0, verbosity=0, compute_hashes=False, export_format=export_format)
     
-    with patch("builtins.open", mock_open(read_data=mock_mft_file)):
+    with patch("builtins.open", mock_open(read_data=mock_mft_file)), \
+         patch("os.path.exists", return_value=True), \
+         patch("os.path.getsize", return_value=len(mock_mft_file)):
         with patch("src.analyzeMFT.mft_analyzer.MftRecord", return_value=mock_mft_record):
             with patch("src.analyzeMFT.mft_analyzer.get_writer") as mock_get_writer:
                 mock_writer = AsyncMock()
@@ -59,7 +63,9 @@ async def test_analyze_with_different_export_formats(export_format, mock_mft_fil
 async def test_analyze_with_compute_hashes(mock_mft_file, mock_mft_record):
     analyzer = MftAnalyzer("test.mft", "output.csv", debug=0, verbosity=0, compute_hashes=True, export_format="csv")
     
-    with patch("builtins.open", mock_open(read_data=mock_mft_file)):
+    with patch("builtins.open", mock_open(read_data=mock_mft_file)), \
+         patch("os.path.exists", return_value=True), \
+         patch("os.path.getsize", return_value=len(mock_mft_file)):
         with patch("src.analyzeMFT.mft_analyzer.MftRecord", return_value=mock_mft_record):
             with patch("src.analyzeMFT.mft_analyzer.get_writer") as mock_get_writer:
                 mock_writer = AsyncMock()
@@ -75,7 +81,9 @@ async def test_analyze_with_compute_hashes(mock_mft_file, mock_mft_record):
 async def test_analyze_with_debug(caplog, mock_mft_file, mock_mft_record):
     analyzer = MftAnalyzer("test.mft", "output.csv", debug=2, verbosity=0, compute_hashes=False, export_format="csv")
     
-    with patch("builtins.open", mock_open(read_data=mock_mft_file)):
+    with patch("builtins.open", mock_open(read_data=mock_mft_file)), \
+         patch("os.path.exists", return_value=True), \
+         patch("os.path.getsize", return_value=len(mock_mft_file)):
         with patch("src.analyzeMFT.mft_analyzer.MftRecord", return_value=mock_mft_record):
             with patch("src.analyzeMFT.mft_analyzer.get_writer") as mock_get_writer:
                 mock_writer = AsyncMock()
@@ -189,7 +197,9 @@ async def test_write_csv_block(analyzer, mock_mft_record):
 @pytest.mark.asyncio
 async def test_analyze_large_number_of_records(analyzer, mock_mft_file, mock_mft_record):
     large_mft_file = mock_mft_file * 10000
-    with patch("builtins.open", mock_open(read_data=large_mft_file)):
+    with patch("builtins.open", mock_open(read_data=large_mft_file)), \
+         patch("os.path.exists", return_value=True), \
+         patch("os.path.getsize", return_value=len(large_mft_file)):
         with patch("src.analyzeMFT.mft_analyzer.MftRecord", return_value=mock_mft_record):
             with patch("src.analyzeMFT.mft_analyzer.get_writer") as mock_get_writer:
                 mock_writer = AsyncMock()
@@ -208,7 +218,9 @@ async def test_handle_interrupt(analyzer):
 async def test_analyze_with_all_flags(mock_mft_file, mock_mft_record):
     analyzer = MftAnalyzer("test.mft", "output.csv", debug=1, verbosity=0, compute_hashes=True, export_format="json")
     
-    with patch("builtins.open", mock_open(read_data=mock_mft_file)):
+    with patch("builtins.open", mock_open(read_data=mock_mft_file)), \
+         patch("os.path.exists", return_value=True), \
+         patch("os.path.getsize", return_value=len(mock_mft_file)):
         with patch("src.analyzeMFT.mft_analyzer.MftRecord", return_value=mock_mft_record):
             with patch("src.analyzeMFT.mft_analyzer.get_writer") as mock_get_writer:
                 mock_writer = AsyncMock()

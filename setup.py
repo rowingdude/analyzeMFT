@@ -35,7 +35,7 @@ setup(
     python_requires=">=3.7",
     install_requires=[
         "pywin32;platform_system=='Windows'",
-        "openpyxl==3.0.10",
+        "openpyxl==3.1.5",
     ],
     entry_points={
         'console_scripts': [

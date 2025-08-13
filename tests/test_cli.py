@@ -189,40 +189,32 @@ async def test_main_with_help_option(capsys):
     assert "--csv" in captured.out
 
 @pytest.mark.asyncio
-async def test_main_with_analyzer_exception(mock_analyzer, caplog):
-    mock_analyzer.return_value.analyze = AsyncMock(side_effect=Exception("Test error"))
-    test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv']
+async def test_main_with_analyzer_exception(mock_analyzer, caplog, tmp_path):
+    # Create real temp files to pass validation
+    mft_file = tmp_path / "test.mft"
+    output_file = tmp_path / "output.csv"
+    mft_file.write_bytes(b"FILE0" + b"\x00" * 1020)  # Make it 1025 bytes
     
-    with patch.object(sys, 'argv', test_args), \
-         patch('src.analyzeMFT.cli.validate_mft_file') as mock_validate_mft, \
-         patch('src.analyzeMFT.cli.validate_output_path') as mock_validate_output, \
-         patch('src.analyzeMFT.cli.validate_paths_secure') as mock_validate_paths:
-        
-        # Mock validation to pass
-        mock_validate_mft.return_value = True
-        mock_validate_output.return_value = True
-        mock_validate_paths.return_value = ('test.mft', 'output.csv')
-        
+    mock_analyzer.return_value.analyze = AsyncMock(side_effect=Exception("Test error"))
+    test_args = ['analyzeMFT.py', '-f', str(mft_file), '-o', str(output_file)]
+    
+    with patch.object(sys, 'argv', test_args):
         with pytest.raises(SystemExit):
             await main()
 
     assert "An unexpected error occurred: Test error" in caplog.text
 
 @pytest.mark.asyncio
-async def test_main_with_keyboard_interrupt(mock_analyzer, caplog):
-    mock_analyzer.return_value.analyze = AsyncMock(side_effect=KeyboardInterrupt())
-    test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv']
+async def test_main_with_keyboard_interrupt(mock_analyzer, caplog, tmp_path):
+    # Create real temp files to pass validation
+    mft_file = tmp_path / "test.mft"
+    output_file = tmp_path / "output.csv"
+    mft_file.write_bytes(b"FILE0" + b"\x00" * 1020)  # Make it 1025 bytes
     
-    with patch.object(sys, 'argv', test_args), \
-         patch('src.analyzeMFT.cli.validate_mft_file') as mock_validate_mft, \
-         patch('src.analyzeMFT.cli.validate_output_path') as mock_validate_output, \
-         patch('src.analyzeMFT.cli.validate_paths_secure') as mock_validate_paths:
-        
-        # Mock validation to pass
-        mock_validate_mft.return_value = True
-        mock_validate_output.return_value = True
-        mock_validate_paths.return_value = ('test.mft', 'output.csv')
-        
+    mock_analyzer.return_value.analyze = AsyncMock(side_effect=KeyboardInterrupt())
+    test_args = ['analyzeMFT.py', '-f', str(mft_file), '-o', str(output_file)]
+    
+    with patch.object(sys, 'argv', test_args):
         with pytest.raises(SystemExit):
             await main()
 
@@ -249,8 +241,16 @@ def test_main_with_invalid_file_path(caplog):
     assert ("Error reading MFT file" in caplog.text or "Validation Error" in caplog.text)
     assert ("No such file or directory" in caplog.text or "not found" in caplog.text)
 
-def test_main_with_config_file(mock_analyzer):
-    test_args = ['analyzeMFT.py', '-f', 'test.mft', '-o', 'output.csv', '-c', 'config.json']
+@pytest.mark.asyncio
+async def test_main_with_config_file(mock_analyzer, tmp_path):
+    # Create real temp files to pass validation
+    mft_file = tmp_path / "test.mft"
+    output_file = tmp_path / "output.csv"
+    config_file = tmp_path / "config.json"
+    mft_file.write_bytes(b"FILE0" + b"\x00" * 1020)  # Make it 1025 bytes
+    config_file.write_text('{"profile_name": "default", "verbosity": 1}')
+    
+    test_args = ['analyzeMFT.py', '-f', str(mft_file), '-o', str(output_file), '-c', str(config_file)]
     
     mock_config_data = {'profile_name': 'default', 'verbosity': 1}
     
@@ -263,17 +263,16 @@ def test_main_with_config_file(mock_analyzer):
     )
     
     with patch.object(sys, 'argv', test_args), \
-         patch('os.path.abspath', side_effect=lambda x: f'/abs/{x}'), \
          patch('src.analyzeMFT.config.ConfigManager.load_config_file', return_value=mock_config_data), \
          patch('src.analyzeMFT.config.ConfigManager.load_profile_from_config', return_value=mock_profile):
-        asyncio.run(main())
+        await main()
 
     # The actual call arguments from the CLI
     mock_analyzer.assert_called_once()
     
     call_args = mock_analyzer.call_args[0]
-    assert call_args[0].endswith('test.mft')  # filename  
-    assert call_args[1].endswith('output.csv')  # output file
+    assert str(mft_file) in call_args[0]  # filename  
+    assert str(output_file) in call_args[1]  # output file
     assert call_args[2] == 0  # verbosity from options (not profile)
     assert call_args[3] == 1  # debug from profile  
     assert call_args[4] == False  # compute hashes

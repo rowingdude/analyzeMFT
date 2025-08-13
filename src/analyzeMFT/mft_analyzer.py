@@ -52,12 +52,12 @@ class MftAnalyzer:
         self.csv_writer = None
         self.sqlite_writer = None
         self.hash_processor = None
-        self.interrupt_flag = asyncio.Event()
+        self._interrupt_flag = None
         self.logger = logging.getLogger('analyzeMFT.analyzer')
         
         self.setup_logging()
         self.setup_interrupt_handler()
-        
+
         self.mft_records: Dict[int, MftRecord] = {}
         self.current_chunk: List[MftRecord] = []
         self.chunk_count = 0
@@ -77,6 +77,13 @@ class MftAnalyzer:
                 'unique_sha512': set(),
                 'unique_crc32': set(),
             })
+
+    @property
+    def interrupt_flag(self):
+        """Lazily create interrupt flag when needed"""
+        if self._interrupt_flag is None:
+            self._interrupt_flag = asyncio.Event()
+        return self._interrupt_flag
 
     def setup_logging(self) -> None:
         if self.debug >= 2:
